@@ -29,6 +29,8 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     private readonly Dictionary<TileGrid.Tile, GameObject> _availableTiles = new Dictionary<TileGrid.Tile, GameObject>();
     private readonly List<TileGrid.Tile> _removalBuffer = new List<TileGrid.Tile>();
 
+    private readonly HashSet<TileGrid.Tile> _availableSet = new HashSet<TileGrid.Tile>();
+    
     private TileGrid.Tile _highlightedTile;
     private GameObject _selectedTileInstance;
 
@@ -73,8 +75,9 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             selection.SelectionChanged -= OnSelectionChanged;
         if (tileDeck != null)
             tileDeck.DeckEmptied -= OnDeckEmptied;
-        ClearAvailableTiles();
+        _availableTiles.Clear();
         ClearSelectedTileHighlight();
+        _availableSet.Clear();
     }
 
     private void Update()
@@ -89,62 +92,38 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
     private void RefreshAvailability()
     {
-        if (availability == null)
-        {
-            ClearAvailableTiles();
-            return;
-        }
+        ClearAllGhosts();
 
-        var currentlyAvailable = new HashSet<TileGrid.Tile>();
         foreach (var tile in availability.GetAvailable())
         {
-            if (tile == null) continue;
-            var rt = runtime?.Get(tile);
-            if (rt != null && rt.occupied) continue;
-
-            currentlyAvailable.Add(tile);
-            if (_availableTiles.ContainsKey(tile)) continue;
-
+            _availableSet.Add(tile);
+            
             var instance = placement?.PlaceAvailability(tile, availableAlpha, availableTag);
             if (instance != null)
                 _availableTiles.Add(tile, instance);
+            
         }
-
-        RemoveStaleAvailableTiles(currentlyAvailable);
     }
-
-    private void ClearAvailableTiles()
+    private void ClearAllGhosts()
     {
         foreach (var kvp in _availableTiles)
             placement?.RemoveAvailability(kvp.Key);
 
         _availableTiles.Clear();
-    }
-
-    private void RemoveStaleAvailableTiles(HashSet<TileGrid.Tile> currentlyAvailable)
-    {
-        _removalBuffer.Clear();
-
-        foreach (var kvp in _availableTiles)
-            if (!currentlyAvailable.Contains(kvp.Key))
-                _removalBuffer.Add(kvp.Key);
-
-        foreach (var tile in _removalBuffer)
-            RemoveAvailableTile(tile);
-
-        _removalBuffer.Clear();
-    }
-
-    private void RemoveAvailableTile(TileGrid.Tile tile)
-    {
-        if (!_availableTiles.ContainsKey(tile)) return;
-
-        placement?.RemoveAvailability(tile);
-        _availableTiles.Remove(tile);
+        _availableSet.Clear();
     }
 
     private void UpdateSelectedTileHighlight(TileGrid.Tile tile)
     {
+        if (tile != null)
+        {
+            var runtimeTile = runtime?.Get(tile);
+            if (runtimeTile == null || runtimeTile.occupied || !runtimeTile.available)
+            {
+                selection?.ClearSelectedTile();
+                tile = null;
+            }
+        }
         if (tile == _highlightedTile) return;
 
         if (_highlightedTile != null)
@@ -181,10 +160,13 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
     private void TryPlaceHighlightedTile()
     {
+        if (!_availableSet.Contains(_highlightedTile))
+        {
+            return;
+        }
         if (!isActiveAndEnabled || !Application.isPlaying || _deckDepleted)
             return;
         
-
         if (_highlightedTile == null)
             return;
 
@@ -193,10 +175,15 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
             return;
+
         if (!IsPointerOverHighlightedTile(position))
             return;
 
         if (placement == null)
+            return;
+
+        var runtimeTile = runtime?.Get(_highlightedTile);
+        if (runtimeTile == null || runtimeTile.occupied || !runtimeTile.available)
             return;
 
         var rotation = grid ? grid.transform.rotation : Quaternion.identity;
@@ -261,7 +248,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     {
         _deckDepleted = true;
         ClearSelectedTileHighlight();
-        ClearAvailableTiles();
+        _availableTiles.Clear();
         enabled = false;
     }
 }
