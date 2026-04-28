@@ -6,6 +6,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TileGrid tileGrid;
     [SerializeField] private TilePlacementService placement;
     [SerializeField] private TileRuntimeStore runtime;
+    [SerializeField] private  TileDeck tileDeck;
 
     [Header("Starting Tile")]
     [SerializeField] private bool placeStartingTileOnStart = true;
@@ -15,6 +16,7 @@ public class GameManager : MonoBehaviour
         if (!tileGrid)   tileGrid   = FindAnyObjectByType<TileGrid>();
         if (!placement)  placement  = FindAnyObjectByType<TilePlacementService>();
         if (!runtime)    runtime    = FindAnyObjectByType<TileRuntimeStore>();
+        if (!tileDeck)    tileDeck    = FindAnyObjectByType<TileDeck>();
     }
 
     private void Start()
@@ -38,7 +40,7 @@ public class GameManager : MonoBehaviour
 
         var rotation = tileGrid.transform.rotation;
 
-        var instance = placement.PlaceOccupant(centerTile, rotation);
+        var instance = placement.PlaceOccupant(centerTile, rotation, tileDeck.DrawTile());
         if (instance == null)
             return;
     }

@@ -11,12 +11,23 @@ public class TileGrid : MonoBehaviour
     [Min(1)] public int cols = 200;
     public bool rebuildOnValidate = true;
 
+    [Header("Rozmiar heksu")]
+    [Tooltip("Gdy włączone — kafle używają wymuszonego circumradius (R) zamiast skali z bounds meshu GridPlane.")]
+    public bool useFixedHexRadius = true;
+    [Min(0.01f), Tooltip("Wymuszony circumradius w metrach. R = 5 ⇒ 2R = 10 m.")]
+    public float fixedHexRadius = 5f;
+    [Tooltip("Po przebudowie siatki automatycznie skaluj transform tego obiektu tak, żeby mesh GridPlane pokrył obszar wszystkich kafli.")]
+    public bool autoFitGroundPlane = true;
+
     [System.Serializable]
     public class Tile
     {
         public int i, j;
         public int q, r;
         public Vector3 worldPos;
+        [System.NonSerialized] public TileGrid grid;
+
+        public IEnumerable<Tile> GetNeighbors() => grid?.GetNeighbors(this);
     }
 
     public List<Tile> tiles = new List<Tile>();
@@ -54,54 +65,30 @@ public class TileGrid : MonoBehaviour
         if (rows < 1 || cols < 1) return;
         _grid = new Tile[rows, cols];
 
-        var localPositions = new Vector2[rows * cols];
-        int index = 0;
-        float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
-        float minZ = float.PositiveInfinity, maxZ = float.NegativeInfinity;
+        _hexScale = useFixedHexRadius && fixedHexRadius > 0.0001f
+            ? fixedHexRadius
+            : ComputeBoundsBasedScale();
 
-        for (int i = 0; i < rows; i++)
-            for (int j = 0; j < cols; j++)
-            {
-                float q = j - (cols - 1) * 0.5f;
-                float r = i - (rows - 1) * 0.5f;
-                float x = Mathf.Sqrt(3f) * (q + r * 0.5f);
-                float z = 1.5f * r;
-                localPositions[index++] = new Vector2(x, z);
-                minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
-                minZ = Mathf.Min(minZ, z); maxZ = Mathf.Max(maxZ, z);
-            }
+        if (autoFitGroundPlane)
+            FitGroundPlaneToGrid();
 
-        var sizeLocal = _localBounds.size;
-        float width = Mathf.Max(0.0001f, maxX - minX);
-        float depth = Mathf.Max(0.0001f, maxZ - minZ);
-        _hexScale = Mathf.Min(sizeLocal.x / width, sizeLocal.z / depth);
-
-        float centerX = (minX + maxX) * 0.5f;
-        float centerZ = (minZ + maxZ) * 0.5f;
-
-        index = 0;
-        Vector3 boundsCenter = _localBounds.center;
-        Vector3 gridWorldCenter = transform.TransformPoint(boundsCenter);
-        float bestDistance = float.PositiveInfinity;
-
+        Vector3 origin = transform.position;
         int q0 = Mathf.RoundToInt((cols - 1) * 0.5f);
         int r0 = Mathf.RoundToInt((rows - 1) * 0.5f);
+        float bestDistance = float.PositiveInfinity;
 
         for (int i = 0; i < rows; i++)
             for (int j = 0; j < cols; j++)
             {
-                Vector2 coords = localPositions[index++];
-                float scaledX = (coords.x - centerX) * _hexScale;
-                float scaledZ = (coords.y - centerZ) * _hexScale;
-                Vector3 localCenter = new Vector3(boundsCenter.x + scaledX, boundsCenter.y, boundsCenter.z + scaledZ);
-                Vector3 worldCenter = transform.TransformPoint(localCenter);
-
-                Vector3 rayStart = worldCenter + transform.up * 5f;
-                if (Physics.Raycast(rayStart, -transform.up, out var hit, 20f, ~0, QueryTriggerInteraction.Ignore))
-                    worldCenter = hit.point;
-
                 int axialQ = j - q0;
                 int axialR = i - r0;
+                float xR1 = Mathf.Sqrt(3f) * (axialQ + axialR * 0.5f);
+                float zR1 = 1.5f * axialR;
+                Vector3 worldCenter = origin + new Vector3(xR1 * _hexScale, 0f, zR1 * _hexScale);
+
+                Vector3 rayStart = worldCenter + Vector3.up * 5f;
+                if (Physics.Raycast(rayStart, Vector3.down, out var hit, 20f, ~0, QueryTriggerInteraction.Ignore))
+                    worldCenter = hit.point;
 
                 var t = new Tile
                 {
@@ -110,13 +97,14 @@ public class TileGrid : MonoBehaviour
                     q = axialQ,
                     r = axialR,
                     worldPos = worldCenter,
+                    grid = this
                 };
 
                 tiles.Add(t);
                 _grid[i, j] = t;
                 _axialLookup[new Vector2Int(t.q, t.r)] = t;
 
-                float sqr = (worldCenter - gridWorldCenter).sqrMagnitude;
+                float sqr = (worldCenter - origin).sqrMagnitude;
                 if (sqr < bestDistance)
                 {
                     bestDistance = sqr;
@@ -124,6 +112,48 @@ public class TileGrid : MonoBehaviour
                 }
             }
     }
+
+    private float ComputeBoundsBasedScale()
+    {
+        var sizeLocal = _localBounds.size;
+        float widthR1 = Mathf.Sqrt(3f) * (cols + 0.5f);
+        float depthR1 = 1.5f * (rows - 1) + 2f;
+        if (sizeLocal.x <= 0.0001f || sizeLocal.z <= 0.0001f || widthR1 <= 0.0001f || depthR1 <= 0.0001f)
+            return 1f;
+        return Mathf.Min(sizeLocal.x / widthR1, sizeLocal.z / depthR1);
+    }
+
+    [ContextMenu("Fit Ground Plane To Grid")]
+    private void FitGroundPlaneContext()
+    {
+        CacheBounds();
+        if (useFixedHexRadius && fixedHexRadius > 0.0001f) _hexScale = fixedHexRadius;
+        else _hexScale = ComputeBoundsBasedScale();
+        FitGroundPlaneToGrid();
+    }
+
+    private void FitGroundPlaneToGrid()
+    {
+        var mf = GetComponent<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null) return;
+
+        var meshSize = mf.sharedMesh.bounds.size;
+        if (meshSize.x <= 0.0001f || meshSize.z <= 0.0001f) return;
+
+        float worldX = Mathf.Sqrt(3f) * (cols + 0.5f) * _hexScale;
+        float worldZ = (1.5f * (rows - 1) + 2f) * _hexScale;
+
+        var ls = transform.localScale;
+        ls.x = worldX / meshSize.x;
+        ls.z = worldZ / meshSize.z;
+        transform.localScale = ls;
+    }
+    /// <summary>
+    /// Promień heksu (circumradius) w world-units — przeskalowany przez bounds meshu.
+    /// Używany do liczenia pozycji slotów-trójkątów wewnątrz kafla.
+    /// </summary>
+    public float HexRadius => _hexScale;
+
     public Tile GetTile(int i, int j) => (i >= 0 && i < rows && j >= 0 && j < cols) ? _grid[i, j] : null;
 
     public IEnumerable<Tile> GetNeighbors(Tile tile)

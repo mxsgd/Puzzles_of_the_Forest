@@ -75,9 +75,9 @@ public class TileDeckUI : MonoBehaviour
         var text = entry.GetComponentInChildren<Text>();
         if (text != null)
         {
-            var typeLabel = draw != null ? TileDeck.GetTypeLabel(draw.tileType) : "Brak kafla";
-            var displayLabel = draw != null ? draw.displayName : "--";
-            text.text = $"{index + 1}. {displayLabel} ({typeLabel})";
+            var biomeLabel = draw != null ? TileBiomeRules.GetDisplayName(draw.biome) : "Brak kafla";
+            var displayLabel = draw != null && !string.IsNullOrWhiteSpace(draw.displayName) ? draw.displayName : biomeLabel;
+            text.text = $"{index + 1}. {displayLabel}";
         }
     }
 

@@ -1,12 +1,11 @@
 using UnityEngine;
 
-/// <summary>
-/// Component stored on plant prefabs to keep track of which tile they occupy.
-/// </summary>
 public class TileObject : MonoBehaviour
 {
     [SerializeField] private TileGrid grid;
-    [SerializeField] private TileGrid.Tile tile;
+    [SerializeField, TextArea(2,4)] private string debugInfo; // Podgląd w Inspectorze
+    
+    private TileGrid.Tile tile;
 
     public TileGrid Grid => grid;
     public TileGrid.Tile Tile => tile;
@@ -15,6 +14,15 @@ public class TileObject : MonoBehaviour
     {
         grid = parentGrid;
         tile = assignedTile;
+        
+        #if UNITY_EDITOR
+        // Debug info dla Inspectora
+        debugInfo = tile != null 
+            ? $"Tile [{tile.i},{tile.j}] | Axial [{tile.q},{tile.r}]\nPos: {tile.worldPos}"
+            : "No tile assigned";
+        #endif
     }
 
+    // Pomocnicza metoda dla animacji/VFX
+    public bool IsAssigned => tile != null && grid != null;
 }

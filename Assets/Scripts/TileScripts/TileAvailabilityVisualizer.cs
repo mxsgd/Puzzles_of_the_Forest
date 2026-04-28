@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -27,7 +28,6 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
 
     private readonly Dictionary<TileGrid.Tile, GameObject> _availableTiles = new Dictionary<TileGrid.Tile, GameObject>();
-    private readonly List<TileGrid.Tile> _removalBuffer = new List<TileGrid.Tile>();
 
     private readonly HashSet<TileGrid.Tile> _availableSet = new HashSet<TileGrid.Tile>();
     
@@ -170,14 +170,14 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (_highlightedTile == null)
             return;
 
-        if (!TryGetPointerDown(out var position, out var pointerId))
-            return;
+        //if (!TryGetPointerDown(out var position, out var pointerId))
+         //   return;
 
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
-            return;
+       // if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
+       //     return;
 
-        if (!IsPointerOverHighlightedTile(position))
-            return;
+        //if (!IsPointerOverHighlightedTile(position))
+        //    return;
 
         if (placement == null)
             return;
@@ -187,10 +187,15 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             return;
 
         var rotation = grid ? grid.transform.rotation : Quaternion.identity;
-        var draw = tileDeck != null ? tileDeck.DrawTile() : null;
-        if (tileDeck != null && draw == null)
-            return;
-            var instance = placement.PlaceOccupant(_highlightedTile, rotation, draw);
+        TileDraw draw = null;
+        if (tileDeck != null)
+        {
+            draw = tileDeck.DrawTile();
+            if(draw == null)
+                return;
+        }
+
+        var instance = placement.PlaceOccupant(_highlightedTile, rotation, draw);
         if (instance == null)
             return;
 
@@ -212,6 +217,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
         return tile == _highlightedTile;
     }
+
     private bool TryGetPointerDown(out Vector2 position, out int pointerId)
     {
         position = default;
