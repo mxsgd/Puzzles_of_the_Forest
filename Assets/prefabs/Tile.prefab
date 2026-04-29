@@ -67,7 +67,7 @@ PrefabInstance:
     - target: {fileID: -7511558181221131132, guid: 9d65c5f96a6beb349bc86d2f6086a3f7, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: -3890043121059694385, guid: 7b6501a26c4cd7c4e8c358493ab61813, type: 3}
+      objectReference: {fileID: 2100000, guid: f9ada1b971653e94d874fe298dcb77a8, type: 2}
     - target: {fileID: 919132149155446097, guid: 9d65c5f96a6beb349bc86d2f6086a3f7, type: 3}
       propertyPath: m_Name
       value: Tile

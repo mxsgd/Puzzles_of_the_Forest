@@ -28,6 +28,9 @@ public class BiomeTilePopulator : MonoBehaviour
 
         [Tooltip("Losowe przesunięcie pozycji wewnątrz slotu (XYZ, w jednostkach world).")]
         public Vector3 positionJitter = new Vector3(0.05f, 0f, 0.05f);
+
+        [Tooltip("Jeśli włączone, obiekt jest ustawiany od środka kafla zamiast od centroidu trójkąta slotu.")]
+        public bool placeAtTileCenter = false;
     }
 
     [Serializable]
@@ -148,7 +151,9 @@ public class BiomeTilePopulator : MonoBehaviour
         var prefab = def.prefabs[rng.Next(def.prefabs.Count)];
         if (prefab == null) return false;
 
-        var basePos = tile.GetWorldPosition(slot);
+        var basePos = def.placeAtTileCenter
+            ? tile.transform.position
+            : tile.GetWorldPosition(slot);
         var jitter = new Vector3(
             ((float)rng.NextDouble() - 0.5f) * 2f * def.positionJitter.x,
             ((float)rng.NextDouble() - 0.5f) * 2f * def.positionJitter.y,

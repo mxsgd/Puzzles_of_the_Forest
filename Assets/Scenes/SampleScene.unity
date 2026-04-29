@@ -13252,6 +13252,7 @@ MonoBehaviour:
     - tag: Bush
       prefabs:
       - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
+      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
       spawnChance: 0.109
       randomScaleRange: {x: 0.4, y: 0.4}
       maxRandomYRotation: 39
@@ -13261,6 +13262,7 @@ MonoBehaviour:
     - tag: Bush
       prefabs:
       - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
+      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
       spawnChance: 0.32
       randomScaleRange: {x: 0.4, y: 0.4}
       maxRandomYRotation: 0
@@ -13277,6 +13279,7 @@ MonoBehaviour:
     - tag: Bush
       prefabs:
       - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
+      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
       spawnChance: 0.25
       randomScaleRange: {x: 0.4, y: 0.4}
       maxRandomYRotation: 0
