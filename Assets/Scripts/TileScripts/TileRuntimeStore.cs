@@ -2,17 +2,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using Tile = TileGrid.Tile;
 
-/// <summary>Zwierze, do którego habitatu przypisano kaflę (po klasyfikacji biomu).</summary>
-public enum HabitatAnimal
-{
-    None = 0,
-    Deer,
-    Beaver,
-    Bear
-}
-
 public class TileRuntimeStore : MonoBehaviour
 {
+    public const int MaxHabitatsPerTile = 2;
+
+    public class HabitatRecord
+    {
+        public int Id;
+        public HabitatAnimal Animal;
+        public List<Tile> Tiles = new List<Tile>();
+    }
+
     public class Runtime
     {
         public bool occupied;
@@ -23,13 +23,13 @@ public class TileRuntimeStore : MonoBehaviour
         public TileDraw tileDraw;
         public TileBiome biome = TileBiome.None;
         public TileBiomeRuntime biomeRuntime;
-        public int habitatID = -1;
-        public List<Tile> connectedTiles;
-        /// <summary>Po przypisaniu regionu do habitatu zwierzęcia — które zwierzę go zajął.</summary>
-        public HabitatAnimal assignedAnimal = HabitatAnimal.None;
+        public List<int> habitatIds = new List<int>();
+
+        public bool CanAcceptNewHabitat() => habitatIds.Count < MaxHabitatsPerTile;
     }
 
     private readonly Dictionary<Tile, Runtime> _map = new();
+    private readonly Dictionary<int, HabitatRecord> _habitats = new();
     private int _occupiedCount;
     private int _nextHabitatId = 1;
 
@@ -39,7 +39,9 @@ public class TileRuntimeStore : MonoBehaviour
         if (!_map.TryGetValue(t, out var r)) _map[t] = r = new Runtime();
         return r;
     }
+
     public int OccupiedCount => _occupiedCount;
+
     public void MarkOccupied(Tile t, GameObject inst, GameObject template = null, TileDraw tileDraw = null, TileBiomeRuntime biomeRuntime = null)
     {
         var r = Get(t);
@@ -62,6 +64,15 @@ public class TileRuntimeStore : MonoBehaviour
     public void Free(Tile t)
     {
         var r = Get(t);
+        if (r == null) return;
+
+        if (r.habitatIds.Count > 0)
+        {
+            var copy = new List<int>(r.habitatIds);
+            foreach (int hid in copy)
+                RemoveTileFromHabitatInternal(hid, t);
+        }
+
         if (r.occupied && _occupiedCount > 0) _occupiedCount--;
         r.occupied = false;
         r.available = true;
@@ -69,12 +80,68 @@ public class TileRuntimeStore : MonoBehaviour
         r.occupantInstance = null;
         r.biomeRuntime = null;
         r.biome = TileBiome.None;
-        r.assignedAnimal = HabitatAnimal.None;
-        r.habitatID = -1;
+        r.habitatIds.Clear();
         TileEvents.RaiseTileStateChanged(t);
     }
 
-    /// <summary>Zwraca wszystkie zajęte kaflę wraz z runtime (do wykrywania regionów / klasyfikacji).</summary>
+    public bool TryGetHabitatAnimal(int habitatId, out HabitatAnimal animal)
+    {
+        if (_habitats.TryGetValue(habitatId, out var rec))
+        {
+            animal = rec.Animal;
+            return true;
+        }
+        animal = HabitatAnimal.None;
+        return false;
+    }
+
+    /// <summary>
+    /// Registers a new habitat if every tile has fewer than two habitats and all tiles are occupied.
+    /// </summary>
+    public bool TryRegisterHabitat(HabitatAnimal animal, IReadOnlyList<Tile> tiles, out int habitatId)
+    {
+        habitatId = -1;
+        if (animal == HabitatAnimal.None || tiles == null || tiles.Count == 0)
+            return false;
+
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var t = tiles[i];
+            if (t == null) return false;
+            var rt = Get(t);
+            if (!rt.occupied || !rt.CanAcceptNewHabitat())
+                return false;
+        }
+
+        int id = _nextHabitatId++;
+        var record = new HabitatRecord { Id = id, Animal = animal };
+        foreach (var t in tiles)
+        {
+            if (t == null) continue;
+            record.Tiles.Add(t);
+            Get(t).habitatIds.Add(id);
+        }
+        _habitats[id] = record;
+
+        int points = HabitatRequirements.ComputeAwardedPoints(animal, tiles.Count);
+        float scoreValue = HabitatRequirements.ComputeScore(animal, tiles.Count);
+
+        // Do not RaiseTileStateChanged here — classification listens on placement only; outlines use HabitatAssigned.
+        TileEvents.RaiseHabitatAssigned(new HabitatAssignmentData(id, animal, tiles, points, scoreValue, tiles.Count));
+        return true;
+    }
+
+    private void RemoveTileFromHabitatInternal(int habitatId, Tile t)
+    {
+        if (!_habitats.TryGetValue(habitatId, out var rec))
+            return;
+        rec.Tiles.Remove(t);
+        var rt = Get(t);
+        rt?.habitatIds.Remove(habitatId);
+        if (rec.Tiles.Count == 0)
+            _habitats.Remove(habitatId);
+    }
+
     public IEnumerable<(Tile tile, Runtime runtime)> GetOccupiedTilesWithRuntime()
     {
         foreach (var kvp in _map)
@@ -82,20 +149,6 @@ public class TileRuntimeStore : MonoBehaviour
                 yield return (kvp.Key, kvp.Value);
     }
 
-    /// <summary>Przypisuje ciąg kafli do habitatu danego zwierzęcia (kafle nie będą brane pod uwagę przy innych zwierzętach).</summary>
-    public void AssignHabitatToTiles(IReadOnlyList<Tile> tiles, HabitatAnimal animal)
-    {
-        if (tiles == null || tiles.Count == 0) return;
-        int id = _nextHabitatId++;
-        foreach (var t in tiles)
-        {
-            var r = Get(t);
-            r.assignedAnimal = animal;
-            r.habitatID = id;
-        }
-        TileEvents.RaiseHabitatAssigned(animal, tiles);
-    }
-    
     public IEnumerable<Runtime> GetOccupiedTiles()
     {
         foreach (var kvp in _map)
@@ -103,21 +156,17 @@ public class TileRuntimeStore : MonoBehaviour
                 yield return kvp.Value;
     }
 
-    /// <summary>Zwraca grupy kafli przypisanych do habitatów (do rysowania obrysu).</summary>
+    /// <summary>Groups for outlines / debug — one entry per habitat id.</summary>
     public List<(int habitatId, HabitatAnimal animal, List<Tile> tiles)> GetHabitatGroups()
     {
-        var byId = new Dictionary<int, (HabitatAnimal animal, List<Tile> tiles)>();
-        foreach (var (tile, r) in GetOccupiedTilesWithRuntime())
-        {
-            if (r.assignedAnimal == HabitatAnimal.None || r.habitatID < 0) continue;
-            if (!byId.TryGetValue(r.habitatID, out var group))
-                byId[r.habitatID] = (r.assignedAnimal, new List<Tile> { tile });
-            else
-                group.tiles.Add(tile);
-        }
         var result = new List<(int, HabitatAnimal, List<Tile>)>();
-        foreach (var kvp in byId)
-            result.Add((kvp.Key, kvp.Value.animal, kvp.Value.tiles));
+        foreach (var kvp in _habitats)
+        {
+            var rec = kvp.Value;
+            result.Add((rec.Id, rec.Animal, new List<Tile>(rec.Tiles)));
+        }
         return result;
     }
+
+    public IReadOnlyDictionary<int, HabitatRecord> GetAllHabitats() => _habitats;
 }

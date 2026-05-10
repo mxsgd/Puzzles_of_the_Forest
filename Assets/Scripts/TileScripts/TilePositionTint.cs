@@ -31,6 +31,7 @@ public class TilePositionTint : MonoBehaviour
     private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     private readonly List<MaterialPropertyBlock> _blocks = new();
+    public float TintStrength => tintStrength;
 
     private void OnEnable()
     {
@@ -78,6 +79,19 @@ public class TilePositionTint : MonoBehaviour
                 renderer.SetPropertyBlock(block, i);
             }
         }
+    }
+
+    public bool TryGetTintColor(out Color tint)
+    {
+        if (skipWaterBiome && IsWaterTile())
+        {
+            tint = Color.white;
+            return false;
+        }
+
+        float t = EvaluatePosition01(transform.position);
+        tint = Color.Lerp(beigeColor, greenColor, t);
+        return true;
     }
 
     private bool IsWaterTile()

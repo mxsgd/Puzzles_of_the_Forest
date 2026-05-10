@@ -26,7 +26,7 @@ Shader "Custom/LowPolyHexWater_MatchScreenshot"
     {
         Tags { "RenderPipeline"="UniversalRenderPipeline" "Queue"="Transparent" "RenderType"="Transparent" }
         Blend SrcAlpha OneMinusSrcAlpha
-        ZWrite Off
+        ZWrite On
         Cull Back
 
         Pass

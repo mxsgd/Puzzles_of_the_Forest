@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1001 &5414238281320313777
+--- !u!1001 &1076855530632236267
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -22,19 +22,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.7591269
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.21397112
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.5571764
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0.25980207
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -48,6 +48,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f5bf6711c27faa041912316c0e5a5e02, type: 2}
     - target: {fileID: 919132149155446097, guid: 89bc5654e3774d74f9974ef93418ee24, type: 3}
       propertyPath: m_Name
       value: Rock5

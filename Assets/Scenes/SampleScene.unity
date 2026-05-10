@@ -206,13 +206,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.33627352, y: 0, z: 0, w: 0.9417644}
-  m_LocalPosition: {x: -4, y: 34.94, z: -50}
+  m_LocalRotation: {x: 0.30070576, y: 0, z: 0, w: 0.953717}
+  m_LocalPosition: {x: -4, y: 30, z: -50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 39.3, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 35, y: 0, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13192,11 +13192,17 @@ MonoBehaviour:
   biomePopulator: {fileID: 1211946171}
   occupantsParent: {fileID: 2085145268}
   availabilityParent: {fileID: 830910582}
-  availabilityPrefab: {fileID: 2137025043935777338, guid: beee94e7f348bb34898f051107bce579, type: 3}
+  availabilityPrefab: {fileID: 7748981478122969504, guid: beee94e7f348bb34898f051107bce579, type: 3}
   availabilitySelectedTilePrefab: {fileID: 2137025043935777338, guid: beee94e7f348bb34898f051107bce579, type: 3}
-  occupantPrefab: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
+  occupantPrefab: {fileID: 7748981478122969504, guid: beee94e7f348bb34898f051107bce579, type: 3}
   occupantOffset: {x: 0, y: 1, z: 0}
   availabilityOffset: {x: 0, y: 1, z: 0}
+  biomeParticles:
+  - biome: 1
+    prefab: {fileID: 7703645054373453566, guid: dd6a65c091f140b4882d3a7e4177f868, type: 3}
+  - biome: 4
+    prefab: {fileID: 7703645054373453566, guid: dd6a65c091f140b4882d3a7e4177f868, type: 3}
+  particleOffset: {x: 0, y: 0.2, z: 0}
 --- !u!114 &1211946169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13243,59 +13249,68 @@ MonoBehaviour:
     contents:
     - tag: Tree
       prefabs:
-      - {fileID: 4683191505733596623, guid: 856c08c6a6d85854d8d34d1eb395eb41, type: 3}
-      - {fileID: 8577040658894275745, guid: f8f0a0842b21d6b40879e0f8d51b0899, type: 3}
-      spawnChance: 0.468
+      - prefab: {fileID: 4564713505400469343, guid: d03fce7251c5bd7439f7222d4b51da97, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 3
+      - prefab: {fileID: 90010439047258713, guid: e6c2928dc36ffd34ba9272379f1fda3c, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
       randomScaleRange: {x: 1, y: 1}
       maxRandomYRotation: 0
-      positionJitter: {x: 0, y: 0, z: 0}
-    - tag: Bush
-      prefabs:
-      - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
-      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
-      spawnChance: 0.109
-      randomScaleRange: {x: 0.4, y: 0.4}
-      maxRandomYRotation: 39
-      positionJitter: {x: 0, y: 0, z: 0}
+      jitterTowardTileCenter: 0.05
+      placeAtTileCenter: 0
   - biome: 2
     contents:
-    - tag: Bush
-      prefabs:
-      - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
-      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
-      spawnChance: 0.32
-      randomScaleRange: {x: 0.4, y: 0.4}
-      maxRandomYRotation: 0
-      positionJitter: {x: 0, y: 0, z: 0}
     - tag: Grass
       prefabs:
-      - {fileID: 8208580683627787816, guid: 09f25ee5ea1cde94eb380be1c2dd5033, type: 3}
-      spawnChance: 0.744
+      - prefab: {fileID: 5444030655919082211, guid: 0d1c6c9fedfc0fe45b5f6563a68907b8, type: 3}
+        slotsPerSpawn: 1
+        spawnCountPerTile: 1
       randomScaleRange: {x: 1, y: 1}
       maxRandomYRotation: 0
-      positionJitter: {x: 0, y: 0, z: 0}
+      jitterTowardTileCenter: 0.05
+      placeAtTileCenter: 1
   - biome: 3
+    contents:
+    - tag: Rock
+      prefabs:
+      - prefab: {fileID: 7564654632372888758, guid: 3add48c39d06a934da1e902730b35e0f, type: 3}
+        slotsPerSpawn: 1
+        spawnCountPerTile: 2
+      - prefab: {fileID: 390823335866833966, guid: 9615f59f2da40aa48900baf34319ee13, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      - prefab: {fileID: 3606922387661689832, guid: e38ac9e9e274a1e46abecdcac7156492, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      - prefab: {fileID: 2141786462180183115, guid: 8e793c5bb22ff784e8a83b3df6ff9b85, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      - prefab: {fileID: 157814792473735610, guid: cb83ed475af17d04795cbfac91b9cd22, type: 3}
+        slotsPerSpawn: 1
+        spawnCountPerTile: 2
+      randomScaleRange: {x: 0.6, y: 0.6}
+      maxRandomYRotation: 80
+      jitterTowardTileCenter: 0.05
+      placeAtTileCenter: 0
+  - biome: 4
     contents:
     - tag: Bush
       prefabs:
-      - {fileID: 3278836304585731371, guid: e2068fd3bdea7194f9781f8a14732248, type: 3}
-      - {fileID: 5229622220843869210, guid: 1f57d097899123e4a99c091451e9bf63, type: 3}
-      spawnChance: 0.25
-      randomScaleRange: {x: 0.4, y: 0.4}
-      maxRandomYRotation: 0
-      positionJitter: {x: 0, y: 0, z: 0}
-    - tag: Rock
-      prefabs:
-      - {fileID: 7056009037335543994, guid: 3add48c39d06a934da1e902730b35e0f, type: 3}
-      - {fileID: 5707802315646760287, guid: 9615f59f2da40aa48900baf34319ee13, type: 3}
-      - {fileID: 4017648487769705881, guid: e38ac9e9e274a1e46abecdcac7156492, type: 3}
-      - {fileID: 3185526634361873847, guid: 8e793c5bb22ff784e8a83b3df6ff9b85, type: 3}
-      - {fileID: 5179795799720464096, guid: cb83ed475af17d04795cbfac91b9cd22, type: 3}
-      spawnChance: 0.481
+      - prefab: {fileID: 7183796583770181434, guid: 6e3c5905d90ac6b4cb56a9c04bc15ea0, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 3
+      - prefab: {fileID: 342220280901605125, guid: 61c1454cfe27b0046a689c498ebd7bb0, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 3
       randomScaleRange: {x: 0.9, y: 0.9}
-      maxRandomYRotation: 0
-      positionJitter: {x: 0, y: 0, z: 0}
+      maxRandomYRotation: 73
+      jitterTowardTileCenter: 0.42
+      placeAtTileCenter: 0
+  - biome: 5
+    contents: []
   decorationsParent: {fileID: 0}
+  decorationTintProfile: {fileID: 11400000, guid: d150a59416aa6704fa443f94ce4a55d4, type: 2}
 --- !u!1 &1338635265
 GameObject:
   m_ObjectHideFlags: 0
@@ -13307,8 +13322,7 @@ GameObject:
   - component: {fileID: 1338635266}
   - component: {fileID: 1338635268}
   - component: {fileID: 1338635269}
-  - component: {fileID: 1338635270}
-  - component: {fileID: 1338635271}
+  - component: {fileID: 1338635272}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -13362,35 +13376,35 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TileDeck
   deckSize: 30
   rebuildOnStart: 1
-  baseTilePrefab: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
+  baseTilePrefab: {fileID: 7091760512116971437, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
   tileGroups:
   - biome: 1
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
     weight: 1
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 1e2d9f4618bb42f42a6dd68fae065e7d, type: 3}
     displayName: 
   - biome: 2
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
     weight: 1
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 5c839492835515441a98caf63faed7f1, type: 3}
     displayName: 
   - biome: 3
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
     weight: 1
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: dd9ef2af5cbeec942ab00892afe4a66a, type: 3}
     displayName: 
   - biome: 4
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
     weight: 1
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 8ed7e3a35be500c46a861049ea2cf624, type: 3}
     displayName: 
   - biome: 5
-    baseTilePrefabOverride: {fileID: 5111785091207030379, guid: b3cadfc97c0f94144a4144dcf839d653, type: 3}
+    baseTilePrefabOverride: {fileID: 6342053853251618933, guid: 9ecfc0c7729c6c34190401a428237776, type: 3}
     weight: 1
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 73f1113d5b1a71747a9e88d0e7002133, type: 3}
     displayName: 
   tilePool: []
---- !u!114 &1338635270
+--- !u!114 &1338635272
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -13399,35 +13413,32 @@ MonoBehaviour:
   m_GameObject: {fileID: 1338635265}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 71bc9350a81e1e6478fdf0bf529b1dae, type: 3}
+  m_Script: {fileID: 11500000, guid: f0d54212e740c764c9192f254e297b8c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BiomeHabitatClassifier
-  grid: {fileID: 1128265999}
+  m_EditorClassIdentifier: Assembly-CSharp::TileNextTileHoverPreview
+  mainCamera: {fileID: 330585545}
+  query: {fileID: 1211946166}
   runtimeStore: {fileID: 1211946169}
-  maxTilesPerHabitat: 5
-  logClassification: 1
-  verboseDebug: 1
---- !u!114 &1338635271
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1338635265}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 37f8b6defafae42499ea0b84e1253efb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HabitatOutlineVisualizer
-  grid: {fileID: 1128265999}
-  runtimeStore: {fileID: 1211946169}
-  lineHeightOffset: 2
-  lineWidth: 0.15
-  lineMaterialTemplate: {fileID: 0}
-  deerColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
-  beaverColor: {r: 0.3, g: 0.5, b: 0.6, a: 1}
-  bearColor: {r: 0.25, g: 0.25, b: 0.3, a: 1}
-  outlinesParent: {fileID: 0}
+  tileDeck: {fileID: 1338635269}
+  availability: {fileID: 1211946167}
+  classifier: {fileID: 1723511249}
+  tileGrid: {fileID: 1128265999}
+  biomePopulator: {fileID: 1211946171}
+  ghostWorldOffset: {x: 0, y: 1, z: 0}
+  ghostUniformScale: 10
+  iconsAboveTile: 8
+  iconSpacing: 3
+  iconScale: 1
+  greenBackdropScale: 1
+  greenBackdropColor: {r: 0.15, g: 0.55, b: 0.2, a: 1}
+  yellowAnimalIconTint: {r: 1, g: 0.95, b: 0.55, a: 1}
+  habitatIcons:
+  - animal: 1
+    sprite: {fileID: 21300000, guid: f48cc5cbb9840ae4c982d88e17044d08, type: 3}
+  - animal: 2
+    sprite: {fileID: 21300000, guid: 62b0850aa73620e4daed6e84405ffba9, type: 3}
+  - animal: 3
+    sprite: {fileID: 21300000, guid: 3cc37b0a92254e1448471fb0c5b8cca6, type: 3}
 --- !u!1 &1411211306
 GameObject:
   m_ObjectHideFlags: 0
@@ -13457,8 +13468,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 471612860c85b954d855a2c18ce6356c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameUI
-  deck: {fileID: 0}
-  pointsPerHabitat: 500
+  deck: {fileID: 1338635269}
   canvas: {fileID: 0}
   nextTileIcon: {fileID: 0}
   nextTileLabel: {fileID: 0}
@@ -13534,12 +13544,22 @@ MonoBehaviour:
   query: {fileID: 1211946166}
   runtime: {fileID: 1211946169}
   tileDeck: {fileID: 1338635269}
+  classifier: {fileID: 1723511249}
   availableTileParent: {fileID: 1610150178}
   availableAlpha: 0.35
   availableTag: 
   selectedTileParent: {fileID: 1610150178}
   selectedAlpha: 0.5
   selectedTag: 
+  pulsePeakScale: 1.1
+  pulseDuration: 0.18
+  feedbackAudioSource: {fileID: 0}
+  habitatSuccessClip: {fileID: 0}
+  almostHabitatClip: {fileID: 0}
+  failedPlacementClip: {fileID: 0}
+  habitatVolume: 0.9
+  almostVolume: 0.75
+  failVolume: 0.65
 --- !u!114 &1610150180
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13559,6 +13579,105 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   maxRayDistance: 500
+--- !u!1 &1723511248
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1723511253}
+  - component: {fileID: 1723511252}
+  - component: {fileID: 1723511250}
+  - component: {fileID: 1723511249}
+  m_Layer: 0
+  m_Name: HabitatManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1723511249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723511248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71bc9350a81e1e6478fdf0bf529b1dae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BiomeHabitatClassifier
+  runtimeStore: {fileID: 1211946169}
+  maxTilesPerHabitat: 5
+  maxGraphStepsFromPlacement: 5
+  logClassification: 1
+  verboseDebug: 1
+--- !u!114 &1723511250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723511248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37f8b6defafae42499ea0b84e1253efb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HabitatOutlineVisualizer
+  grid: {fileID: 1128265999}
+  runtimeStore: {fileID: 1211946169}
+  lineHeightOffset: 2.5
+  perHabitatHeightStep: 0.02
+  lineInset: 0.08
+  lineWidth: 0.3
+  lineMaterialTemplate: {fileID: 0}
+  deerColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
+  beaverColor: {r: 0.3, g: 0.5, b: 0.6, a: 1}
+  bearColor: {r: 0.25, g: 0.25, b: 0.3, a: 1}
+  beesColor: {r: 0.95, g: 0.85, b: 0.2, a: 1}
+  rockDwellerColor: {r: 0.55, g: 0.45, b: 0.4, a: 1}
+  outlinesParent: {fileID: 0}
+--- !u!114 &1723511252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723511248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9904e37e9cb5214e882c67e2e84b7db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HabitatGridManager
+  grid: {fileID: 1128265999}
+  runtimeStore: {fileID: 1211946169}
+  habitatTintProfile: {fileID: 11400000, guid: 79603036152f75a489a95663961c9720, type: 2}
+  spreadSpeed: 0.61
+  decay: 0
+  simulationStep: 0.07
+  infectionCommitThreshold: 0.68
+  enableBaseColorFallbackTint: 1
+  baseColorFallbackStrength: 0.35
+  initialSources: []
+  verboseTintDebug: 1
+--- !u!4 &1723511253
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723511248}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1983208406
 GameObject:
   m_ObjectHideFlags: 0
@@ -13682,3 +13801,4 @@ SceneRoots:
   - {fileID: 1338635266}
   - {fileID: 1211946170}
   - {fileID: 1411211308}
+  - {fileID: 1723511253}

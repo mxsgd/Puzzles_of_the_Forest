@@ -75,9 +75,9 @@ public class TileDeckUI : MonoBehaviour
         var text = entry.GetComponentInChildren<Text>();
         if (text != null)
         {
-            var biomeLabel = draw != null ? TileBiomeRules.GetDisplayName(draw.biome) : "Brak kafla";
-            var displayLabel = draw != null && !string.IsNullOrWhiteSpace(draw.displayName) ? draw.displayName : biomeLabel;
-            text.text = $"{index + 1}. {displayLabel}";
+            // Typ kafla reprezentujemy ikoną, więc nie pokazujemy etykiety tekstowej biomu.
+            text.text = string.Empty;
+            text.enabled = false;
         }
     }
 

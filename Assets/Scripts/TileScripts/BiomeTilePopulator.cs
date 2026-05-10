@@ -10,24 +10,34 @@ using UnityEngine;
 public class BiomeTilePopulator : MonoBehaviour
 {
     [Serializable]
+    public class PrefabEntry
+    {
+        [Tooltip("Prefab do spawnu dla tego wpisu.")]
+        public GameObject prefab;
+
+        [Min(1), Tooltip("Ile trójkątów zajmuje to wystąpienie prefabu. Ustaw 3 dla dużych assetów.")]
+        public int slotsPerSpawn = 1;
+
+        [Min(0), Tooltip("Ile razy ten konkretny prefab ma pojawić się na jednym kaflu.")]
+        public int spawnCountPerTile = 0;
+    }
+
+    [Serializable]
     public class ContentPrefab
     {
         [Tooltip("Tag treści: Tree, Bush, Flower, Grass, Rock — patrz TileContentTags.")]
         public string tag;
 
-        [Tooltip("Pula prefabów. Wybierany losowo. Jeśli pusta — slot pominięty.")]
-        public List<GameObject> prefabs = new();
-
-        [Range(0f, 1f), Tooltip("Szansa na faktyczne wstawienie obiektu w slocie (gęstość).")]
-        public float spawnChance = 0.5f;
+        [Tooltip("Pula prefabów dla danego tagu. Każdy wpis ma własny rozmiar zajętości i liczność per kafel.")]
+        public List<PrefabEntry> prefabs = new();
 
         [Tooltip("Losowy zakres skali (przemnaża skalę prefabu).")]
         public Vector2 randomScaleRange = new Vector2(0.85f, 1.1f);
 
         [Range(0f, 360f)] public float maxRandomYRotation = 360f;
 
-        [Tooltip("Losowe przesunięcie pozycji wewnątrz slotu (XYZ, w jednostkach world).")]
-        public Vector3 positionJitter = new Vector3(0.05f, 0f, 0.05f);
+        [Min(0f), Tooltip("Maksymalne losowe przesunięcie w kierunku środka kafla (w jednostkach world).")]
+        public float jitterTowardTileCenter = 0.05f;
 
         [Tooltip("Jeśli włączone, obiekt jest ustawiany od środka kafla zamiast od centroidu trójkąta slotu.")]
         public bool placeAtTileCenter = false;
@@ -46,6 +56,10 @@ public class BiomeTilePopulator : MonoBehaviour
     [Header("Hierarchia")]
     [SerializeField, Tooltip("Opcjonalny rodzic dla zinstancjonowanych dekoracji. Jeśli null — rodzicem jest sam kafel.")]
     private Transform decorationsParent;
+
+    [Header("Dynamiczny tint dekoracji")]
+    [SerializeField, Tooltip("Wspólny profil kolorowania dla trawy/krzaków. Zmiany w assetcie propagują się na instancje runtime.")]
+    private BiomeDecorationTintProfile decorationTintProfile;
 
     private readonly Dictionary<TileBiome, BiomeContent> _byBiome = new();
 
@@ -69,7 +83,10 @@ public class BiomeTilePopulator : MonoBehaviour
     ///     dostępną treść z prefabami).
     /// Można podać deterministyczny seed (np. hash z (tile.q, tile.r) dla powtarzalności po zapisie).
     /// </summary>
-    public void Populate(TileBiomeRuntime tile, int? randomSeed = null)
+    /// <param name="decorationParentOverride">
+    /// Gdy nie null — rodzic instancji dekoracji (np. podgląd ducha musi być pod prefabem, nie pod globalnym <see cref="decorationsParent"/>).
+    /// </param>
+    public void Populate(TileBiomeRuntime tile, int? randomSeed = null, Transform decorationParentOverride = null)
     {
         if (tile == null) return;
         if (_byBiome.Count == 0) RebuildIndex();
@@ -84,80 +101,170 @@ public class BiomeTilePopulator : MonoBehaviour
         if (allowed == null || allowed.Count == 0) return;
 
         var rng = randomSeed.HasValue ? new System.Random(randomSeed.Value) : new System.Random();
-        var parent = decorationsParent != null ? decorationsParent : tile.transform;
+        var parent = decorationParentOverride != null
+            ? decorationParentOverride
+            : (decorationsParent != null ? decorationsParent : tile.transform);
 
-        var candidates = new List<TileTriangleSlot>();
-        foreach (var s in tile.Slots)
-            if (s != null && s.IsEmpty) candidates.Add(s);
-        Shuffle(candidates, rng);
+        var slotById = BuildSlotMap(tile.Slots);
+        if (slotById.Count == 0) return;
 
-        var filledIds = new HashSet<string>();
-        int spawnedCount = 0;
+        var plan = BuildPlacementPlan(content, allowed);
+        Shuffle(plan, rng);
 
-        foreach (var slot in candidates)
-        {
-            if (HasAdjacentFilledSlot(slot, filledIds)) continue;
+        for (int i = 0; i < plan.Count; i++)
+            TryPlacePlanEntry(tile, slotById, plan[i], parent, rng);
 
-            string chosenTag = allowed[rng.Next(allowed.Count)];
-            var def = FindContent(content, chosenTag);
-            if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
-            if (rng.NextDouble() > def.spawnChance) continue;
-
-            if (TrySpawnInSlot(tile, slot, chosenTag, def, parent, rng))
-            {
-                filledIds.Add(slot.Id);
-                spawnedCount++;
-            }
-        }
-
-        if (spawnedCount == 0)
-            ForceSpawnAtLeastOne(tile, candidates, content, allowed, parent, rng);
+        FillRemainingSlots(tile, slotById, content, allowed, parent, rng);
     }
 
-    /// <summary>Gwarantuje co najmniej jeden obiekt na kaflu — szuka pierwszego pasującego slotu i taga z prefabami.</summary>
-    private void ForceSpawnAtLeastOne(
+    private void FillRemainingSlots(
         TileBiomeRuntime tile,
-        List<TileTriangleSlot> candidates,
+        Dictionary<string, TileTriangleSlot> slotById,
         BiomeContent content,
         IReadOnlyList<string> allowed,
         Transform parent,
         System.Random rng)
     {
-        var tagOrder = new List<string>(allowed);
-        Shuffle(tagOrder, rng);
-
-        foreach (var slot in candidates)
+        int guard = 0;
+        while (TryFindEmptySlot(slotById, out var emptySlot) && guard++ < 256)
         {
-            if (slot == null || !slot.IsEmpty) continue;
+            var fallback = PickRandomSingleSlotDefinition(content, allowed, rng);
+            if (!fallback.HasValue)
+                break;
+            var fallbackValue = fallback.Value;
 
-            foreach (var tag in tagOrder)
-            {
-                var def = FindContent(content, tag);
-                if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
-                if (TrySpawnInSlot(tile, slot, tag, def, parent, rng))
-                    return;
-            }
+            if (!TrySpawnInSingleSlot(tile, emptySlot, fallbackValue.Tag, fallbackValue.Definition, fallbackValue.PrefabEntry, parent, rng))
+                break;
         }
     }
 
-    private bool TrySpawnInSlot(
+    private static Dictionary<string, TileTriangleSlot> BuildSlotMap(IReadOnlyList<TileTriangleSlot> slots)
+    {
+        var map = new Dictionary<string, TileTriangleSlot>();
+        if (slots == null) return map;
+        foreach (var s in slots)
+            if (s != null) map[s.Id] = s;
+        return map;
+    }
+
+    private static bool TryFindEmptySlot(Dictionary<string, TileTriangleSlot> slotById, out TileTriangleSlot slot)
+    {
+        foreach (var kv in slotById)
+        {
+            if (kv.Value != null && kv.Value.IsEmpty)
+            {
+                slot = kv.Value;
+                return true;
+            }
+        }
+        slot = null;
+        return false;
+    }
+
+    private List<PlacementRequest> BuildPlacementPlan(BiomeContent content, IReadOnlyList<string> allowed)
+    {
+        var result = new List<PlacementRequest>();
+        if (allowed == null) return result;
+        for (int i = 0; i < allowed.Count; i++)
+        {
+            var tag = allowed[i];
+            var def = FindContent(content, tag);
+            if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
+
+            for (int p = 0; p < def.prefabs.Count; p++)
+            {
+                var prefabEntry = def.prefabs[p];
+                if (prefabEntry == null || prefabEntry.prefab == null) continue;
+
+                int count = Mathf.Max(0, prefabEntry.spawnCountPerTile);
+                int slotsPerSpawn = Mathf.Max(1, prefabEntry.slotsPerSpawn);
+                for (int c = 0; c < count; c++)
+                    result.Add(new PlacementRequest(tag, def, prefabEntry, slotsPerSpawn));
+            }
+        }
+        return result;
+    }
+
+    private bool TryPlacePlanEntry(
+        TileBiomeRuntime tile,
+        Dictionary<string, TileTriangleSlot> slotById,
+        PlacementRequest request,
+        Transform parent,
+        System.Random rng)
+    {
+        if (request.SlotsPerSpawn <= 1)
+        {
+            var candidates = CollectEmptySlots(slotById);
+            Shuffle(candidates, rng);
+            for (int i = 0; i < candidates.Count; i++)
+                if (TrySpawnInSingleSlot(tile, candidates[i], request.Tag, request.Definition, request.PrefabEntry, parent, rng))
+                    return true;
+            return false;
+        }
+
+        var anchors = CollectEmptySlots(slotById);
+        Shuffle(anchors, rng);
+        for (int i = 0; i < anchors.Count; i++)
+        {
+            var anchor = anchors[i];
+            if (!TryGetTriple(anchor, slotById, out var left, out var right))
+                continue;
+            if (!left.IsEmpty || !right.IsEmpty || !anchor.IsEmpty)
+                continue;
+
+            return TrySpawnInTriple(tile, anchor, left, right, request.Tag, request.Definition, request.PrefabEntry, parent, rng);
+        }
+        return false;
+    }
+
+    private static List<TileTriangleSlot> CollectEmptySlots(Dictionary<string, TileTriangleSlot> slotById)
+    {
+        var result = new List<TileTriangleSlot>();
+        foreach (var kv in slotById)
+            if (kv.Value != null && kv.Value.IsEmpty) result.Add(kv.Value);
+        return result;
+    }
+
+    private static bool TryGetTriple(
+        TileTriangleSlot anchor,
+        Dictionary<string, TileTriangleSlot> slotById,
+        out TileTriangleSlot left,
+        out TileTriangleSlot right)
+    {
+        left = null;
+        right = null;
+        if (anchor == null) return false;
+
+        var neighbors = HexTileLayout.GetTriangleNeighbors(anchor.sideEdge, anchor.sideHypo);
+        if (neighbors == null || neighbors.Length < 2) return false;
+
+        string idA = HexTileLayout.TriangleId(neighbors[0].sideEdge, neighbors[0].sideHypo);
+        string idB = HexTileLayout.TriangleId(neighbors[1].sideEdge, neighbors[1].sideHypo);
+        return slotById.TryGetValue(idA, out left) && slotById.TryGetValue(idB, out right);
+    }
+
+    private bool TrySpawnInSingleSlot(
         TileBiomeRuntime tile,
         TileTriangleSlot slot,
         string chosenTag,
         ContentPrefab def,
+        PrefabEntry forcedPrefabEntry,
         Transform parent,
         System.Random rng)
     {
-        var prefab = def.prefabs[rng.Next(def.prefabs.Count)];
+        var prefabEntry = forcedPrefabEntry;
+        if (prefabEntry == null)
+        {
+            if (def.prefabs == null || def.prefabs.Count == 0) return false;
+            prefabEntry = def.prefabs[rng.Next(def.prefabs.Count)];
+        }
+        var prefab = prefabEntry?.prefab;
         if (prefab == null) return false;
 
         var basePos = def.placeAtTileCenter
             ? tile.transform.position
             : tile.GetWorldPosition(slot);
-        var jitter = new Vector3(
-            ((float)rng.NextDouble() - 0.5f) * 2f * def.positionJitter.x,
-            ((float)rng.NextDouble() - 0.5f) * 2f * def.positionJitter.y,
-            ((float)rng.NextDouble() - 0.5f) * 2f * def.positionJitter.z);
+        var jitter = ComputeTowardCenterJitter(basePos, tile.transform.position, def.jitterTowardTileCenter, rng);
 
         float yRot = (float)rng.NextDouble() * def.maxRandomYRotation;
         float scl = Mathf.Lerp(
@@ -169,17 +276,67 @@ public class BiomeTilePopulator : MonoBehaviour
         go.transform.localScale = prefab.transform.localScale * scl;
         go.name = $"{chosenTag}_{slot.Id}";
 
+        TryApplyDecorationTint(go, tile, chosenTag);
+
         slot.contentTag = chosenTag;
         slot.contentInstance = go;
         return true;
     }
 
-    private static bool HasAdjacentFilledSlot(TileTriangleSlot slot, HashSet<string> filledIds)
+    private bool TrySpawnInTriple(
+        TileBiomeRuntime tile,
+        TileTriangleSlot anchor,
+        TileTriangleSlot neighborA,
+        TileTriangleSlot neighborB,
+        string chosenTag,
+        ContentPrefab def,
+        PrefabEntry forcedPrefabEntry,
+        Transform parent,
+        System.Random rng)
     {
-        if (filledIds.Count == 0) return false;
-        foreach (var (e, h) in HexTileLayout.GetTriangleNeighbors(slot.sideEdge, slot.sideHypo))
-            if (filledIds.Contains(HexTileLayout.TriangleId(e, h))) return true;
-        return false;
+        var prefabEntry = forcedPrefabEntry;
+        if (prefabEntry == null)
+        {
+            if (def.prefabs == null || def.prefabs.Count == 0) return false;
+            prefabEntry = def.prefabs[rng.Next(def.prefabs.Count)];
+        }
+        var prefab = prefabEntry?.prefab;
+        if (prefab == null) return false;
+
+        Vector3 a = tile.GetWorldPosition(anchor);
+        Vector3 b = tile.GetWorldPosition(neighborA);
+        Vector3 c = tile.GetWorldPosition(neighborB);
+        var basePos = (a + b + c) / 3f;
+
+        var jitter = ComputeTowardCenterJitter(basePos, tile.transform.position, def.jitterTowardTileCenter, rng);
+
+        float yRot = (float)rng.NextDouble() * def.maxRandomYRotation;
+        float scl = Mathf.Lerp(def.randomScaleRange.x, def.randomScaleRange.y, (float)rng.NextDouble());
+
+        var go = Instantiate(prefab, basePos + jitter, Quaternion.Euler(0f, yRot, 0f), parent);
+        go.transform.localScale = prefab.transform.localScale * scl;
+        go.name = $"{chosenTag}_{anchor.Id}_{neighborA.Id}_{neighborB.Id}";
+
+        TryApplyDecorationTint(go, tile, chosenTag);
+
+        anchor.contentTag = chosenTag;
+        anchor.contentInstance = go;
+        neighborA.contentTag = chosenTag;
+        neighborB.contentTag = chosenTag;
+        return true;
+    }
+
+    private void TryApplyDecorationTint(GameObject instance, TileBiomeRuntime tile, string contentTag)
+    {
+        if (instance == null || tile == null) return;
+        if (!string.Equals(contentTag, TileContentTags.Grass, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(contentTag, TileContentTags.Bush, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var tileTint = tile.GetComponent<TilePositionTint>();
+        var receiver = instance.GetComponent<BiomeDecorationTintReceiver>();
+        if (receiver == null) receiver = instance.AddComponent<BiomeDecorationTintReceiver>();
+        receiver.Configure(decorationTintProfile, tileTint, contentTag, tile.Biome, tile.transform.position);
     }
 
     private static void Shuffle<T>(IList<T> list, System.Random rng)
@@ -189,6 +346,18 @@ public class BiomeTilePopulator : MonoBehaviour
             int j = rng.Next(i + 1);
             (list[i], list[j]) = (list[j], list[i]);
         }
+    }
+
+    private static Vector3 ComputeTowardCenterJitter(Vector3 fromWorldPos, Vector3 tileCenterWorldPos, float maxDistance, System.Random rng)
+    {
+        if (maxDistance <= 0f) return Vector3.zero;
+
+        var toCenter = tileCenterWorldPos - fromWorldPos;
+        toCenter.y = 0f;
+        if (toCenter.sqrMagnitude < 0.000001f) return Vector3.zero;
+
+        float distance = (float)rng.NextDouble() * maxDistance;
+        return toCenter.normalized * distance;
     }
 
     public void Clear(TileBiomeRuntime tile)
@@ -203,5 +372,48 @@ public class BiomeTilePopulator : MonoBehaviour
         foreach (var c in bc.contents)
             if (c != null && c.tag == tag) return c;
         return null;
+    }
+
+    private (string Tag, ContentPrefab Definition, PrefabEntry PrefabEntry)? PickRandomSingleSlotDefinition(
+        BiomeContent content,
+        IReadOnlyList<string> allowed,
+        System.Random rng)
+    {
+        var options = new List<(string Tag, ContentPrefab Definition, PrefabEntry PrefabEntry)>();
+        if (allowed == null) return null;
+
+        for (int i = 0; i < allowed.Count; i++)
+        {
+            var tag = allowed[i];
+            var def = FindContent(content, tag);
+            if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
+            if (def.placeAtTileCenter) continue;
+            for (int p = 0; p < def.prefabs.Count; p++)
+            {
+                var prefabEntry = def.prefabs[p];
+                if (prefabEntry == null || prefabEntry.prefab == null) continue;
+                if (Mathf.Max(1, prefabEntry.slotsPerSpawn) != 1) continue;
+                options.Add((tag, def, prefabEntry));
+            }
+        }
+
+        if (options.Count == 0) return null;
+        return options[rng.Next(options.Count)];
+    }
+
+    private readonly struct PlacementRequest
+    {
+        public readonly string Tag;
+        public readonly ContentPrefab Definition;
+        public readonly PrefabEntry PrefabEntry;
+        public readonly int SlotsPerSpawn;
+
+        public PlacementRequest(string tag, ContentPrefab definition, PrefabEntry prefabEntry, int slotsPerSpawn)
+        {
+            Tag = tag;
+            Definition = definition;
+            PrefabEntry = prefabEntry;
+            SlotsPerSpawn = Mathf.Max(1, slotsPerSpawn);
+        }
     }
 }

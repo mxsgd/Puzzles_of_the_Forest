@@ -4,31 +4,34 @@ using UnityEngine;
 using Tile = TileGrid.Tile;
 
 /// <summary>
-/// Klasyfikuje spójne regiony zajętych kafli do habitatów zwierząt.
-/// Po każdym położeniu kafla sprawdza sąsiadujące kafle; jeśli region spełnia wymagania
-/// dokładnie jednego zwierzęcia, przypisuje go do tego habitatu (kafle nie są już dostępne dla innych).
+/// After each tile placement: BFS ball (radius 5), incrementally enumerates connected regions (≤5 tiles),
+/// evaluates biome vectors with compatibility filtering, picks the single best candidate by score = basePoints/tileCount.
 /// </summary>
 public class BiomeHabitatClassifier : MonoBehaviour
 {
-    [SerializeField] private TileGrid grid;
     [SerializeField] private TileRuntimeStore runtimeStore;
 
-    [Header("Ograniczenie habitatu")]
+    [Header("Region search")]
     [SerializeField, Min(1)] private int maxTilesPerHabitat = 5;
+    [SerializeField, Min(1)] private int maxGraphStepsFromPlacement = 5;
 
     [Header("Debug")]
     [SerializeField] private bool logClassification = true;
-    [SerializeField] private bool verboseDebug = true;
+    [SerializeField] private bool verboseDebug;
 
-    private HashSet<Tile> _visited;
-    private HashSet<Tile> _unassignedOccupied;
+    public int MaxTilesPerHabitat => maxTilesPerHabitat;
+    public int MaxGraphStepsFromPlacement => maxGraphStepsFromPlacement;
+
+    private readonly HashSet<Tile> _ballWork = new HashSet<Tile>();
+    private readonly HashSet<Tile> _allowedWork = new HashSet<Tile>();
+    private readonly HashSet<string> _regionKeySeen = new HashSet<string>();
+    private readonly HashSet<Tile> _regionSetWork = new HashSet<Tile>();
+    private readonly List<Tile> _regionListWork = new List<Tile>();
+    private readonly List<Tile> _neighborScratch = new List<Tile>();
 
     private void Awake()
     {
-        if (!grid) grid = FindAnyObjectByType<TileGrid>();
         if (!runtimeStore) runtimeStore = FindAnyObjectByType<TileRuntimeStore>();
-        _visited = new HashSet<Tile>();
-        _unassignedOccupied = new HashSet<Tile>();
     }
 
     private void OnEnable()
@@ -43,244 +46,282 @@ public class BiomeHabitatClassifier : MonoBehaviour
 
     private void OnTileStateChanged(Tile tile)
     {
-        if (verboseDebug) Debug.Log("[BiomeHabitat] TileStateChanged — uruchamiam RunClassification");
         try
         {
             RunClassification(tile);
         }
         catch (Exception e)
         {
-            Debug.LogError($"[BiomeHabitat] Błąd w RunClassification: {e.Message}\n{e.StackTrace}");
+            Debug.LogError($"[BiomeHabitat] RunClassification: {e.Message}\n{e.StackTrace}");
         }
     }
 
-    /// <summary>Od postawionego kafla buduje kulę o promieniu 5 w grafie, potem szuka w niej spójnej kombinacji 1..5 kafli pasującej do habitatu.</summary>
+    /// <summary>Runs habitat discovery from the last placed tile (event sender).</summary>
     public void RunClassification(Tile placedTile = null)
     {
-        if (grid == null || runtimeStore == null)
+        if (runtimeStore == null || placedTile == null)
+            return;
+
+        var rt = runtimeStore.Get(placedTile);
+        if (rt == null || !rt.occupied)
+            return;
+
+        CollectOccupiedBall(placedTile, maxGraphStepsFromPlacement, _ballWork);
+        if (_ballWork.Count == 0)
+            return;
+
+        _allowedWork.Clear();
+        foreach (var t in _ballWork)
         {
-            if (verboseDebug) Debug.LogWarning("[BiomeHabitat] Brak grid lub runtimeStore — pomijam.");
+            var r = runtimeStore.Get(t);
+            if (r != null && r.occupied && r.CanAcceptNewHabitat())
+                _allowedWork.Add(t);
+        }
+
+        if (_allowedWork.Count == 0)
+        {
+            if (verboseDebug) Debug.Log("[BiomeHabitat] Brak kafli z miejscem na habitata w kulę.");
             return;
         }
 
-        if (_unassignedOccupied == null) return;
+        _regionKeySeen.Clear();
 
-        _unassignedOccupied.Clear();
-        try
+        HabitatAnimal bestAnimal = HabitatAnimal.None;
+        List<Tile> bestRegion = null;
+        float bestScore = float.NegativeInfinity;
+        int bestTileCount = int.MaxValue;
+
+        var seeds = new List<Tile>(_allowedWork);
+        seeds.Sort(CompareTilesDeterministic);
+
+        foreach (var seed in seeds)
         {
-            foreach (var (tile, runtime) in runtimeStore.GetOccupiedTilesWithRuntime())
-            {
-                if (tile == null || runtime == null) continue;
-                if (runtime.assignedAnimal == HabitatAnimal.None)
-                    _unassignedOccupied.Add(tile);
-            }
+            EnumerateConnectedRegionsFromSeed(
+                seed,
+                _allowedWork,
+                maxTilesPerHabitat,
+                region =>
+                {
+                    foreach (var animal in HabitatRequirements.ClassifiableAnimals)
+                    {
+                        if (!TryBuildFilteredBiomeVector(region, animal, out var vec))
+                            continue;
+
+                        var req = HabitatRequirements.GetRequirement(animal);
+                        if (!vec.Satisfies(req))
+                            continue;
+
+                        float score = HabitatRequirements.ComputeScore(animal, region.Count);
+                        int basePts = HabitatRequirements.GetBasePoints(animal);
+
+                        if (IsBetterCandidate(score, basePts, region.Count, animal, region,
+                                bestScore, bestAnimal, bestTileCount, bestRegion))
+                        {
+                            bestScore = score;
+                            bestAnimal = animal;
+                            bestTileCount = region.Count;
+                            if (bestRegion == null)
+                                bestRegion = new List<Tile>();
+                            else
+                                bestRegion.Clear();
+                            bestRegion.AddRange(region);
+                        }
+                    }
+                });
         }
-        catch (InvalidOperationException e)
-        {
-            Debug.LogWarning($"[BiomeHabitat] Kolekcja zmodyfikowana podczas iteracji — pomijam tę klatkę. ({e.Message})");
+
+        if (bestAnimal == HabitatAnimal.None || bestRegion == null || bestRegion.Count == 0)
             return;
-        }
 
-        if (verboseDebug) Debug.Log($"[BiomeHabitat] Zajęte nieprzypisane kafle: {_unassignedOccupied.Count}");
-        if (_unassignedOccupied.Count == 0) return;
-
-        if (placedTile != null && _unassignedOccupied.Contains(placedTile))
+        if (runtimeStore.TryRegisterHabitat(bestAnimal, bestRegion, out _))
         {
-            var ball = CollectBall(placedTile, maxDistance: maxTilesPerHabitat);
-            if (ball.Count > 0 && TryFindHabitatInBall(ball, out var region, out var animal))
-            {
-                runtimeStore.AssignHabitatToTiles(region, animal);
-                if (logClassification)
-                    Debug.Log($"[BiomeHabitat] Zakwalifikowano region ({region.Count} kafli) do habitatu: {animal} (kula: {ball.Count} kafli)");
-                return;
-            }
-        }
-
-        _visited = _visited ?? new HashSet<Tile>();
-        _visited.Clear();
-        var starts = new List<Tile>(_unassignedOccupied);
-        foreach (var start in starts)
-        {
-            if (start == null || _visited.Contains(start)) continue;
-            var region = CollectRegionFallback(start);
-            if (region.Count == 0) continue;
-            var animal = TryClassifyRegion(region, out var field, out var forest, out var bushes, out var rocks, out var water);
-            if (animal != HabitatAnimal.None)
-            {
-                runtimeStore.AssignHabitatToTiles(region, animal);
-                if (logClassification)
-                    Debug.Log($"[BiomeHabitat] Zakwalifikowano region ({region.Count} kafli) do habitatu: {animal}");
-                return;
-            }
-            if (verboseDebug)
-            {
-                var msg = $"[BiomeHabitat] Region {region.Count} kafli (pole:{field} las:{forest} krzaki:{bushes} skały:{rocks} woda:{water}) — brak pasującego zwierzęcia.";
-                msg += " " + GetWhyNoMatch(field, forest, bushes, rocks, water);
-                Debug.Log(msg);
-            }
+            if (logClassification)
+                Debug.Log($"[BiomeHabitat] Habitat {bestAnimal} id — kafle: {bestRegion.Count}, score≈{bestScore:F3}");
         }
     }
 
-    /// <summary>Kula w grafie: wszystkie nieprzypisane zajęte kafle w odległości ≤ maxDistance od center (liczba krawędzi).</summary>
-    private HashSet<Tile> CollectBall(Tile center, int maxDistance)
+    private static int CompareTilesDeterministic(Tile a, Tile b)
     {
-        var ball = new HashSet<Tile>();
+        if (a == null || b == null) return 0;
+        int c = a.q.CompareTo(b.q);
+        if (c != 0) return c;
+        return a.r.CompareTo(b.r);
+    }
+
+    /// <summary>
+    /// Strict ordering for picking one winner among ties (deterministic).
+    /// </summary>
+    private static bool IsBetterCandidate(
+        float score, int basePoints, int tileCount, HabitatAnimal animal, List<Tile> region,
+        float bestScore, HabitatAnimal bestAnimal, int bestTileCount, List<Tile> bestRegion)
+    {
+        const float eps = 1e-5f;
+        if (score > bestScore + eps) return true;
+        if (score < bestScore - eps) return false;
+
+        if (basePoints > HabitatRequirements.GetBasePoints(bestAnimal)) return true;
+        if (basePoints < HabitatRequirements.GetBasePoints(bestAnimal)) return false;
+
+        if (tileCount < bestTileCount) return true;
+        if (tileCount > bestTileCount) return false;
+
+        int cmp = CompareTileLists(region, bestRegion);
+        if (cmp != 0) return cmp < 0;
+
+        return animal < bestAnimal;
+    }
+
+    private static int CompareTileLists(List<Tile> a, List<Tile> b)
+    {
+        if (b == null || b.Count == 0) return a != null && a.Count > 0 ? -1 : 0;
+        if (a == null || a.Count == 0) return 1;
+        var aa = new List<Tile>(a);
+        var bb = new List<Tile>(b);
+        aa.Sort(CompareTilesDeterministic);
+        bb.Sort(CompareTilesDeterministic);
+        int n = Mathf.Min(aa.Count, bb.Count);
+        for (int i = 0; i < n; i++)
+        {
+            int c = CompareTilesDeterministic(aa[i], bb[i]);
+            if (c != 0) return c;
+        }
+        return aa.Count.CompareTo(bb.Count);
+    }
+
+    /// <summary>
+    /// Occupied tiles within maxSteps edges from center (for classification locality).
+    /// </summary>
+    private void CollectOccupiedBall(Tile center, int maxSteps, HashSet<Tile> into)
+    {
+        into.Clear();
         var queue = new Queue<(Tile t, int dist)>();
         queue.Enqueue((center, 0));
-        ball.Add(center);
+        into.Add(center);
         while (queue.Count > 0)
         {
             var (t, dist) = queue.Dequeue();
-            if (dist >= maxDistance) continue;
-            IEnumerable<Tile> neighbors = null;
-            try { neighbors = t.GetNeighbors(); } catch { continue; }
-            if (neighbors == null) continue;
-            foreach (var n in neighbors)
+            if (dist >= maxSteps) continue;
+            foreach (var n in GetNeighborTilesSafe(t))
             {
-                if (n == null || ball.Contains(n)) continue;
-                if (!_unassignedOccupied.Contains(n)) continue;
-                var r = runtimeStore.Get(n);
-                if (!r.occupied || r.assignedAnimal != HabitatAnimal.None) continue;
-                ball.Add(n);
+                if (n == null || into.Contains(n)) continue;
+                var rn = runtimeStore.Get(n);
+                if (rn == null || !rn.occupied) continue;
+                into.Add(n);
                 queue.Enqueue((n, dist + 1));
             }
         }
-        return ball;
     }
 
-    /// <summary>W kuli szukamy spójnej kombinacji 1..5 kafli pasującej do któregoś zwierzęcia. Dla każdego ziarna w kuli BFS do 5 kafli, bez duplikatów.</summary>
-    private bool TryFindHabitatInBall(HashSet<Tile> ball, out List<Tile> bestRegion, out HabitatAnimal bestAnimal)
+    private IEnumerable<Tile> GetNeighborTilesSafe(Tile t)
     {
-        bestRegion = null;
-        bestAnimal = HabitatAnimal.None;
-        var seenKeys = new HashSet<string>();
-        foreach (var seed in ball)
+        try
         {
-            var region = CollectRegionWithinBall(seed, ball, maxSize: maxTilesPerHabitat);
-            if (region.Count == 0) continue;
-            var key = RegionKey(region);
-            if (seenKeys.Contains(key)) continue;
-            seenKeys.Add(key);
-            var animal = TryClassifyRegion(region, out _, out _, out _, out _, out _);
-            if (animal != HabitatAnimal.None)
+            return t.GetNeighbors() ?? System.Array.Empty<Tile>();
+        }
+        catch
+        {
+            return System.Array.Empty<Tile>();
+        }
+    }
+
+    /// <summary>
+    /// Incremental enumeration: only connected sets containing seed, |R| ≤ maxSize, vertices ⊆ allowed.
+    /// Dedupes by canonical key across all seeds.
+    /// </summary>
+    private void EnumerateConnectedRegionsFromSeed(
+        Tile seed,
+        HashSet<Tile> allowed,
+        int maxSize,
+        Action<List<Tile>> onRegion)
+    {
+        _regionSetWork.Clear();
+        _regionSetWork.Add(seed);
+        ExtendConnectedRegion(allowed, maxSize, onRegion);
+    }
+
+    /// <summary>
+    /// DFS over connected supersets: emit each unique region once (global key), grow by one boundary tile at a time.
+    /// </summary>
+    private void ExtendConnectedRegion(HashSet<Tile> allowed, int maxSize, Action<List<Tile>> onRegion)
+    {
+        EmitCurrentRegion(onRegion);
+
+        if (_regionSetWork.Count >= maxSize)
+            return;
+
+        CollectNeighborsOutsideRegion(allowed, _neighborScratch);
+        // Local copy: deeper recursive calls reuse _neighborScratch; parent must not enumerate a list cleared mid-loop.
+        var frontier = new List<Tile>(_neighborScratch);
+
+        foreach (var n in frontier)
+        {
+            _regionSetWork.Add(n);
+            ExtendConnectedRegion(allowed, maxSize, onRegion);
+            _regionSetWork.Remove(n);
+        }
+    }
+
+    private void CollectNeighborsOutsideRegion(HashSet<Tile> allowed, List<Tile> into)
+    {
+        into.Clear();
+        foreach (var t in _regionSetWork)
+        {
+            foreach (var n in GetNeighborTilesSafe(t))
             {
-                bestRegion = region;
-                bestAnimal = animal;
-                return true;
+                if (n == null || !allowed.Contains(n) || _regionSetWork.Contains(n))
+                    continue;
+                if (!into.Contains(n))
+                    into.Add(n);
             }
         }
-        return false;
+        into.Sort(CompareTilesDeterministic);
     }
 
-    private static string RegionKey(List<Tile> region)
+    private void EmitCurrentRegion(Action<List<Tile>> onRegion)
     {
-        var list = new List<int>();
+        _regionListWork.Clear();
+        foreach (var t in _regionSetWork)
+            _regionListWork.Add(t);
+        _regionListWork.Sort(CompareTilesDeterministic);
+
+        var key = RegionKeyCanonical(_regionListWork);
+        if (!_regionKeySeen.Add(key))
+            return;
+
+        onRegion?.Invoke(new List<Tile>(_regionListWork));
+    }
+
+    private static string RegionKeyCanonical(List<Tile> sortedTiles)
+    {
+        var parts = new List<string>(sortedTiles.Count);
+        foreach (var t in sortedTiles)
+        {
+            if (t != null)
+                parts.Add($"{t.q}:{t.r}");
+        }
+        return string.Join("|", parts);
+    }
+
+    /// <summary>
+    /// Builds H from tiles; tiles incompatible with newAnimal on existing habitats contribute 0.
+    /// Region is discarded only when caller finds vector does not satisfy requirement (spec: invalid candidate).
+    /// </summary>
+    private bool TryBuildFilteredBiomeVector(List<Tile> region, HabitatAnimal newAnimal, out BiomeVector vector)
+    {
+        vector = BiomeVector.Zero;
         foreach (var t in region)
-            if (t != null) list.Add(t.i * 10000 + t.j);
-        list.Sort();
-        return string.Join(",", list);
-    }
-
-    /// <summary>BFS od seed tylko po kafelkach z ball, max maxSize. Zwraca spójny region.</summary>
-    private List<Tile> CollectRegionWithinBall(Tile seed, HashSet<Tile> ball, int maxSize)
-    {
-        var region = new List<Tile>();
-        var queue = new Queue<Tile>();
-        var visited = new HashSet<Tile>();
-        queue.Enqueue(seed);
-        visited.Add(seed);
-        while (queue.Count > 0 && region.Count < maxSize)
         {
-            var t = queue.Dequeue();
-            region.Add(t);
-            if (region.Count >= maxSize) break;
-            IEnumerable<Tile> neighbors = null;
-            try { neighbors = t.GetNeighbors(); } catch { continue; }
-            if (neighbors == null) continue;
-            foreach (var n in neighbors)
-            {
-                if (n == null || visited.Contains(n) || !ball.Contains(n)) continue;
-                visited.Add(n);
-                queue.Enqueue(n);
-            }
-        }
-        return region;
-    }
-
-    /// <summary>Fallback: jeden region do max 5 kafli od startu.</summary>
-    private List<Tile> CollectRegionFallback(Tile start)
-    {
-        var region = new List<Tile>();
-        var queue = new Queue<Tile>();
-        if (start == null) return region;
-        queue.Enqueue(start);
-        while (queue.Count > 0)
-        {
-            var t = queue.Dequeue();
             if (t == null) continue;
-            if (region.Count < maxTilesPerHabitat)
-            {
-                region.Add(t);
-                _visited.Add(t);
-            }
-            else continue;
-            IEnumerable<Tile> neighbors = null;
-            try { neighbors = t.GetNeighbors(); } catch { continue; }
-            if (neighbors == null) continue;
-            foreach (var neighbor in neighbors)
-            {
-                if (neighbor == null || _visited.Contains(neighbor)) continue;
-                if (!_unassignedOccupied.Contains(neighbor)) continue;
-                var r = runtimeStore.Get(neighbor);
-                if (!r.occupied || r.assignedAnimal != HabitatAnimal.None) continue;
-                queue.Enqueue(neighbor);
-            }
-        }
-        return region;
-    }
+            var rt = runtimeStore.Get(t);
+            if (rt == null || !rt.occupied || !rt.CanAcceptNewHabitat())
+                return false;
 
-    /// <summary>Liczy biomy kafli w regionie i zwraca pierwsze pasujące zwierzę (Deer → Beaver → Bear), lub None.</summary>
-    private HabitatAnimal TryClassifyRegion(IReadOnlyList<Tile> region, out int field, out int forest, out int bushes, out int rocks, out int water)
-    {
-        field = 0; forest = 0; bushes = 0; rocks = 0; water = 0;
-        foreach (var t in region)
-        {
-            var r = runtimeStore.Get(t);
-            switch (r.biome)
-            {
-                case TileBiome.Meadow:      field++;  break;
-                case TileBiome.Forested:    forest++; break;
-                case TileBiome.Bushy:       bushes++; break;
-                case TileBiome.Mountainous: rocks++;  break;
-                case TileBiome.Water:       water++;  break;
-            }
+            if (!HabitatCompatibilityService.IsCompatibleWithAllOnTile(newAnimal, runtimeStore, t))
+                continue;
+
+            vector.Add(BiomeVector.FromTileBiome(rt.biome));
         }
 
-        // Deer: 2x plain, forest, bushes, water
-        if (field >= 2 && forest >= 1 && bushes >= 1 && water >= 1)
-            return HabitatAnimal.Deer;
-
-        // Beaver: 3x forest, 2x water
-        if (forest >= 3 && water >= 2)
-            return HabitatAnimal.Beaver;
-
-        // Bear: plain, forest, 2x rocks, water
-        if (field >= 1 && forest >= 1 && rocks >= 2 && water >= 1)
-            return HabitatAnimal.Bear;
-
-        return HabitatAnimal.None;
-    }
-
-    /// <summary>Zwraca krótką podpowiedź, czego brakuje do którego zwierzęcia (dla verbose logów).</summary>
-    private static string GetWhyNoMatch(int field, int forest, int bushes, int rocks, int water)
-    {
-        var missing = new List<string>();
-        if (field < 2 || forest < 1 || bushes < 1 || water < 1)
-            missing.Add($"Deer: potrzeba min. pole:{Mathf.Max(0, 2 - field)} las:{Mathf.Max(0, 1 - forest)} krzaki:{Mathf.Max(0, 1 - bushes)} woda:{Mathf.Max(0, 1 - water)}");
-        if (forest < 3 || water < 2)
-            missing.Add($"Beaver: potrzeba min. las:{Mathf.Max(0, 3 - forest)} woda:{Mathf.Max(0, 2 - water)}");
-        if (field < 1 || forest < 1 || rocks < 2 || water < 1)
-            missing.Add($"Bear: potrzeba min. pole:{Mathf.Max(0, 1 - field)} las:{Mathf.Max(0, 1 - forest)} skały:{Mathf.Max(0, 2 - rocks)} woda:{Mathf.Max(0, 1 - water)}");
-        return missing.Count > 0 ? "Brakuje: " + string.Join(" | ", missing) : "";
+        return true;
     }
 }

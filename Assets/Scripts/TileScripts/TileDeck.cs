@@ -57,6 +57,10 @@ public class TileDeck : MonoBehaviour
     [Header("Debug — podgląd puli (read-only)")]
     [SerializeField] private List<TileDraw> tilePool = new();
 
+    [Header("Nagroda za utworzenie habitatu")]
+    [SerializeField] private bool addTilesOnHabitatCreated = true;
+    [SerializeField, Min(0)] private int tilesAddedPerHabitat = 3;
+
     private readonly Queue<TileDraw> _deck = new();
 
     public event Action<IReadOnlyList<TileDraw>> DeckChanged;
@@ -78,6 +82,44 @@ public class TileDeck : MonoBehaviour
     private void Awake()
     {
         if (rebuildOnStart) RebuildDeck();
+    }
+
+    private void OnEnable()
+    {
+        if (addTilesOnHabitatCreated)
+            TileEvents.HabitatAssigned += OnHabitatAssigned;
+    }
+
+    private void OnDisable()
+    {
+        TileEvents.HabitatAssigned -= OnHabitatAssigned;
+    }
+
+    private void OnHabitatAssigned(HabitatAssignmentData _)
+    {
+        if (tilesAddedPerHabitat > 0)
+            EnqueueRandomTilesFromPool(tilesAddedPerHabitat);
+    }
+
+    /// <summary>
+    /// Dokłada losowe kafle z aktualnej puli biomów na koniec kolejki talii (jak nagroda).
+    /// </summary>
+    public void EnqueueRandomTilesFromPool(int count)
+    {
+        if (count <= 0)
+            return;
+
+        var pool = BuildPool();
+        if (pool.Count == 0)
+            return;
+
+        for (int i = 0; i < count; i++)
+        {
+            var pick = pool[UnityEngine.Random.Range(0, pool.Count)];
+            _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName));
+        }
+
+        NotifyDeckChanged();
     }
 
     public void RebuildDeck()

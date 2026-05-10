@@ -5,8 +5,8 @@ using Tile = TileGrid.Tile;
 
 /// <summary>
 /// Podstawowe UI gry:
-///  - w prawym dolnym rogu pokazuje następny kafel do położenia (ikona + nazwa biomu),
-///  - liczy punkty: 500 za każdy zakwalifikowany habitat (Deer/Beaver/Bear).
+///  - w prawym górnym rogu pokazuje następny kafel do położenia (ikona),
+///  - liczy punkty wg HabitatRequirements (score ≈ basePoints / liczba kafli habitatu).
 ///
 /// Wszystkie referencje (Canvas, Image, Text) są opcjonalne — jeśli nie zostaną
 /// podpięte w Inspectorze, komponent sam zbuduje minimalne UI w trybie play.
@@ -15,9 +15,6 @@ public class GameUI : MonoBehaviour
 {
     [Header("Źródła danych")]
     [SerializeField] private TileDeck deck;
-
-    [Header("Punktacja")]
-    [SerializeField, Min(0)] private int pointsPerHabitat = 500;
 
     [Header("UI (opcjonalnie — jeśli puste, zostanie utworzone w runtime)")]
     [SerializeField] private Canvas canvas;
@@ -63,11 +60,11 @@ public class GameUI : MonoBehaviour
 
     private void OnDeckChanged(IReadOnlyList<TileDraw> _) => RefreshNextTile();
 
-    private void OnHabitatAssigned(HabitatAnimal animal, IReadOnlyList<Tile> tiles)
+    private void OnHabitatAssigned(HabitatAssignmentData data)
     {
-        if (animal == HabitatAnimal.None) return;
+        if (data.Animal == HabitatAnimal.None) return;
         _habitatCount++;
-        _score += pointsPerHabitat;
+        _score += data.PointsAwarded;
         RefreshScore();
     }
 
@@ -92,14 +89,7 @@ public class GameUI : MonoBehaviour
 
         if (nextTileLabel != null)
         {
-            string label = "Brak kafla";
-            if (next != null)
-            {
-                label = !string.IsNullOrWhiteSpace(next.displayName)
-                    ? next.displayName
-                    : TileBiomeRules.GetDisplayName(next.biome);
-            }
-            nextTileLabel.text = $"Następny:\n{label}\nKafli w talii: {remaining}";
+            nextTileLabel.text = $"Kafli w talii: {remaining}";
         }
     }
 
@@ -135,10 +125,10 @@ public class GameUI : MonoBehaviour
     private void BuildNextTilePanel()
     {
         var panel = CreatePanel("NextTilePanel", panelSize,
-            anchorMin: new Vector2(1f, 0f),
-            anchorMax: new Vector2(1f, 0f),
-            pivot:     new Vector2(1f, 0f),
-            anchoredPosition: new Vector2(-panelMargin.x, panelMargin.y));
+            anchorMin: new Vector2(1f, 1f),
+            anchorMax: new Vector2(1f, 1f),
+            pivot:     new Vector2(1f, 1f),
+            anchoredPosition: new Vector2(-panelMargin.x, -panelMargin.y));
 
         var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image));
         iconGo.transform.SetParent(panel, false);
@@ -165,7 +155,7 @@ public class GameUI : MonoBehaviour
         label.fontSize = 22;
         label.color = textColor;
         label.alignment = TextAnchor.MiddleLeft;
-        label.text = "Następny:\n—";
+        label.text = "Kafli w talii: 0";
 
         nextTileIcon = icon;
         nextTileLabel = label;
@@ -175,10 +165,10 @@ public class GameUI : MonoBehaviour
     {
         var size = new Vector2(panelSize.x, 80f);
         var panel = CreatePanel("ScorePanel", size,
-            anchorMin: new Vector2(1f, 0f),
-            anchorMax: new Vector2(1f, 0f),
-            pivot:     new Vector2(1f, 0f),
-            anchoredPosition: new Vector2(-panelMargin.x, panelMargin.y + panelSize.y + 10f));
+            anchorMin: new Vector2(1f, 1f),
+            anchorMax: new Vector2(1f, 1f),
+            pivot:     new Vector2(1f, 1f),
+            anchoredPosition: new Vector2(-panelMargin.x, -(panelMargin.y + panelSize.y + 10f)));
 
         var labelGo = new GameObject("Score", typeof(RectTransform), typeof(Text));
         labelGo.transform.SetParent(panel, false);
