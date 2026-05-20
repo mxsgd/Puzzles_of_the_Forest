@@ -155,6 +155,29 @@ public class TileDeck : MonoBehaviour
 
     public IReadOnlyList<TileDraw> GetQueuedTiles() => _deck.ToList();
 
+    /// <summary>
+    /// Wymienia pierwszą kartę na talii (Current) na losową z aktualnej puli biomów.
+    /// Zwraca true gdy udało się wykonać reroll. Talia zachowuje rozmiar.
+    /// </summary>
+    public bool RerollCurrent()
+    {
+        if (_deck.Count == 0) return false;
+
+        var pool = BuildPool();
+        if (pool.Count == 0) return false;
+
+        var rest = new List<TileDraw>(_deck.Count - 1);
+        _deck.Dequeue();
+        while (_deck.Count > 0) rest.Add(_deck.Dequeue());
+
+        var pick = pool[UnityEngine.Random.Range(0, pool.Count)];
+        _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName));
+        foreach (var item in rest) _deck.Enqueue(item);
+
+        NotifyDeckChanged();
+        return true;
+    }
+
     private List<TileDraw> BuildPool()
     {
         var pool = new List<TileDraw>();

@@ -25,6 +25,10 @@ public class HabitatGridManager : MonoBehaviour
 
     [Header("Initial Sources")]
     [SerializeField] private List<HabitatSource> initialSources = new();
+    [Header("Chain Reaction")]
+    [Tooltip("Gdy true, HabitatAssigned nie infekuje od razu — HabitatChainReactionAnimator kontroluje kolejność.")]
+    [SerializeField] private bool deferInfectionToAnimator = false;
+
     [Header("Debug")]
     [SerializeField] private bool verboseTintDebug;
 
@@ -260,6 +264,9 @@ public class HabitatGridManager : MonoBehaviour
         CacheTileRenderers();
         Debug.Log($"[HabitatGridManager] HabitatAssigned received. HabitatId={data.HabitatId}, Animal={data.Animal}, Tiles={data.Tiles.Count}", this);
 
+        if (deferInfectionToAnimator)
+            return;
+
         Color color = ResolveSourceColor(data.Animal, Color.white);
         for (int i = 0; i < data.Tiles.Count; i++)
         {
@@ -269,6 +276,10 @@ public class HabitatGridManager : MonoBehaviour
             InfectTile(new Vector2Int(tile.q, tile.r), color, 1f);
         }
     }
+
+    /// <summary>Publiczne API dla HabitatChainReactionAnimator — infekuje pojedynczy kafelek.</summary>
+    public void InfectTilePublic(Vector2Int position, Color color, float strength)
+        => InfectTile(position, color, strength);
 
     private void InfectTile(Vector2Int position, Color color, float strength)
     {

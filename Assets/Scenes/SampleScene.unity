@@ -13249,10 +13249,10 @@ MonoBehaviour:
     contents:
     - tag: Tree
       prefabs:
-      - prefab: {fileID: 4564713505400469343, guid: d03fce7251c5bd7439f7222d4b51da97, type: 3}
+      - prefab: {fileID: 7245867163761069325, guid: d03fce7251c5bd7439f7222d4b51da97, type: 3}
         slotsPerSpawn: 2
         spawnCountPerTile: 3
-      - prefab: {fileID: 90010439047258713, guid: e6c2928dc36ffd34ba9272379f1fda3c, type: 3}
+      - prefab: {fileID: 1026460230148584098, guid: e6c2928dc36ffd34ba9272379f1fda3c, type: 3}
         slotsPerSpawn: 2
         spawnCountPerTile: 2
       randomScaleRange: {x: 1, y: 1}
@@ -13263,13 +13263,13 @@ MonoBehaviour:
     contents:
     - tag: Grass
       prefabs:
-      - prefab: {fileID: 5444030655919082211, guid: 0d1c6c9fedfc0fe45b5f6563a68907b8, type: 3}
-        slotsPerSpawn: 1
-        spawnCountPerTile: 1
-      randomScaleRange: {x: 1, y: 1}
+      - prefab: {fileID: 2380603319816872899, guid: 904d4d2ff935201458cc91d8e678e89e, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 3
+      randomScaleRange: {x: 2, y: 2}
       maxRandomYRotation: 0
-      jitterTowardTileCenter: 0.05
-      placeAtTileCenter: 1
+      jitterTowardTileCenter: 3.37
+      placeAtTileCenter: 0
   - biome: 3
     contents:
     - tag: Rock
@@ -13297,10 +13297,13 @@ MonoBehaviour:
     contents:
     - tag: Bush
       prefabs:
-      - prefab: {fileID: 7183796583770181434, guid: 6e3c5905d90ac6b4cb56a9c04bc15ea0, type: 3}
+      - prefab: {fileID: 5628033187911720140, guid: e988648c26700f849be74e10c3e9e92a, type: 3}
         slotsPerSpawn: 2
         spawnCountPerTile: 3
-      - prefab: {fileID: 342220280901605125, guid: 61c1454cfe27b0046a689c498ebd7bb0, type: 3}
+      - prefab: {fileID: 8961025220571392977, guid: 6e3c5905d90ac6b4cb56a9c04bc15ea0, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 3
+      - prefab: {fileID: 859219981933023941, guid: 61c1454cfe27b0046a689c498ebd7bb0, type: 3}
         slotsPerSpawn: 2
         spawnCountPerTile: 3
       randomScaleRange: {x: 0.9, y: 0.9}
@@ -13376,7 +13379,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TileDeck
   deckSize: 30
   rebuildOnStart: 1
-  baseTilePrefab: {fileID: 7091760512116971437, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
+  baseTilePrefab: {fileID: 7851179883026416310, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
   tileGroups:
   - biome: 1
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
@@ -13384,12 +13387,12 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 1e2d9f4618bb42f42a6dd68fae065e7d, type: 3}
     displayName: 
   - biome: 2
-    baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
+    baseTilePrefabOverride: {fileID: 3373863832436675125, guid: b5f12f1f88c0cec4bbb2fa347adbfc63, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: 5c839492835515441a98caf63faed7f1, type: 3}
     displayName: 
   - biome: 3
-    baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
+    baseTilePrefabOverride: {fileID: 7402760474302956532, guid: 23c99dc807f1095479f793026c34f6bd, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: dd9ef2af5cbeec942ab00892afe4a66a, type: 3}
     displayName: 
@@ -13404,6 +13407,8 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 73f1113d5b1a71747a9e88d0e7002133, type: 3}
     displayName: 
   tilePool: []
+  addTilesOnHabitatCreated: 1
+  tilesAddedPerHabitat: 3
 --- !u!114 &1338635272
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13469,14 +13474,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameUI
   deck: {fileID: 1338635269}
-  canvas: {fileID: 0}
-  nextTileIcon: {fileID: 0}
-  nextTileLabel: {fileID: 0}
-  scoreLabel: {fileID: 0}
-  panelSize: {x: 260, y: 120}
-  panelMargin: {x: 20, y: 20}
-  panelBackground: {r: 0, g: 0, b: 0, a: 0.55}
-  textColor: {r: 1, g: 1, b: 1, a: 1}
+  startingRerolls: 3
 --- !u!4 &1411211308
 Transform:
   m_ObjectHideFlags: 0
@@ -13545,6 +13543,7 @@ MonoBehaviour:
   runtime: {fileID: 1211946169}
   tileDeck: {fileID: 1338635269}
   classifier: {fileID: 1723511249}
+  hoverPreview: {fileID: 0}
   availableTileParent: {fileID: 1610150178}
   availableAlpha: 0.35
   availableTag: 
@@ -13591,6 +13590,7 @@ GameObject:
   - component: {fileID: 1723511252}
   - component: {fileID: 1723511250}
   - component: {fileID: 1723511249}
+  - component: {fileID: 1723511254}
   m_Layer: 0
   m_Name: HabitatManager
   m_TagString: Untagged
@@ -13662,6 +13662,7 @@ MonoBehaviour:
   enableBaseColorFallbackTint: 1
   baseColorFallbackStrength: 0.35
   initialSources: []
+  deferInfectionToAnimator: 1
   verboseTintDebug: 1
 --- !u!4 &1723511253
 Transform:
@@ -13678,6 +13679,30 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1723511254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723511248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d05100a16d92a841853d0de4cbaa3e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HabitatChainReactionAnimator
+  gridManager: {fileID: 1723511252}
+  runtimeStore: {fileID: 1211946169}
+  tintProfile: {fileID: 11400000, guid: 79603036152f75a489a95663961c9720, type: 2}
+  delayBetweenTiles: 0.1
+  riseHeight: 0.45
+  riseDuration: 0.14
+  peakHold: 0.06
+  fallDuration: 0.18
+  highlightScaleMultiplier: 1.13
+  useHighlightColorFlash: 1
+  highlightColor: {r: 1.8, g: 1.8, b: 1.5, a: 1}
+  highlightFlashDuration: 0.07
 --- !u!1 &1983208406
 GameObject:
   m_ObjectHideFlags: 0

@@ -57,7 +57,12 @@ public class TilePlacementService : MonoBehaviour
         prebuiltInstance.transform.SetParent(occupantsParent, worldPositionStays: false);
         prebuiltInstance.transform.position  = tile.worldPos + occupantOffset;
         prebuiltInstance.transform.rotation  = rotation;
-        prebuiltInstance.transform.localScale = Vector3.one; // ghost miał 1.35 przez root — reset
+        // Ghost build wymuszał instance.localScale = 1 — przywracamy oryginalną skalę prefab
+        // żeby placement wyglądał identycznie jak ścieżka Instantiate.
+        Vector3 prefabScale = tileDraw?.prefab != null
+            ? tileDraw.prefab.transform.localScale
+            : Vector3.one;
+        prebuiltInstance.transform.localScale = prefabScale;
 
         // Zniszcz wrapper ghost roota (jest już pusty po reparencie).
         if (ghostRoot != null) Destroy(ghostRoot);

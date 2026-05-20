@@ -15,7 +15,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     [SerializeField] private TileRuntimeStore runtime;
     [SerializeField] private TileDeck tileDeck;
     [SerializeField] private BiomeHabitatClassifier classifier;
-    [SerializeField, Tooltip("Opcjonalnie: jeśli przypisany, gotowy ghost jest bezpośrednio promowany na kafel (zero Instantiate/Populate przy stawianiu).")]
+    [SerializeField, Tooltip("Gotowy ghost z hovera jest promowany na kafel (zero Instantiate/Populate przy stawianiu). Auto-find w Awake jeśli null.")]
     private TileNextTileHoverPreview hoverPreview;
 
     [Header("Available Tiles (ghost)")]
@@ -75,6 +75,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (!grid)             grid          = FindAnyObjectByType<TileGrid>();
         if (!tileDeck)         tileDeck      = FindAnyObjectByType<TileDeck>();
         if (!classifier)       classifier    = FindAnyObjectByType<BiomeHabitatClassifier>();
+        if (!hoverPreview)     hoverPreview  = FindAnyObjectByType<TileNextTileHoverPreview>();
         if (!feedbackAudioSource) feedbackAudioSource = GetComponent<AudioSource>();
         if (!feedbackAudioSource) feedbackAudioSource = gameObject.AddComponent<AudioSource>();
 
@@ -238,27 +239,51 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             return;
 
         var rotation = grid ? grid.transform.rotation : Quaternion.identity;
+
+        // KOLEJNOŚĆ KRYTYCZNA:
+        // 1. Peek aktualny draw (to co pokazuje hover) — bez konsumpcji.
+        // 2. Take ghost — DOPÓKI tileDeck.Current się nie zmienił.
+        // 3. DrawTile — dopiero teraz; DeckChanged przebuduje ghost na kolejny typ,
+        //    ale my mamy już swoje prebuilt poza pulą.
         TileDraw draw = null;
         if (tileDeck != null)
         {
-            draw = tileDeck.DrawTile();
-            if(draw == null)
+            draw = tileDeck.Current;
+            if (draw == null)
                 return;
+        }
+
+        GameObject prebuilt = null;
+        GameObject ghostRoot = null;
+        if (hoverPreview != null)
+            (prebuilt, ghostRoot) = hoverPreview.TakeActiveGhostForPlacement();
+
+        if (tileDeck != null)
+        {
+            TileDraw consumed = tileDeck.DrawTile();
+            if (consumed == null)
+                return;
+            if (!ReferenceEquals(consumed, draw))
+                Debug.LogWarning("[TileAvailabilityVisualizer] DrawTile zwrócił inny draw niż peek — możliwy race condition.", this);
         }
 
         int habitatCountBefore = runtimeTile.habitatIds != null ? runtimeTile.habitatIds.Count : 0;
         PlacementFeedbackKind prePlacementHint = EvaluatePrePlacementFeedback(targetTile, draw);
 
         // Promuj gotowego ghosta zamiast Instantiate+Populate — zero kosztu przy stawianiu.
-        // Fallback na zwykłe PlaceOccupant jeśli hoverPreview nie jest przypisany lub ghost niedostępny.
+        // Fallback na PlaceOccupant tylko jeśli ghost niedostępny (np. brak hovera przed kliknięciem).
         GameObject instance;
         if (hoverPreview != null)
         {
-            var (prebuilt, ghostRoot) = hoverPreview.TakeActiveGhostForPlacement();
+            if (prebuilt == null)
+                Debug.LogWarning("[TileAvailabilityVisualizer] Ghost hovera niedostępny — fallback na Instantiate. " +
+                                 "Sprawdź czy hover zdążył zbudować ghosta (np. tap bez wcześniejszego hovera).", this);
             instance = placement.PlaceOccupantFromPrebuilt(targetTile, rotation, draw, prebuilt, ghostRoot);
         }
         else
         {
+            Debug.LogWarning("[TileAvailabilityVisualizer] hoverPreview == null — używam Instantiate. " +
+                             "Przypisz TileNextTileHoverPreview w Inspectorze albo upewnij się że jest w scenie.", this);
             instance = placement.PlaceOccupant(targetTile, rotation, draw);
         }
 

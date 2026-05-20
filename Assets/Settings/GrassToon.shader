@@ -12,6 +12,10 @@ Shader "Custom/URP/GrassToon"
         _WindStrength ("Wind Strength", Range(0,0.5)) = 0.15
         _WindSpeed    ("Wind Speed", Range(0,5)) = 1.5
         _WindFrequency("Wind Frequency (XZ)", Vector) = (0.4, 0.0, 0.7, 0.0)
+
+        _HabitatColor ("Habitat Color", Color) = (1,1,1,1)
+        _HabitatStrength ("Habitat Strength", Range(0,1)) = 0
+        _HabitatTintIntensity ("Habitat Tint Intensity", Range(0,1)) = 0.45
     }
 
     SubShader
@@ -58,6 +62,9 @@ Shader "Custom/URP/GrassToon"
                 float  _WindStrength;
                 float  _WindSpeed;
                 float4 _WindFrequency;
+                float4 _HabitatColor;
+                float  _HabitatStrength;
+                float  _HabitatTintIntensity;
             CBUFFER_END
 
             struct Attributes
@@ -119,6 +126,10 @@ Shader "Custom/URP/GrassToon"
                 clip(alpha - _Cutoff);
 
                 float3 albedo = baseCol.rgb * _BaseColor.rgb;
+
+                float habitatMask = lerp(0.4, 1.0, saturate(IN.uv.y));
+                float habitatBlend = saturate(_HabitatStrength * habitatMask * _HabitatTintIntensity);
+                albedo = lerp(albedo, albedo * _HabitatColor.rgb, habitatBlend);
 
                 float3 normalWS = normalize(IN.normalWS);
                 float4 shadowCoord = TransformWorldToShadowCoord(IN.positionWS);
