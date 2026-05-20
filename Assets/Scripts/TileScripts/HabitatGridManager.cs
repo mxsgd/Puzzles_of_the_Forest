@@ -14,10 +14,7 @@ public class HabitatGridManager : MonoBehaviour
     [SerializeField] private TileRuntimeStore runtimeStore;
     [SerializeField] private HabitatTintProfile habitatTintProfile;
 
-    [Header("Propagation")]
-    [SerializeField, Min(0f)] private float spreadSpeed = 3f;
-    [SerializeField, Range(0f, 1f)] private float decay = 0.08f;
-    [SerializeField, Min(0.01f)] private float simulationStep = 0.05f;
+    [Header("Tint Settings")]
     [SerializeField, Range(0f, 1f)] private float infectionCommitThreshold = 0.85f;
     [Header("Fallback Tint (materials without habitat properties)")]
     [SerializeField] private bool enableBaseColorFallbackTint = true;
@@ -35,13 +32,10 @@ public class HabitatGridManager : MonoBehaviour
     private readonly List<HabitatTile> _tiles = new();
     private readonly Dictionary<Vector2Int, int> _indexByPos = new();
     private readonly Dictionary<int, List<Renderer>> _renderersByTileIndex = new();
-    private List<int>[] _neighborLists;
-    private float[] _nextInfluence;
-    private Color[] _nextColor;
     private bool[] _infected;
     private Color[] _infectedColor;
     private MaterialPropertyBlock _sharedBlock;
-    private float _stepAccumulator;
+    private bool _dirty;
 
     public IReadOnlyList<HabitatTile> Tiles => _tiles;
 
@@ -53,38 +47,31 @@ public class HabitatGridManager : MonoBehaviour
     private void OnEnable()
     {
         TileEvents.HabitatAssigned += OnHabitatAssigned;
+        TileEvents.TileStateChanged += OnTileStateChanged;
         if (_tiles.Count == 0)
             Rebuild();
-        ApplyAllToRenderers();
+        _dirty = true;
     }
 
     private void OnDisable()
     {
         TileEvents.HabitatAssigned -= OnHabitatAssigned;
+        TileEvents.TileStateChanged -= OnTileStateChanged;
     }
 
     private void OnValidate()
     {
-        spreadSpeed = Mathf.Max(0f, spreadSpeed);
-        simulationStep = Mathf.Max(0.01f, simulationStep);
-        decay = Mathf.Clamp01(decay);
         infectionCommitThreshold = Mathf.Clamp01(infectionCommitThreshold);
         baseColorFallbackStrength = Mathf.Clamp01(baseColorFallbackStrength);
     }
 
     private void Update()
     {
-        if (_tiles.Count == 0)
+        if (!_dirty || _tiles.Count == 0)
             return;
 
-        _stepAccumulator += Time.deltaTime;
-        while (_stepAccumulator >= simulationStep)
-        {
-            SimulateStep(simulationStep);
-            _stepAccumulator -= simulationStep;
-        }
-
         ApplyAllToRenderers();
+        _dirty = false;
     }
 
     [ContextMenu("Rebuild Grid Cache")]
@@ -113,32 +100,11 @@ public class HabitatGridManager : MonoBehaviour
             });
         }
 
-        _neighborLists = new List<int>[_tiles.Count];
-        for (int i = 0; i < _tiles.Count; i++)
-            _neighborLists[i] = new List<int>(6);
-
-        for (int i = 0; i < _tiles.Count; i++)
-        {
-            TileGrid.Tile tile = grid.tiles[i];
-            IEnumerable<TileGrid.Tile> neighbors = tile != null ? tile.GetNeighbors() : null;
-            if (neighbors == null)
-                continue;
-
-            foreach (TileGrid.Tile n in neighbors)
-            {
-                if (n == null)
-                    continue;
-                if (_indexByPos.TryGetValue(new Vector2Int(n.q, n.r), out int nIdx))
-                    _neighborLists[i].Add(nIdx);
-            }
-        }
-
-        _nextInfluence = new float[_tiles.Count];
-        _nextColor = new Color[_tiles.Count];
         _infected = new bool[_tiles.Count];
         _infectedColor = new Color[_tiles.Count];
         CacheTileRenderers();
         LoadInitialSources();
+        _dirty = true;
     }
 
     public void AddOrUpdateSource(Vector2Int position, Color color, float strength = 1f)
@@ -151,17 +117,8 @@ public class HabitatGridManager : MonoBehaviour
         InfectTile(position, ResolveSourceColor(animal, Color.white), Mathf.Clamp01(strength));
     }
 
-    public void RemoveSource(Vector2Int position)
-    {
-        // Permanent infection model: once introduced, state does not get reverted.
-        // Kept for API compatibility with existing callers.
-    }
-
-    public void ClearSources()
-    {
-        // Permanent infection model: no runtime "signal sources" to clear.
-        // Kept for API compatibility with existing callers.
-    }
+    public void RemoveSource(Vector2Int position) { }
+    public void ClearSources() { }
 
     private void LoadInitialSources()
     {
@@ -177,76 +134,6 @@ public class HabitatGridManager : MonoBehaviour
         }
     }
 
-    private void SimulateStep(float dt)
-    {
-        float lerpT = 1f - Mathf.Exp(-spreadSpeed * dt);
-        float edgeLoss = Mathf.Clamp01(decay);
-
-        for (int i = 0; i < _tiles.Count; i++)
-        {
-            HabitatTile tile = _tiles[i];
-            if (_infected[i])
-            {
-                _nextInfluence[i] = 1f;
-                _nextColor[i] = _infectedColor[i];
-                continue;
-            }
-
-            float bestNeighbor = 0f;
-            float weightedSum = 0f;
-            Color weightedColor = Color.black;
-
-            List<int> neighbors = _neighborLists[i];
-            for (int n = 0; n < neighbors.Count; n++)
-            {
-                int nIdx = neighbors[n];
-                HabitatTile nt = _tiles[nIdx];
-                if (!_infected[nIdx] && nt.influence <= 0.0001f)
-                    continue;
-
-                float propagated = Mathf.Max(0f, nt.influence - edgeLoss);
-                if (propagated <= 0f)
-                    continue;
-
-                if (propagated > bestNeighbor)
-                    bestNeighbor = propagated;
-
-                weightedSum += propagated;
-                weightedColor += nt.habitatColor * propagated;
-            }
-
-            float candidate = Mathf.Max(tile.influence, bestNeighbor);
-            float nextInf = Mathf.Lerp(tile.influence, candidate, lerpT);
-            nextInf = Mathf.Clamp01(nextInf);
-
-            Color nextCol = tile.habitatColor;
-            if (weightedSum > 0.0001f)
-            {
-                Color average = weightedColor / weightedSum;
-                nextCol = Color.Lerp(tile.habitatColor, average, lerpT);
-            }
-
-            _nextInfluence[i] = nextInf;
-            _nextColor[i] = nextCol;
-        }
-
-        for (int i = 0; i < _tiles.Count; i++)
-        {
-            HabitatTile tile = _tiles[i];
-            tile.targetInfluence = _nextInfluence[i];
-            tile.influence = _nextInfluence[i];
-            tile.habitatColor = _nextColor[i];
-
-            if (!_infected[i] && tile.influence >= infectionCommitThreshold)
-            {
-                _infected[i] = true;
-                _infectedColor[i] = tile.habitatColor;
-                tile.influence = 1f;
-                tile.targetInfluence = 1f;
-            }
-        }
-    }
-
     private Color ResolveSourceColor(HabitatAnimal animal, Color fallbackColor)
     {
         if (animal != HabitatAnimal.None &&
@@ -256,13 +143,46 @@ public class HabitatGridManager : MonoBehaviour
         return fallbackColor;
     }
 
+    private void OnTileStateChanged(TileGrid.Tile tile)
+    {
+        if (tile == null || runtimeStore == null)
+            return;
+
+        if (!_indexByPos.TryGetValue(new Vector2Int(tile.q, tile.r), out int tileIndex))
+            return;
+
+        TileRuntimeStore.Runtime rt = runtimeStore.Get(tile);
+        if (rt == null || !rt.occupied || rt.occupantInstance == null)
+        {
+            _renderersByTileIndex.Remove(tileIndex);
+            return;
+        }
+
+        Renderer[] renderers = ResolveHabitatRenderers(rt.occupantInstance);
+        if (renderers.Length > 0)
+        {
+            if (!_renderersByTileIndex.TryGetValue(tileIndex, out List<Renderer> list))
+            {
+                list = new List<Renderer>(renderers.Length);
+                _renderersByTileIndex[tileIndex] = list;
+            }
+            else
+            {
+                list.Clear();
+            }
+            for (int i = 0; i < renderers.Length; i++)
+                if (renderers[i] != null) list.Add(renderers[i]);
+        }
+        else
+        {
+            _renderersByTileIndex.Remove(tileIndex);
+        }
+    }
+
     private void OnHabitatAssigned(HabitatAssignmentData data)
     {
         if (data.Tiles == null || data.Tiles.Count == 0)
             return;
-
-        CacheTileRenderers();
-        Debug.Log($"[HabitatGridManager] HabitatAssigned received. HabitatId={data.HabitatId}, Animal={data.Animal}, Tiles={data.Tiles.Count}", this);
 
         if (deferInfectionToAnimator)
             return;
@@ -277,7 +197,7 @@ public class HabitatGridManager : MonoBehaviour
         }
     }
 
-    /// <summary>Publiczne API dla HabitatChainReactionAnimator — infekuje pojedynczy kafelek.</summary>
+    /// <summary>Publiczne API dla HabitatChainReactionAnimator.</summary>
     public void InfectTilePublic(Vector2Int position, Color color, float strength)
         => InfectTile(position, color, strength);
 
@@ -299,6 +219,8 @@ public class HabitatGridManager : MonoBehaviour
             tile.influence = 1f;
             tile.targetInfluence = 1f;
         }
+
+        _dirty = true;
     }
 
     private void CacheTileRenderers()
@@ -322,21 +244,15 @@ public class HabitatGridManager : MonoBehaviour
 
             Renderer[] renderers = ResolveHabitatRenderers(obj.gameObject);
             if (renderers.Length > 0)
-            {
                 mapped += AddRenderersForTile(tileIndex, renderers);
-            }
             else
             {
                 withoutCompatibleRenderer++;
                 if (verboseTintDebug)
-                    Debug.LogWarning($"[HabitatGridManager] No compatible renderer for tile [{obj.Tile.q},{obj.Tile.r}] on object '{obj.name}'.", obj);
+                    Debug.LogWarning($"[HabitatGridManager] No compatible renderer for tile [{obj.Tile.q},{obj.Tile.r}] on '{obj.name}'.", obj);
             }
         }
 
-        if (verboseTintDebug)
-            Debug.Log($"[HabitatGridManager] CacheTileRenderers mapped={mapped}, missing={withoutCompatibleRenderer}, tileObjects={tileObjects.Length}, tilesInGrid={_tiles.Count}", this);
-
-        // Fallback for current prefab setup: many occupant prefabs do not carry TileObject.
         if (runtimeStore == null)
             return;
 
@@ -350,21 +266,20 @@ public class HabitatGridManager : MonoBehaviour
             Vector2Int pos = new(tile.q, tile.r);
             if (!_indexByPos.TryGetValue(pos, out int tileIndex))
                 continue;
+
             Renderer[] renderers = ResolveHabitatRenderers(rt.occupantInstance);
             if (renderers.Length > 0)
-            {
                 mapped += AddRenderersForTile(tileIndex, renderers);
-            }
             else
             {
                 withoutCompatibleRenderer++;
                 if (verboseTintDebug)
-                    Debug.LogWarning($"[HabitatGridManager] Runtime occupant '{rt.occupantInstance.name}' on tile [{tile.q},{tile.r}] has no compatible renderer.", rt.occupantInstance);
+                    Debug.LogWarning($"[HabitatGridManager] Runtime occupant '{rt.occupantInstance.name}' on [{tile.q},{tile.r}] has no compatible renderer.", rt.occupantInstance);
             }
         }
 
         if (verboseTintDebug)
-            Debug.Log($"[HabitatGridManager] CacheTileRenderers final mapped={mapped}, missing={withoutCompatibleRenderer}", this);
+            Debug.Log($"[HabitatGridManager] CacheTileRenderers mapped={mapped}, missing={withoutCompatibleRenderer}", this);
     }
 
     private static Renderer[] ResolveHabitatRenderers(GameObject root)
@@ -419,8 +334,6 @@ public class HabitatGridManager : MonoBehaviour
 
     private void ApplyAllToRenderers()
     {
-        if (_renderersByTileIndex.Count == 0 && _tiles.Count > 0)
-            CacheTileRenderers();
 
         if (_sharedBlock == null)
             _sharedBlock = new MaterialPropertyBlock();
@@ -446,6 +359,7 @@ public class HabitatGridManager : MonoBehaviour
                     Material mat = mats[matIndex];
                     if (mat == null)
                         continue;
+
                     bool hasHabitatProps = mat.HasProperty(HabitatColorId) && mat.HasProperty(HabitatStrengthId);
                     int fallbackColorProperty = ResolveFallbackColorProperty(mat);
                     bool canFallbackTint = enableBaseColorFallbackTint && fallbackColorProperty != -1;
@@ -470,19 +384,12 @@ public class HabitatGridManager : MonoBehaviour
                     renderer.SetPropertyBlock(_sharedBlock, matIndex);
 
                     if (verboseTintDebug && tile.influence > 0.01f)
-                    {
-                        Debug.Log(
-                            $"[HabitatGridManager] Applied tint tile={tile.gridPos} inf={tile.influence:F2} color={tile.habitatColor} renderer='{renderer.name}' material='{mat.name}' shader='{mat.shader?.name}' matIndex={matIndex}",
-                            renderer);
-                    }
+                        Debug.Log($"[HabitatGridManager] tile={tile.gridPos} inf={tile.influence:F2} renderer='{renderer.name}' mat='{mat.name}'", renderer);
                 }
             }
 
             if (verboseTintDebug && !appliedToAnyMaterial && tile.influence > 0.01f)
-            {
-                Debug.LogWarning(
-                    $"[HabitatGridManager] Tile {tile.gridPos} has influence {tile.influence:F2} but no compatible materials were found on mapped renderers.");
-            }
+                Debug.LogWarning($"[HabitatGridManager] Tile {tile.gridPos} inf={tile.influence:F2} — no compatible materials on mapped renderers.");
         }
     }
 

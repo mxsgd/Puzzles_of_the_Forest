@@ -22,10 +22,10 @@ public class HabitatChainReactionAnimator : MonoBehaviour
     [SerializeField, Min(0f)] private float delayBetweenTiles = 0.1f;
 
     [Header("Rise — uniesienie kafelka w górę")]
-    [SerializeField, Min(0f)]   private float riseHeight    = 0.45f;
-    [SerializeField, Min(0.02f)] private float riseDuration  = 0.14f;
-    [SerializeField, Min(0f)]   private float peakHold      = 0.06f;
-    [SerializeField, Min(0.02f)] private float fallDuration  = 0.18f;
+    [SerializeField, Min(0f)]    private float riseHeight   = 0.45f;
+    [SerializeField, Min(0.02f)] private float riseDuration = 0.14f;
+    [SerializeField, Min(0f)]    private float peakHold     = 0.06f;
+    [SerializeField, Min(0.02f)] private float fallDuration = 0.18f;
 
     [Header("Highlight — skala przy podświetleniu")]
     [SerializeField, Min(1f)] private float highlightScaleMultiplier = 1.13f;
@@ -73,8 +73,6 @@ public class HabitatChainReactionAnimator : MonoBehaviour
         }
     }
 
-    // ── per-tile sequence ────────────────────────────────────────────────────
-
     private IEnumerator AnimateTile(GameObject instance, Vector2Int tilePos, Color habitatColor)
     {
         Transform tr = instance != null ? instance.transform : null;
@@ -86,7 +84,7 @@ public class HabitatChainReactionAnimator : MonoBehaviour
         // ── 1. Rise ──────────────────────────────────────────────────────────
         yield return LerpTransform(tr, origPos, origScale, peakPos, peakScale, riseDuration);
 
-        // ── 2. Highlight color flash (shader) ────────────────────────────────
+        // ── 2. Highlight flash ────────────────────────────────────────────────
         if (useHighlightColorFlash && highlightFlashDuration > 0f)
         {
             gridManager?.InfectTilePublic(tilePos, highlightColor, 1f);
@@ -97,10 +95,10 @@ public class HabitatChainReactionAnimator : MonoBehaviour
             yield return new WaitForSeconds(peakHold);
         }
 
-        // ── 3. Habitat color w shaderze ──────────────────────────────────────
+        // ── 3. Właściwy kolor habitatu ────────────────────────────────────────
         gridManager?.InfectTilePublic(tilePos, habitatColor, 1f);
 
-        // ── 4. Fall ──────────────────────────────────────────────────────────
+        // ── 4. Fall ───────────────────────────────────────────────────────────
         Vector3 fallStartPos   = tr != null ? tr.localPosition : peakPos;
         Vector3 fallStartScale = tr != null ? tr.localScale    : peakScale;
         yield return LerpTransform(tr, fallStartPos, fallStartScale, origPos, origScale, fallDuration);
