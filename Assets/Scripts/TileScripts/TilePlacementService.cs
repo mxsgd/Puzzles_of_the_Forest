@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using System;
 using Tile = TileGrid.Tile;
@@ -21,12 +22,15 @@ public class TilePlacementService : MonoBehaviour
     [SerializeField] private GameObject occupantPrefab;
     [SerializeField] private Vector3 occupantOffset = new(0, 1f, 0);
     [SerializeField] private Vector3 availabilityOffset = new(0, 1f, 0);
+    [Header("Availability Pool")]
+    [SerializeField, Min(1)] private int maxPooledPerPrefab = 48;
     [Header("Placement Feedback - Particles")]
     [SerializeField] private BiomeParticleEntry[] biomeParticles = Array.Empty<BiomeParticleEntry>();
     [SerializeField] private Vector3 particleOffset = new(0f, 0.2f, 0f);
 
-    private readonly System.Collections.Generic.Dictionary<TileBiome, ParticleSystem> _particlesByBiome
-        = new System.Collections.Generic.Dictionary<TileBiome, ParticleSystem>();
+    private readonly Dictionary<TileBiome, ParticleSystem> _particlesByBiome = new();
+    private readonly Dictionary<int, Stack<GameObject>> _availabilityPoolByPrefabId = new();
+    private readonly Dictionary<GameObject, int> _availabilityInstancePrefabId = new();
 
     private void Awake()
     {
@@ -53,32 +57,25 @@ public class TilePlacementService : MonoBehaviour
 
         RemoveAvailability(tile);
 
-        // Reparent instancję z ghost root do hierarchii postawionych kafli.
         prebuiltInstance.transform.SetParent(occupantsParent, worldPositionStays: false);
         prebuiltInstance.transform.position  = tile.worldPos + occupantOffset;
         prebuiltInstance.transform.rotation  = rotation;
-        // Ghost build wymuszał instance.localScale = 1 — przywracamy oryginalną skalę prefab
-        // żeby placement wyglądał identycznie jak ścieżka Instantiate.
         Vector3 prefabScale = tileDraw?.prefab != null
             ? tileDraw.prefab.transform.localScale
             : Vector3.one;
         prebuiltInstance.transform.localScale = prefabScale;
 
-        // Zniszcz wrapper ghost roota (jest już pusty po reparencie).
         if (ghostRoot != null) Destroy(ghostRoot);
 
-        // Przywróć stan pomijany w ghost build (kolaidery były wyłączone, sorting był podwyższony).
         foreach (var col in prebuiltInstance.GetComponentsInChildren<Collider>(true))
             col.enabled = true;
         foreach (var rend in prebuiltInstance.GetComponentsInChildren<Renderer>(true))
             rend.sortingOrder = 0;
 
-        // TileObject — wymagany do śledzenia kafla.
         var tileObj = prebuiltInstance.GetComponent<TileObject>()
                    ?? prebuiltInstance.AddComponent<TileObject>();
         if (tile.grid != null) tileObj.AssignTile(tile.grid, tile);
 
-        // TileBiomeRuntime jest już gotowy z ghost build (Populate już wywołany).
         var biomeRuntime = prebuiltInstance.GetComponentInChildren<TileBiomeRuntime>();
         var biome = tileDraw?.biome ?? TileBiome.None;
 
@@ -138,9 +135,7 @@ public class TilePlacementService : MonoBehaviour
         if (tpl == null) return null;
 
         RemoveAvailability(tile);
-        var pos = tile.worldPos + availabilityOffset;
-        var go = Instantiate(tpl, pos, Quaternion.identity, availabilityParent);
-        ConfigureAvailabilityInstance(go, alpha, tag);
+        var go = AcquireAvailability(tile, tpl, alpha, tag);
         r.availabilityInstance = go;
         r.available = true;
         return go;
@@ -154,9 +149,7 @@ public class TilePlacementService : MonoBehaviour
         if (tpl == null) return null;
 
         RemoveAvailability(tile);
-        var pos = tile.worldPos + availabilityOffset;
-        var go = Instantiate(tpl, pos, Quaternion.identity, availabilityParent);
-        ConfigureAvailabilityInstance(go, alpha, tag);
+        var go = AcquireAvailability(tile, tpl, alpha, tag);
         r.availabilityInstance = go;
         r.available = true;
         return go;
@@ -166,7 +159,8 @@ public class TilePlacementService : MonoBehaviour
     {
         var r = runtimeStore.Get(tile);
         if (r?.availabilityInstance == null) return;
-        Destroy(r.availabilityInstance);
+
+        ReleaseAvailability(r.availabilityInstance);
         r.availabilityInstance = null;
         r.available = false;
     }
@@ -180,6 +174,64 @@ public class TilePlacementService : MonoBehaviour
         runtimeStore.Free(tile);
     }
 
+    // -------------------------------------------------------------------------
+    // Availability pool
+    // -------------------------------------------------------------------------
+
+    private GameObject AcquireAvailability(Tile tile, GameObject prefab, float alpha, string tag)
+    {
+        int prefabId = prefab.GetInstanceID();
+        GameObject instance = null;
+
+        if (_availabilityPoolByPrefabId.TryGetValue(prefabId, out Stack<GameObject> stack) && stack.Count > 0)
+        {
+            while (stack.Count > 0 && instance == null)
+                instance = stack.Pop();
+        }
+
+        if (instance == null)
+        {
+            instance = Instantiate(prefab, availabilityParent);
+            _availabilityInstancePrefabId[instance] = prefabId;
+        }
+
+        instance.transform.SetParent(availabilityParent, false);
+        instance.transform.position = tile.worldPos + availabilityOffset;
+        instance.transform.rotation = Quaternion.identity;
+        instance.SetActive(true);
+        ConfigureAvailabilityInstance(instance, alpha, tag);
+        return instance;
+    }
+
+    private void ReleaseAvailability(GameObject instance)
+    {
+        if (instance == null) return;
+
+        if (!_availabilityInstancePrefabId.TryGetValue(instance, out int prefabId))
+        {
+            Destroy(instance);
+            return;
+        }
+
+        instance.SetActive(false);
+        instance.transform.SetParent(availabilityParent, false);
+
+        if (!_availabilityPoolByPrefabId.TryGetValue(prefabId, out Stack<GameObject> stack))
+        {
+            stack = new Stack<GameObject>();
+            _availabilityPoolByPrefabId[prefabId] = stack;
+        }
+
+        if (stack.Count >= maxPooledPerPrefab)
+        {
+            _availabilityInstancePrefabId.Remove(instance);
+            Destroy(instance);
+            return;
+        }
+
+        stack.Push(instance);
+    }
+
     // Lazy — MaterialPropertyBlock cannot be created in a static field initializer (Unity restriction).
     private static MaterialPropertyBlock _availabilityMpb;
     private static MaterialPropertyBlock GetMpb() => _availabilityMpb ??= new MaterialPropertyBlock();
@@ -189,14 +241,13 @@ public class TilePlacementService : MonoBehaviour
     private static void ConfigureAvailabilityInstance(GameObject instance, float alpha, string tag)
     {
         if (instance == null) return;
-        instance.name = instance.name.Replace("(Clone)", "").Trim() + " (Available)";
+        if (!instance.name.Contains("(Available)"))
+            instance.name = instance.name.Replace("(Clone)", "").Trim() + " (Available)";
         if (!string.IsNullOrEmpty(tag)) instance.tag = tag;
 
         var mpb = GetMpb();
         foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
         {
-            // MaterialPropertyBlock: sets per-instance alpha without creating material instances.
-            // Preserves GPU instancing and batching on the shared sharedMaterial.
             r.GetPropertyBlock(mpb);
             var baseColor = r.sharedMaterial != null ? r.sharedMaterial.color : Color.white;
             baseColor.a = alpha;

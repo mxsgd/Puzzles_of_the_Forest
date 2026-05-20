@@ -74,6 +74,11 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private bool _needsReevaluate = true;
     private int _lastIconSignature;
 
+    /// <summary>Kafel nad którym był ostatni hover (null jeśli poza siatką).</summary>
+    public Tile LastHoverTile => _lastHover;
+    /// <summary>Wynik ostatniej evaluacji hover — gotowy do odczytu przy kliknięciu, bez ponownego Evaluate.</summary>
+    public HabitatHoverResult LastHoverResult => _lastResult;
+
     private const int SortGhost    = 3100;
     private const int SortBackdrop = 3199;
     private const int SortIcons    = 3200;

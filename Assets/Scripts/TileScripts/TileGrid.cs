@@ -169,5 +169,73 @@ public class TileGrid : MonoBehaviour
         }
     }
     public Tile GetCenterTile() => _centerTile;
+
+    /// <summary>
+    /// Najbliższy kafel do punktu w świecie — O(1) lookup axial + max 7 kandydatów (nie skan całej siatki).
+    /// </summary>
+    public bool TryGetNearestTile(Vector3 worldPoint, out Tile tile, float maxDistance = Mathf.Infinity)
+    {
+        tile = null;
+        if (_axialLookup.Count == 0 || _hexScale <= 0.0001f)
+            return false;
+
+        Vector3 origin = transform.position;
+        float localX = worldPoint.x - origin.x;
+        float localZ = worldPoint.z - origin.z;
+        float scale = _hexScale;
+
+        float rFrac = localZ / (1.5f * scale);
+        float qFrac = localX / (Mathf.Sqrt(3f) * scale) - rFrac * 0.5f;
+        Vector2Int axial = AxialRound(qFrac, rFrac);
+
+        float maxSqr = maxDistance * maxDistance;
+        Tile best = null;
+        float bestSqr = maxSqr;
+
+        ConsiderCandidate(axial, worldPoint, ref best, ref bestSqr);
+        for (int d = 0; d < AxialDirections.Length; d++)
+        {
+            Vector2Int dir = AxialDirections[d];
+            ConsiderCandidate(new Vector2Int(axial.x + dir.x, axial.y + dir.y), worldPoint, ref best, ref bestSqr);
+        }
+
+        if (best == null)
+            return false;
+
+        tile = best;
+        return true;
+    }
+
+    private void ConsiderCandidate(Vector2Int axial, Vector3 worldPoint, ref Tile best, ref float bestSqr)
+    {
+        if (!_axialLookup.TryGetValue(axial, out Tile candidate) || candidate == null)
+            return;
+
+        float sqr = (candidate.worldPos - worldPoint).sqrMagnitude;
+        if (sqr < bestSqr)
+        {
+            bestSqr = sqr;
+            best = candidate;
+        }
+    }
+
+    private static Vector2Int AxialRound(float q, float r)
+    {
+        float s = -q - r;
+        int qi = Mathf.RoundToInt(q);
+        int ri = Mathf.RoundToInt(r);
+        int si = Mathf.RoundToInt(s);
+
+        float dq = Mathf.Abs(qi - q);
+        float dr = Mathf.Abs(ri - r);
+        float ds = Mathf.Abs(si - s);
+
+        if (dq > dr && dq > ds)
+            qi = -ri - si;
+        else if (dr > ds)
+            ri = -qi - si;
+
+        return new Vector2Int(qi, ri);
+    }
 }
 

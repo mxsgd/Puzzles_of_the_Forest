@@ -268,7 +268,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         }
 
         int habitatCountBefore = runtimeTile.habitatIds != null ? runtimeTile.habitatIds.Count : 0;
-        PlacementFeedbackKind prePlacementHint = EvaluatePrePlacementFeedback(targetTile, draw);
+        PlacementFeedbackKind prePlacementHint = GetPrePlacementFeedback(targetTile, draw);
 
         // Promuj gotowego ghosta zamiast Instantiate+Populate — zero kosztu przy stawianiu.
         // Fallback na PlaceOccupant tylko jeśli ghost niedostępny (np. brak hovera przed kliknięciem).
@@ -360,9 +360,24 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         enabled = false;
     }
 
-    private PlacementFeedbackKind EvaluatePrePlacementFeedback(TileGrid.Tile targetTile, TileDraw draw)
+    private PlacementFeedbackKind GetPrePlacementFeedback(TileGrid.Tile targetTile, TileDraw draw)
     {
-        if (runtime == null || targetTile == null || draw == null)
+        if (targetTile == null || draw == null)
+            return PlacementFeedbackKind.Fail;
+
+        // Hover preview już wykonał Evaluate na tym kaflu — odczytujemy gotowy wynik.
+        if (hoverPreview != null && ReferenceEquals(hoverPreview.LastHoverTile, targetTile))
+        {
+            return hoverPreview.LastHoverResult.Kind switch
+            {
+                HabitatHoverPreviewKind.Green  => PlacementFeedbackKind.Habitat,
+                HabitatHoverPreviewKind.Yellow => PlacementFeedbackKind.Almost,
+                _                              => PlacementFeedbackKind.Fail
+            };
+        }
+
+        // Fallback: brak hovera przed kliknięciem (np. tap na mobile) — liczymy raz.
+        if (runtime == null)
             return PlacementFeedbackKind.Fail;
 
         int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
@@ -371,9 +386,9 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
         return hover.Kind switch
         {
-            HabitatHoverPreviewKind.Green => PlacementFeedbackKind.Habitat,
+            HabitatHoverPreviewKind.Green  => PlacementFeedbackKind.Habitat,
             HabitatHoverPreviewKind.Yellow => PlacementFeedbackKind.Almost,
-            _ => PlacementFeedbackKind.Fail
+            _                              => PlacementFeedbackKind.Fail
         };
     }
 

@@ -4,7 +4,7 @@ using Tile = TileGrid.Tile;
 
 public class TileRuntimeStore : MonoBehaviour
 {
-    public const int MaxHabitatsPerTile = 2;
+    public const int MaxHabitatsPerTile = 1;
 
     public class HabitatRecord
     {
