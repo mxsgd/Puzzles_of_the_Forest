@@ -29,6 +29,7 @@ public class GameUI : MonoBehaviour
 
     private int _score;
     private int _habitatCount;
+    private int _biggestHabitatChain;
     private int _scoreDisplayed;
     private int _rerollsLeft;
 
@@ -50,20 +51,27 @@ public class GameUI : MonoBehaviour
 
     public int Score => _score;
     public int HabitatCount => _habitatCount;
+    public int BiggestHabitatChain => _biggestHabitatChain;
     public int RerollsLeft => _rerollsLeft;
 
     private void Awake()
     {
         if (!deck) deck = FindAnyObjectByType<TileDeck>();
         _rerollsLeft = startingRerolls;
+        BuildUI();
     }
 
     private void Start()
     {
-        BuildUI();
         RefreshNextTile();
         RefreshScore(animate: false);
         RefreshReroll();
+    }
+
+    public void SetGameplayHudVisible(bool visible)
+    {
+        if (_canvas != null)
+            _canvas.gameObject.SetActive(visible);
     }
 
     private void OnEnable()
@@ -85,17 +93,21 @@ public class GameUI : MonoBehaviour
         if (data.Animal == HabitatAnimal.None) return;
         _habitatCount++;
         _score += data.PointsAwarded;
+        if (data.TileCount > _biggestHabitatChain)
+            _biggestHabitatChain = data.TileCount;
         RefreshScore(animate: true);
     }
 
-    public void ResetScore()
+    public void ResetSessionStats()
     {
         _score = 0;
         _habitatCount = 0;
+        _biggestHabitatChain = 0;
         _scoreDisplayed = 0;
         _rerollsLeft = startingRerolls;
         RefreshScore(animate: false);
         RefreshReroll();
+        RefreshNextTile();
     }
 
     // ── UI build ────────────────────────────────────────────────────────────
@@ -118,6 +130,9 @@ public class GameUI : MonoBehaviour
         BuildNextTileCard();
         BuildPauseButton();
         BuildPauseMenu();
+
+        // Domyślnie ukryte — GameFlowController pokazuje po Play.
+        _canvas.gameObject.SetActive(false);
     }
 
     // ── Score card (top-left) ───────────────────────────────────────────────
@@ -234,7 +249,7 @@ public class GameUI : MonoBehaviour
         _rerollButton.colors = UISpriteFactory.MakeButtonColors(UISpriteFactory.AccentGold);
         _rerollButton.onClick.AddListener(TryReroll);
 
-        _rerollLabel = CreateLabel((RectTransform)btnGo.transform, "↻  REROLL  (3)", 22f, UISpriteFactory.TextOnAccent,
+        _rerollLabel = CreateLabel((RectTransform)btnGo.transform, "REROLL  (3)", 22f, UISpriteFactory.TextOnAccent,
             anchorMin: Vector2.zero,
             anchorMax: Vector2.one,
             pivot:     new Vector2(0.5f, 0.5f),
@@ -281,7 +296,7 @@ public class GameUI : MonoBehaviour
     private void BuildPauseMenu()
     {
         _pauseMenu = gameObject.GetComponent<PauseMenuController>()
-                     ?? gameObject.AddComponent<PauseMenuController>();
+        ?? gameObject.AddComponent<PauseMenuController>();
         _pauseMenu.Initialize(_canvas);
     }
 
@@ -297,7 +312,7 @@ public class GameUI : MonoBehaviour
     private void RefreshReroll()
     {
         if (_rerollLabel != null)
-            _rerollLabel.text = $"↻  REROLL  ({_rerollsLeft})";
+            _rerollLabel.text = $"REROLL  ({_rerollsLeft})";
         if (_rerollButton != null)
             _rerollButton.interactable = _rerollsLeft > 0 && deck != null && deck.Current != null;
     }
@@ -317,7 +332,7 @@ public class GameUI : MonoBehaviour
         if (_nextTileName != null)
             _nextTileName.text = next != null ? next.displayName : "—";
         if (_nextTileQueue != null)
-            _nextTileQueue.text = $"w talii: {remaining}";
+            _nextTileQueue.text = $"w talii: {remaining} / {GameFlowController.SessionTileCount}";
 
         RefreshReroll();
     }

@@ -267,7 +267,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
                 Debug.LogWarning("[TileAvailabilityVisualizer] DrawTile zwrócił inny draw niż peek — możliwy race condition.", this);
         }
 
-        int habitatCountBefore = runtimeTile.habitatIds != null ? runtimeTile.habitatIds.Count : 0;
+        int habitatCountBefore = runtimeTile.habitatId >= 0 ? 1 : 0;
         PlacementFeedbackKind prePlacementHint = GetPrePlacementFeedback(targetTile, draw);
 
         // Promuj gotowego ghosta zamiast Instantiate+Populate — zero kosztu przy stawianiu.
@@ -291,7 +291,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             return;
 
         var placedRuntime = runtime?.Get(targetTile);
-        int habitatCountAfter = placedRuntime?.habitatIds != null ? placedRuntime.habitatIds.Count : habitatCountBefore;
+        int habitatCountAfter = placedRuntime != null ? (placedRuntime.habitatId >= 0 ? 1 : 0) : habitatCountBefore;
         PlacementFeedbackKind finalFeedback =
             habitatCountAfter > habitatCountBefore ? PlacementFeedbackKind.Habitat : prePlacementHint;
 
@@ -356,8 +356,17 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     {
         _deckDepleted = true;
         ClearSelectedTileHighlight();
-        _availableTiles.Clear();
+        ClearAllGhosts();
         enabled = false;
+    }
+
+    public void ResetForNewSession()
+    {
+        _deckDepleted = false;
+        ClearSelectedTileHighlight();
+        ClearAllGhosts();
+        enabled = true;
+        RefreshAvailability();
     }
 
     private PlacementFeedbackKind GetPrePlacementFeedback(TileGrid.Tile targetTile, TileDraw draw)

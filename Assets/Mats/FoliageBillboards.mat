@@ -32,8 +32,8 @@ Material:
     m_Floats:
     - _Cutoff: 0.523
     - _FullBillboard: 1
-    - _HabitatStrength: 0.225
-    - _HabitatTintIntensity: 0.45
+    - _HabitatStrength: 0.517
+    - _HabitatTintIntensity: 0.923
     - _MinLight: 0.137
     - _Steps: 3
     - _WindGust: 0.35

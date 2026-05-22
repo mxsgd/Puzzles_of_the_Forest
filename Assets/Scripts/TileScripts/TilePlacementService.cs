@@ -99,6 +99,8 @@ public class TilePlacementService : MonoBehaviour
         RemoveAvailability(tile);
         var pos = tile.worldPos + occupantOffset;
         var go = Instantiate(prefab, pos, rotation, occupantsParent);
+        go.SetActive(true);
+        go.transform.localScale = prefab.transform.localScale;
 
         var tileObj = go.GetComponent<TileObject>();
         if (tileObj == null)
@@ -174,6 +176,29 @@ public class TilePlacementService : MonoBehaviour
         runtimeStore.Free(tile);
     }
 
+    /// <summary>Usuwa wszystkie postawione kafle i ghosty dostępności (restart sesji).</summary>
+    public void ClearBoard()
+    {
+        ClearChildren(occupantsParent);
+        ClearChildren(availabilityParent);
+        _availabilityPoolByPrefabId.Clear();
+        _availabilityInstancePrefabId.Clear();
+        runtimeStore?.ClearAll();
+    }
+
+    private static void ClearChildren(Transform parent)
+    {
+        if (parent == null) return;
+        for (int i = parent.childCount - 1; i >= 0; i--)
+        {
+            var child = parent.GetChild(i).gameObject;
+            if (Application.isPlaying)
+                DestroyImmediate(child);
+            else
+                DestroyImmediate(child);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Availability pool
     // -------------------------------------------------------------------------
@@ -238,6 +263,16 @@ public class TilePlacementService : MonoBehaviour
     private static readonly int _colorPropId     = Shader.PropertyToID("_Color");
     private static readonly int _baseColorPropId = Shader.PropertyToID("_BaseColor");
 
+    private static Color ReadMaterialTint(Material mat)
+    {
+        if (mat == null) return Color.white;
+        if (mat.HasProperty(_baseColorPropId))
+            return mat.GetColor(_baseColorPropId);
+        if (mat.HasProperty(_colorPropId))
+            return mat.GetColor(_colorPropId);
+        return Color.white;
+    }
+
     private static void ConfigureAvailabilityInstance(GameObject instance, float alpha, string tag)
     {
         if (instance == null) return;
@@ -248,12 +283,13 @@ public class TilePlacementService : MonoBehaviour
         var mpb = GetMpb();
         foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
         {
+            var mat = r.sharedMaterial;
             r.GetPropertyBlock(mpb);
-            var baseColor = r.sharedMaterial != null ? r.sharedMaterial.color : Color.white;
+            var baseColor = ReadMaterialTint(mat);
             baseColor.a = alpha;
-            if (r.sharedMaterial != null && r.sharedMaterial.HasProperty(_colorPropId))
+            if (mat != null && mat.HasProperty(_colorPropId))
                 mpb.SetColor(_colorPropId, baseColor);
-            if (r.sharedMaterial != null && r.sharedMaterial.HasProperty(_baseColorPropId))
+            if (mat != null && mat.HasProperty(_baseColorPropId))
                 mpb.SetColor(_baseColorPropId, baseColor);
             r.SetPropertyBlock(mpb);
         }

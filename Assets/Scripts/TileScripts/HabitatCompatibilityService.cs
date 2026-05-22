@@ -25,19 +25,14 @@ public static class HabitatCompatibilityService
         return Matrix[ia, ib];
     }
 
-    /// <summary>True if newAnimal is compatible with every existing habitat animal on the tile.</summary>
+    /// <summary>True if newAnimal is compatible with the existing habitat animal on the tile (max 1 per tile).</summary>
     public static bool IsCompatibleWithAllOnTile(HabitatAnimal newAnimal, TileRuntimeStore store, TileGrid.Tile tile)
     {
         var r = store.Get(tile);
-        if (r == null) return true;
-        foreach (int hid in r.habitatIds)
-        {
-            if (!store.TryGetHabitatAnimal(hid, out var existing) || existing == HabitatAnimal.None)
-                continue;
-            if (GetCompatibility(newAnimal, existing) == 0)
-                return false;
-        }
-        return true;
+        if (r == null || r.habitatId < 0) return true;
+        if (!store.TryGetHabitatAnimal(r.habitatId, out var existing) || existing == HabitatAnimal.None)
+            return true;
+        return GetCompatibility(newAnimal, existing) != 0;
     }
 
     private static int ToIndex(HabitatAnimal a)

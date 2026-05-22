@@ -23,9 +23,9 @@ public class TileRuntimeStore : MonoBehaviour
         public TileDraw tileDraw;
         public TileBiome biome = TileBiome.None;
         public TileBiomeRuntime biomeRuntime;
-        public List<int> habitatIds = new List<int>();
+        public int habitatId = -1;
 
-        public bool CanAcceptNewHabitat() => habitatIds.Count < MaxHabitatsPerTile;
+        public bool CanAcceptNewHabitat() => habitatId < 0;
     }
 
     private readonly Dictionary<Tile, Runtime> _map = new();
@@ -66,12 +66,8 @@ public class TileRuntimeStore : MonoBehaviour
         var r = Get(t);
         if (r == null) return;
 
-        if (r.habitatIds.Count > 0)
-        {
-            var copy = new List<int>(r.habitatIds);
-            foreach (int hid in copy)
-                RemoveTileFromHabitatInternal(hid, t);
-        }
+        if (r.habitatId >= 0)
+            RemoveTileFromHabitatInternal(r.habitatId, t);
 
         if (r.occupied && _occupiedCount > 0) _occupiedCount--;
         r.occupied = false;
@@ -80,7 +76,7 @@ public class TileRuntimeStore : MonoBehaviour
         r.occupantInstance = null;
         r.biomeRuntime = null;
         r.biome = TileBiome.None;
-        r.habitatIds.Clear();
+        r.habitatId = -1;
         TileEvents.RaiseTileStateChanged(t);
     }
 
@@ -119,7 +115,7 @@ public class TileRuntimeStore : MonoBehaviour
         {
             if (t == null) continue;
             record.Tiles.Add(t);
-            Get(t).habitatIds.Add(id);
+            Get(t).habitatId = id;
         }
         _habitats[id] = record;
 
@@ -137,7 +133,7 @@ public class TileRuntimeStore : MonoBehaviour
             return;
         rec.Tiles.Remove(t);
         var rt = Get(t);
-        rt?.habitatIds.Remove(habitatId);
+        if (rt != null && rt.habitatId == habitatId) rt.habitatId = -1;
         if (rec.Tiles.Count == 0)
             _habitats.Remove(habitatId);
     }
@@ -169,4 +165,13 @@ public class TileRuntimeStore : MonoBehaviour
     }
 
     public IReadOnlyDictionary<int, HabitatRecord> GetAllHabitats() => _habitats;
+
+    /// <summary>Czyści stan sesji (np. przed restartem). Instancje na scenie niszczy <see cref="TilePlacementService.ClearBoard"/>.</summary>
+    public void ClearAll()
+    {
+        _map.Clear();
+        _habitats.Clear();
+        _occupiedCount = 0;
+        _nextHabitatId = 1;
+    }
 }

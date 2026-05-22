@@ -68,7 +68,17 @@ public class TileDeck : MonoBehaviour
 
     public TileDraw Current => _deck.Count > 0 ? _deck.Peek() : null;
     public bool IsEmpty => _deck.Count == 0;
+    public int RemainingCount => _deck.Count;
+    public int SessionDeckSize => deckSize;
     public GameObject BaseTilePrefab => baseTilePrefab;
+
+    /// <summary>Konfiguracja nagród za habitat w bieżącej sesji.</summary>
+    public void ConfigureSessionRewards(bool addOnHabitat, int tilesPerHabitat = 3)
+    {
+        addTilesOnHabitatCreated = addOnHabitat;
+        tilesAddedPerHabitat = Mathf.Max(0, tilesPerHabitat);
+        RefreshHabitatRewardSubscription();
+    }
 
     /// <summary>Zwraca prefab kafla używany dla danego biomu (override grupy lub default).</summary>
     public GameObject GetPrefabFor(TileBiome biome)
@@ -84,15 +94,15 @@ public class TileDeck : MonoBehaviour
         if (rebuildOnStart) RebuildDeck();
     }
 
-    private void OnEnable()
-    {
-        if (addTilesOnHabitatCreated)
-            TileEvents.HabitatAssigned += OnHabitatAssigned;
-    }
+    private void OnEnable() => RefreshHabitatRewardSubscription();
 
-    private void OnDisable()
+    private void OnDisable() => TileEvents.HabitatAssigned -= OnHabitatAssigned;
+
+    private void RefreshHabitatRewardSubscription()
     {
         TileEvents.HabitatAssigned -= OnHabitatAssigned;
+        if (addTilesOnHabitatCreated && isActiveAndEnabled)
+            TileEvents.HabitatAssigned += OnHabitatAssigned;
     }
 
     private void OnHabitatAssigned(HabitatAssignmentData _)

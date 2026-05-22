@@ -23,6 +23,7 @@ public static class UISpriteFactory
     private static Sprite _roundedSprite;
     private static Sprite _circleSprite;
     private static Sprite _whiteSprite;
+    private static Sprite _iconBracketSprite;
 
     // ── Rounded rect (9-sliced) ─────────────────────────────────────────────
     public static Sprite RoundedRect(int radius = 12)
@@ -106,6 +107,74 @@ public static class UISpriteFactory
             new Vector2(0.5f, 0.5f), 100f);
         _whiteSprite.name = "UI_White_Sprite";
         return _whiteSprite;
+    }
+
+    /// <summary>
+    /// Narożne „bracketi” (L-kształty) — ramka wokół ikony zwierzęcia, jak w UI.
+    /// Środek przezroczysty; kolor ustawiasz przez tint / MaterialPropertyBlock.
+    /// </summary>
+    public static Sprite IconBracket(int size = 64, int armLen = 14, int thickness = 4, int inset = 4)
+    {
+        if (_iconBracketSprite != null) return _iconBracketSprite;
+
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            name = "UI_IconBracket"
+        };
+
+        var clear = new Color32(255, 255, 255, 0);
+        for (int y = 0; y < size; y++)
+        for (int x = 0; x < size; x++)
+            tex.SetPixel(x, y, clear);
+
+        void StampH(int x0, int x1, int yRow)
+        {
+            for (int x = x0; x <= x1; x++)
+            for (int dy = 0; dy < thickness; dy++)
+            {
+                int y = yRow + dy;
+                if (y < 0 || y >= size || x < 0 || x >= size) continue;
+                tex.SetPixel(x, y, Color.white);
+            }
+        }
+
+        void StampV(int y0, int y1, int xCol)
+        {
+            for (int y = y0; y <= y1; y++)
+            for (int dx = 0; dx < thickness; dx++)
+            {
+                int x = xCol + dx;
+                if (y < 0 || y >= size || x < 0 || x >= size) continue;
+                tex.SetPixel(x, y, Color.white);
+            }
+        }
+
+        int left = inset;
+        int right = size - inset - thickness;
+        int bottom = inset;
+        int top = size - inset - thickness;
+
+        // Top-left
+        StampH(left, left + armLen, top);
+        StampV(top - armLen, top, left);
+        // Top-right
+        StampH(right - armLen, right, top);
+        StampV(top - armLen, top, right);
+        // Bottom-left
+        StampH(left, left + armLen, bottom);
+        StampV(bottom, bottom + armLen, left);
+        // Bottom-right
+        StampH(right - armLen, right, bottom);
+        StampV(bottom, bottom + armLen, right);
+
+        tex.Apply();
+
+        _iconBracketSprite = Sprite.Create(tex, new Rect(0, 0, size, size),
+            new Vector2(0.5f, 0.5f), 100f);
+        _iconBracketSprite.name = "UI_IconBracket_Sprite";
+        return _iconBracketSprite;
     }
 
     // ── Color helpers ───────────────────────────────────────────────────────

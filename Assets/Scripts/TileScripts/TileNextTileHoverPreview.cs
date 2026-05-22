@@ -31,11 +31,17 @@ public class TileNextTileHoverPreview : MonoBehaviour
     [SerializeField] private float iconsAboveTile = 2.2f;
     [SerializeField] private float iconSpacing = 0.55f;
     [SerializeField] private float iconScale = 0.45f;
-    [SerializeField] private float greenBackdropScale = 0.62f;
+    [SerializeField] private float iconPanelScale = 1.35f;
+    [SerializeField] private float iconBracketScale = 1.5f;
+    [SerializeField, Range(0.4f, 1f)] private float iconAnimalScale = 0.72f;
 
-    [Header("Kolory ikon habitatu")]
-    [SerializeField] private Color greenBackdropColor = new(0.15f, 0.55f, 0.2f, 0.95f);
-    [SerializeField] private Color yellowAnimalIconTint = new(1f, 0.95f, 0.55f, 1f);
+    [Header("Kolory ikon habitatu (jak UI)")]
+    [SerializeField] private Color greenPanelFill = new(0.72f, 0.86f, 0.70f, 0.94f);
+    [SerializeField] private Color greenBracketColor = new(0.66f, 0.57f, 0.44f, 1f);
+    [SerializeField] private Color greenAnimalIconTint = Color.white;
+    [SerializeField] private Color yellowPanelFill = new(0.94f, 0.84f, 0.62f, 0.94f);
+    [SerializeField] private Color yellowBracketColor = new(0.66f, 0.57f, 0.44f, 1f);
+    [SerializeField] private Color yellowAnimalIconTint = Color.white;
 
     [Header("Ikony (przypisz sprite'y w Inspectorze)")]
     [SerializeField] private HabitatIconEntry[] habitatIcons = new HabitatIconEntry[0];
@@ -51,8 +57,10 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private readonly Dictionary<HabitatAnimal, Sprite> _iconByAnimal = new();
     private readonly HashSet<Tile> _placeableCache = new();
 
-    private static Sprite _whiteSprite;
     private static Material _iconOverlayMaterial;
+    private static Sprite _iconPanelSprite;
+    private static Sprite _iconBracketSprite;
+    private MaterialPropertyBlock _iconMpb;
     private static TileNextTileHoverPreview _activeInstance;
 
     // --- Ghost pool ---
@@ -65,7 +73,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
     // --- Icon pool ---
     private Transform _iconsRoot;
     private readonly List<GameObject> _iconPool = new();
-    private const int IconPoolCapacity = 8;
+    private const int IconPoolCapacity = 18;
 
     private Tile _lastHover;
     private TileDraw _lastDraw;
@@ -79,9 +87,10 @@ public class TileNextTileHoverPreview : MonoBehaviour
     /// <summary>Wynik ostatniej evaluacji hover — gotowy do odczytu przy kliknięciu, bez ponownego Evaluate.</summary>
     public HabitatHoverResult LastHoverResult => _lastResult;
 
-    private const int SortGhost    = 3100;
+    private const int SortGhost = 3100;
     private const int SortBackdrop = 3199;
-    private const int SortIcons    = 3200;
+    private const int SortFrame = 3200;
+    private const int SortIcons = 3201;
 
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -104,6 +113,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
                 if (e.sprite != null && e.animal != HabitatAnimal.None)
                     _iconByAnimal[e.animal] = e.sprite;
 
+        _iconMpb = new MaterialPropertyBlock();
         InitIconPool();
     }
 
@@ -112,6 +122,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (_activeInstance != null && _activeInstance != this) { enabled = false; return; }
         _activeInstance = this;
         TileEvents.TileStateChanged += OnTileStateChanged;
+        TileEvents.HabitatAssigned += OnHabitatAssigned;
         if (tileDeck != null)
         {
             tileDeck.DeckChanged += OnDeckChanged;
@@ -124,6 +135,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
     {
         if (_activeInstance == this) _activeInstance = null;
         TileEvents.TileStateChanged -= OnTileStateChanged;
+        TileEvents.HabitatAssigned -= OnHabitatAssigned;
         if (tileDeck != null)
         {
             tileDeck.DeckChanged -= OnDeckChanged;
@@ -149,7 +161,37 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
     private void OnDeckEmptied() { HideAllGhosts(); HideAllIcons(); enabled = false; }
 
+    public void ResetForNewSession()
+    {
+        HideAllGhosts();
+        HideAllIcons();
+        _lastHover = null;
+        _lastDraw = null;
+        _activeGhostDraw = null;
+        _placeableDirty = true;
+        _needsReevaluate = true;
+        enabled = true;
+    }
+
     private void OnTileStateChanged(Tile _) { _placeableDirty = true; _needsReevaluate = true; }
+
+    private void OnHabitatAssigned(HabitatAssignmentData data)
+    {
+        if (_lastHover == null || data.Tiles == null || data.Animal == HabitatAnimal.None)
+            return;
+
+        foreach (var t in data.Tiles)
+        {
+            if (!ReferenceEquals(t, _lastHover)) continue;
+
+            _lastResult = new HabitatHoverResult(HabitatHoverPreviewKind.Green, data.Animal, System.Array.Empty<HabitatAnimal>());
+            _needsReevaluate = false;
+            _lastIconSignature = -1;
+            if (_iconsRoot != null && isActiveAndEnabled)
+                RebuildIcons(_lastHover, _lastResult);
+            break;
+        }
+    }
 
     private void OnDeckChanged(System.Collections.Generic.IReadOnlyList<TileDraw> _)
     {
@@ -384,7 +426,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
     private void RebuildIcons(Tile tile, HabitatHoverResult result)
     {
-        if (_iconsRoot == null) InitIconPool();
+        InitIconPool();
         _iconsRoot.position = tile.worldPos + Vector3.up * iconsAboveTile;
 
         foreach (var go in _iconPool)
@@ -395,20 +437,30 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (result.Kind == HabitatHoverPreviewKind.Green && result.GreenAnimal != HabitatAnimal.None
             && _iconByAnimal.TryGetValue(result.GreenAnimal, out var greenSp) && greenSp != null)
         {
-            SetupPooledIcon(idx++, GetWhiteSprite(), greenBackdropColor, greenBackdropScale * iconScale, SortBackdrop, Vector3.zero);
-            SetupPooledIcon(idx++, greenSp, Color.white, iconScale, SortIcons, Vector3.zero);
+            SetupIconWithBracket(ref idx, greenSp, greenAnimalIconTint,
+                greenPanelFill, greenBracketColor, iconScale, Vector3.zero);
         }
         else if (result.Kind == HabitatHoverPreviewKind.Yellow && result.YellowAnimals?.Count > 0)
         {
             float startX = -0.5f * iconSpacing * Mathf.Max(0, result.YellowAnimals.Count - 1);
-            for (int i = 0; i < result.YellowAnimals.Count && idx < _iconPool.Count; i++)
+            for (int i = 0; i < result.YellowAnimals.Count; i++)
             {
                 var animal = result.YellowAnimals[i];
                 if (!_iconByAnimal.TryGetValue(animal, out var sp) || sp == null) continue;
-                SetupPooledIcon(idx++, sp, yellowAnimalIconTint, iconScale * 0.9f, SortIcons,
+                SetupIconWithBracket(ref idx, sp, yellowAnimalIconTint,
+                    yellowPanelFill, yellowBracketColor, iconScale * 0.9f,
                     new Vector3(startX + i * iconSpacing, 0f, 0f));
             }
         }
+    }
+
+    private void SetupIconWithBracket(ref int idx, Sprite animalSprite, Color animalTint,
+        Color panelFill, Color bracketTint, float baseScale, Vector3 localPos)
+    {
+        if (idx + 2 >= _iconPool.Count) return;
+        SetupPooledIcon(idx++, GetIconPanelSprite(), panelFill, baseScale * iconPanelScale, SortBackdrop, localPos);
+        SetupPooledIcon(idx++, GetIconBracketSprite(), bracketTint, baseScale * iconBracketScale, SortFrame, localPos);
+        SetupPooledIcon(idx++, animalSprite, animalTint, baseScale * iconAnimalScale, SortIcons, localPos);
     }
 
     private void SetupPooledIcon(int idx, Sprite sprite, Color color, float scale, int sortOrder, Vector3 localPos)
@@ -418,8 +470,12 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (go == null) return;
         var sr = go.GetComponent<SpriteRenderer>();
         sr.sprite = sprite;
-        sr.color = color;
+        sr.color = Color.white;
         sr.sortingOrder = sortOrder;
+        if (_iconMpb == null) _iconMpb = new MaterialPropertyBlock();
+        _iconMpb.Clear();
+        _iconMpb.SetColor("_Color", color);
+        sr.SetPropertyBlock(_iconMpb);
         go.transform.localPosition = localPos;
         go.transform.localScale = Vector3.one * scale;
         go.SetActive(true);
@@ -481,6 +537,12 @@ public class TileNextTileHoverPreview : MonoBehaviour
         }
     }
 
+    private static Sprite GetIconPanelSprite() =>
+        _iconPanelSprite ??= UISpriteFactory.RoundedRect(12);
+
+    private static Sprite GetIconBracketSprite() =>
+        _iconBracketSprite ??= UISpriteFactory.IconBracket();
+
     private static Material GetIconOverlayMaterial()
     {
         if (_iconOverlayMaterial != null) return _iconOverlayMaterial;
@@ -489,14 +551,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (overlayShader == null) return null;
         _iconOverlayMaterial = new Material(overlayShader) { name = "HabitatHoverIconOverlay_Mat" };
         return _iconOverlayMaterial;
-    }
-
-    private static Sprite GetWhiteSprite()
-    {
-        if (_whiteSprite != null) return _whiteSprite;
-        var tex = Texture2D.whiteTexture;
-        _whiteSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
-        return _whiteSprite;
     }
 
     private static bool TryGetPointerScreen(out Vector2 screen, out int pointerId)

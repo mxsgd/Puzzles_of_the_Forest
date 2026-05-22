@@ -207,7 +207,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0.30070576, y: 0, z: 0, w: 0.953717}
-  m_LocalPosition: {x: -4, y: 30, z: -50}
+  m_LocalPosition: {x: -4, y: 40, z: -50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13197,6 +13197,7 @@ MonoBehaviour:
   occupantPrefab: {fileID: 7748981478122969504, guid: beee94e7f348bb34898f051107bce579, type: 3}
   occupantOffset: {x: 0, y: 1, z: 0}
   availabilityOffset: {x: 0, y: 1, z: 0}
+  maxPooledPerPrefab: 48
   biomeParticles:
   - biome: 1
     prefab: {fileID: 7703645054373453566, guid: dd6a65c091f140b4882d3a7e4177f868, type: 3}
@@ -13364,7 +13365,7 @@ MonoBehaviour:
   placement: {fileID: 1211946168}
   runtime: {fileID: 1211946169}
   tileDeck: {fileID: 1338635269}
-  placeStartingTileOnStart: 1
+  placeStartingTileOnStart: 0
 --- !u!114 &1338635269
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13543,7 +13544,7 @@ MonoBehaviour:
   runtime: {fileID: 1211946169}
   tileDeck: {fileID: 1338635269}
   classifier: {fileID: 1723511249}
-  hoverPreview: {fileID: 0}
+  hoverPreview: {fileID: 1338635272}
   availableTileParent: {fileID: 1610150178}
   availableAlpha: 0.35
   availableTag: 
@@ -13634,7 +13635,7 @@ MonoBehaviour:
   lineInset: 0.08
   lineWidth: 0.3
   lineMaterialTemplate: {fileID: 0}
-  deerColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
+  deerColor: {r: 0.7169812, g: 0.268417, b: 0.1724813, a: 1}
   beaverColor: {r: 0.3, g: 0.5, b: 0.6, a: 1}
   bearColor: {r: 0.25, g: 0.25, b: 0.3, a: 1}
   beesColor: {r: 0.95, g: 0.85, b: 0.2, a: 1}
@@ -13655,15 +13656,12 @@ MonoBehaviour:
   grid: {fileID: 1128265999}
   runtimeStore: {fileID: 1211946169}
   habitatTintProfile: {fileID: 11400000, guid: 79603036152f75a489a95663961c9720, type: 2}
-  spreadSpeed: 0.61
-  decay: 0
-  simulationStep: 0.07
-  infectionCommitThreshold: 0.68
+  infectionCommitThreshold: 0.933
   enableBaseColorFallbackTint: 1
-  baseColorFallbackStrength: 0.35
+  baseColorFallbackStrength: 1
   initialSources: []
   deferInfectionToAnimator: 1
-  verboseTintDebug: 1
+  verboseTintDebug: 0
 --- !u!4 &1723511253
 Transform:
   m_ObjectHideFlags: 0

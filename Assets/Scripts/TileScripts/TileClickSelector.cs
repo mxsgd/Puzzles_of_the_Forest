@@ -38,7 +38,6 @@ public class TileClickSelector : MonoBehaviour
         if (RaycastToWorld(screenPosition, out var worldPoint) && query.TryGetNearestTile(worldPoint, out var tile, maxRayDistance))
         {
             SetSelection(tile);
-            Debug.Log("jest i mycha");
         }
         else
         {
