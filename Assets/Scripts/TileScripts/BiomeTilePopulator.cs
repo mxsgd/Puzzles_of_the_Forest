@@ -59,8 +59,6 @@ public class BiomeTilePopulator : MonoBehaviour
 
     [Header("Dynamiczny tint dekoracji")]
     [SerializeField, Tooltip("Wspólny profil kolorowania dla trawy/krzaków. Zmiany w assetcie propagują się na instancje runtime.")]
-    private BiomeDecorationTintProfile decorationTintProfile;
-
     private readonly Dictionary<TileBiome, BiomeContent> _byBiome = new();
 
     private void Awake()    => RebuildIndex();
@@ -276,7 +274,6 @@ public class BiomeTilePopulator : MonoBehaviour
         go.transform.localScale = prefab.transform.localScale * scl;
         go.name = $"{chosenTag}_{slot.Id}";
 
-        TryApplyDecorationTint(go, tile, chosenTag);
 
         slot.contentTag = chosenTag;
         slot.contentInstance = go;
@@ -317,7 +314,6 @@ public class BiomeTilePopulator : MonoBehaviour
         go.transform.localScale = prefab.transform.localScale * scl;
         go.name = $"{chosenTag}_{anchor.Id}_{neighborA.Id}_{neighborB.Id}";
 
-        TryApplyDecorationTint(go, tile, chosenTag);
 
         anchor.contentTag = chosenTag;
         anchor.contentInstance = go;
@@ -326,18 +322,6 @@ public class BiomeTilePopulator : MonoBehaviour
         return true;
     }
 
-    private void TryApplyDecorationTint(GameObject instance, TileBiomeRuntime tile, string contentTag)
-    {
-        if (instance == null || tile == null) return;
-        if (!string.Equals(contentTag, TileContentTags.Grass, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(contentTag, TileContentTags.Bush, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        var tileTint = tile.GetComponent<TilePositionTint>();
-        var receiver = instance.GetComponent<BiomeDecorationTintReceiver>();
-        if (receiver == null) receiver = instance.AddComponent<BiomeDecorationTintReceiver>();
-        receiver.Configure(decorationTintProfile, tileTint, contentTag, tile.Biome, tile.transform.position);
-    }
 
     private static void Shuffle<T>(IList<T> list, System.Random rng)
     {

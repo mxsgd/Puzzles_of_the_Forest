@@ -343,7 +343,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
             // nie pod globalnym decorationsParent z BiomeTilePopulator.
             biomePopulator.Populate(biomeRuntime, seed, instance.transform);
 
-            StripGhostTintReceivers(instance);
         }
 
         ConfigureGhostRenderPipeline(instance);
@@ -385,12 +384,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
         _activeGhostDraw = null;
     }
 
-    private static void StripGhostTintReceivers(GameObject root)
-    {
-        if (root == null) return;
-        foreach (var recv in root.GetComponentsInChildren<BiomeDecorationTintReceiver>(true))
-            if (recv != null) Destroy(recv);
-    }
 
     private static void ConfigureGhostRenderPipeline(GameObject root)
     {
