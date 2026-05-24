@@ -26,9 +26,6 @@ public class HabitatGridManager : MonoBehaviour
     [Tooltip("Gdy true, HabitatAssigned nie infekuje od razu — HabitatChainReactionAnimator kontroluje kolejność.")]
     [SerializeField] private bool deferInfectionToAnimator = false;
 
-    [Header("Debug")]
-    [SerializeField] private bool verboseTintDebug;
-
     private readonly List<HabitatTile> _tiles = new();
     private readonly Dictionary<Vector2Int, int> _indexByPos = new();
     private readonly Dictionary<int, List<Renderer>> _renderersByTileIndex = new();
@@ -230,8 +227,6 @@ public class HabitatGridManager : MonoBehaviour
 
         _renderersByTileIndex.Clear();
         TileObject[] tileObjects = FindObjectsByType<TileObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        int mapped = 0;
-        int withoutCompatibleRenderer = 0;
         for (int i = 0; i < tileObjects.Length; i++)
         {
             TileObject obj = tileObjects[i];
@@ -244,13 +239,7 @@ public class HabitatGridManager : MonoBehaviour
 
             Renderer[] renderers = ResolveHabitatRenderers(obj.gameObject);
             if (renderers.Length > 0)
-                mapped += AddRenderersForTile(tileIndex, renderers);
-            else
-            {
-                withoutCompatibleRenderer++;
-                if (verboseTintDebug)
-                    Debug.LogWarning($"[HabitatGridManager] No compatible renderer for tile [{obj.Tile.q},{obj.Tile.r}] on '{obj.name}'.", obj);
-            }
+                AddRenderersForTile(tileIndex, renderers);
         }
 
         if (runtimeStore == null)
@@ -269,17 +258,8 @@ public class HabitatGridManager : MonoBehaviour
 
             Renderer[] renderers = ResolveHabitatRenderers(rt.occupantInstance);
             if (renderers.Length > 0)
-                mapped += AddRenderersForTile(tileIndex, renderers);
-            else
-            {
-                withoutCompatibleRenderer++;
-                if (verboseTintDebug)
-                    Debug.LogWarning($"[HabitatGridManager] Runtime occupant '{rt.occupantInstance.name}' on [{tile.q},{tile.r}] has no compatible renderer.", rt.occupantInstance);
-            }
+                AddRenderersForTile(tileIndex, renderers);
         }
-
-        if (verboseTintDebug)
-            Debug.Log($"[HabitatGridManager] CacheTileRenderers mapped={mapped}, missing={withoutCompatibleRenderer}", this);
     }
 
     private static Renderer[] ResolveHabitatRenderers(GameObject root)
@@ -312,7 +292,7 @@ public class HabitatGridManager : MonoBehaviour
         return compatible.ToArray();
     }
 
-    private int AddRenderersForTile(int tileIndex, Renderer[] renderers)
+    private void AddRenderersForTile(int tileIndex, Renderer[] renderers)
     {
         if (!_renderersByTileIndex.TryGetValue(tileIndex, out List<Renderer> list))
         {
@@ -320,16 +300,13 @@ public class HabitatGridManager : MonoBehaviour
             _renderersByTileIndex[tileIndex] = list;
         }
 
-        int added = 0;
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer renderer = renderers[i];
             if (renderer == null || list.Contains(renderer))
                 continue;
             list.Add(renderer);
-            added++;
         }
-        return added;
     }
 
     private void ApplyAllToRenderers()
@@ -346,7 +323,6 @@ public class HabitatGridManager : MonoBehaviour
                 continue;
 
             HabitatTile tile = _tiles[idx];
-            bool appliedToAnyMaterial = false;
             for (int r = 0; r < renderers.Count; r++)
             {
                 Renderer renderer = renderers[r];
@@ -371,7 +347,6 @@ public class HabitatGridManager : MonoBehaviour
                     {
                         _sharedBlock.SetColor(HabitatColorId, tile.habitatColor);
                         _sharedBlock.SetFloat(HabitatStrengthId, tile.influence);
-                        appliedToAnyMaterial = true;
                     }
                     else
                     {
@@ -379,17 +354,10 @@ public class HabitatGridManager : MonoBehaviour
                         Color baseColor = mat.GetColor(fallbackColorProperty);
                         Color tintedColor = Color.Lerp(baseColor, baseColor * tile.habitatColor, fallbackBlend);
                         _sharedBlock.SetColor(fallbackColorProperty, tintedColor);
-                        appliedToAnyMaterial = true;
                     }
                     renderer.SetPropertyBlock(_sharedBlock, matIndex);
-
-                    if (verboseTintDebug && tile.influence > 0.01f)
-                        Debug.Log($"[HabitatGridManager] tile={tile.gridPos} inf={tile.influence:F2} renderer='{renderer.name}' mat='{mat.name}'", renderer);
                 }
             }
-
-            if (verboseTintDebug && !appliedToAnyMaterial && tile.influence > 0.01f)
-                Debug.LogWarning($"[HabitatGridManager] Tile {tile.gridPos} inf={tile.influence:F2} — no compatible materials on mapped renderers.");
         }
     }
 

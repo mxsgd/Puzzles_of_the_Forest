@@ -391,7 +391,8 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
         int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
         int maxSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
-        HabitatHoverEvaluator.Evaluate(runtime, targetTile, draw, maxTiles, maxSteps, _feedbackScratch, out HabitatHoverResult hover);
+        HabitatHoverEvaluator.Evaluate(runtime, targetTile, draw, maxTiles, maxSteps, _feedbackScratch, out HabitatHoverResult hover,
+            classifier != null ? classifier.RulesProfile : null);
 
         return hover.Kind switch
         {

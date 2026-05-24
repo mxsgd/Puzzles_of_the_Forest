@@ -13314,7 +13314,6 @@ MonoBehaviour:
   - biome: 5
     contents: []
   decorationsParent: {fileID: 0}
-  decorationTintProfile: {fileID: 11400000, guid: d150a59416aa6704fa443f94ce4a55d4, type: 2}
 --- !u!1 &1338635265
 GameObject:
   m_ObjectHideFlags: 0
@@ -13434,10 +13433,14 @@ MonoBehaviour:
   ghostUniformScale: 10
   iconsAboveTile: 8
   iconSpacing: 3
-  iconScale: 1
-  greenBackdropScale: 1
-  greenBackdropColor: {r: 0.15, g: 0.55, b: 0.2, a: 1}
-  yellowAnimalIconTint: {r: 1, g: 0.95, b: 0.55, a: 1}
+  iconSizeMultiplier: 0.88
+  grayBackgroundColor: {r: 0.55, g: 0.55, b: 0.55, a: 0.85}
+  yellowBackgroundColor: {r: 0.96, g: 0.86, b: 0.35, a: 0.8666667}
+  greenBackgroundColor: {r: 0.45, g: 0.82, b: 0.48, a: 0.95}
+  iconColor: {r: 1, g: 1, b: 1, a: 1}
+  backgroundSize: 192
+  iconSize: 128
+  backgroundCornerRadius: 12
   habitatIcons:
   - animal: 1
     sprite: {fileID: 21300000, guid: f48cc5cbb9840ae4c982d88e17044d08, type: 3}
@@ -13614,6 +13617,7 @@ MonoBehaviour:
   runtimeStore: {fileID: 1211946169}
   maxTilesPerHabitat: 5
   maxGraphStepsFromPlacement: 5
+  rulesProfile: {fileID: 0}
   logClassification: 1
   verboseDebug: 1
 --- !u!114 &1723511250
@@ -13661,7 +13665,6 @@ MonoBehaviour:
   baseColorFallbackStrength: 1
   initialSources: []
   deferInfectionToAnimator: 1
-  verboseTintDebug: 0
 --- !u!4 &1723511253
 Transform:
   m_ObjectHideFlags: 0

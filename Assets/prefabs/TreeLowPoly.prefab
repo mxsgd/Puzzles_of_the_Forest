@@ -12,6 +12,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: GrassShortGroup (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 220624017234874419, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2890721672721421270, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3970603896980749909, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6166224186214364185, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7375234328881650032, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.2
@@ -90,6 +106,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: GrassShortGroup
       objectReference: {fileID: 0}
+    - target: {fileID: 220624017234874419, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2890721672721421270, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3970603896980749909, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6166224186214364185, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7375234328881650032, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.2
@@ -167,6 +199,22 @@ PrefabInstance:
     - target: {fileID: 220624017234874419, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
       propertyPath: m_Name
       value: GrassShortGroup (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 220624017234874419, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2890721672721421270, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3970603896980749909, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6166224186214364185, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7375234328881650032, guid: 3bd9a8ff8f320fc4d8d4d11d9008b834, type: 3}
       propertyPath: m_LocalScale.x
@@ -293,6 +341,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 67ee370a8ad03bb4cb293a623338024f, type: 3}
       propertyPath: m_Name
       value: TreeLowPoly
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 67ee370a8ad03bb4cb293a623338024f, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -47,7 +47,8 @@ public static class HabitatHoverEvaluator
         int maxTilesPerHabitat,
         int maxGraphSteps,
         HabitatHoverScratch s,
-        out HabitatHoverResult result)
+        out HabitatHoverResult result,
+        HabitatRulesProfile rulesProfile = null)
     {
         result = new HabitatHoverResult(HabitatHoverPreviewKind.Gray, HabitatAnimal.None, Array.Empty<HabitatAnimal>());
         if (store == null || hoverTile == null) return;
@@ -114,6 +115,10 @@ public static class HabitatHoverEvaluator
                     var req = HabitatRequirements.GetRequirement(animal);
                     if (vec.Satisfies(req))
                     {
+                        if (!HabitatCoreValidation.ValidateCoreRequirement(
+                                region, animal, rulesProfile, out _))
+                            continue;
+
                         float score   = HabitatRequirements.ComputeScore(animal, region.Count);
                         int   basePts = HabitatRequirements.GetBasePoints(animal);
                         if (IsBetterCandidate(score, basePts, region.Count, animal, region,

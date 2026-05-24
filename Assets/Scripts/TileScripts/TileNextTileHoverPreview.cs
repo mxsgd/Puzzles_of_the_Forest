@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using Tile = TileGrid.Tile;
 
 /// <summary>
@@ -9,7 +10,7 @@ using Tile = TileGrid.Tile;
 ///
 /// Ghost pool — każdy unikalny (biom, prefab) buduje się dokładnie raz przez cały runtime.
 /// Zmiana karty → SetActive(false) na starym, SetActive(true) na nowym. Zero Populate per kafel.
-/// Ikony: poolowane SpriteRendery, zero Destroy/Instantiate w runtime.
+/// Ikony: poolowane sloty UI (tło + ikona), zero Destroy/Instantiate w runtime.
 /// </summary>
 [DisallowMultipleComponent]
 public class TileNextTileHoverPreview : MonoBehaviour
@@ -26,22 +27,24 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
     [Header("Pozycja")]
     [SerializeField] private Vector3 ghostWorldOffset = new(0f, 1f, 0f);
-    [SerializeField, Min(0.01f), Tooltip("Skala całego ducha (kafel + dekoracje) względem postawionej instancji.")]
+    [SerializeField, Min(0.01f), Tooltip("Wizualna skala ducha w podglądzie (absolutna, uniform). Populate/dekoracje zawsze liczone w skali prefaba — ta wartość nie wpływa na placement.")]
     private float ghostUniformScale = 1.35f;
     [SerializeField] private float iconsAboveTile = 2.2f;
-    [SerializeField] private float iconSpacing = 0.55f;
-    [SerializeField] private float iconScale = 0.45f;
-    [SerializeField] private float iconPanelScale = 1.35f;
-    [SerializeField] private float iconBracketScale = 1.5f;
-    [SerializeField, Range(0.4f, 1f)] private float iconAnimalScale = 0.72f;
+    [SerializeField, Tooltip("Dodatkowy odstęp między krawędziami slotów (px ref. 1920). Pitch = backgroundSize + iconSpacing.")]
+    private float iconSpacing = 56f;
+    [SerializeField, Range(0.5f, 1.25f), Tooltip("Mnożnik rozmiaru slotu (tło + ikona zwierzęcia).")]
+    private float iconSizeMultiplier = 0.88f;
 
-    [Header("Kolory ikon habitatu (jak UI)")]
-    [SerializeField] private Color greenPanelFill = new(0.72f, 0.86f, 0.70f, 0.94f);
-    [SerializeField] private Color greenBracketColor = new(0.66f, 0.57f, 0.44f, 1f);
-    [SerializeField] private Color greenAnimalIconTint = Color.white;
-    [SerializeField] private Color yellowPanelFill = new(0.94f, 0.84f, 0.62f, 0.94f);
-    [SerializeField] private Color yellowBracketColor = new(0.66f, 0.57f, 0.44f, 1f);
-    [SerializeField] private Color yellowAnimalIconTint = Color.white;
+    [Header("Kolory preview habitatu")]
+    [SerializeField] private Color grayBackgroundColor = new(0.55f, 0.55f, 0.55f, 0.85f);
+    [SerializeField] private Color yellowBackgroundColor = new(0.96f, 0.86f, 0.35f, 0.95f);
+    [SerializeField] private Color greenBackgroundColor = new(0.45f, 0.82f, 0.48f, 0.95f);
+    [SerializeField] private Color iconColor = Color.white;
+
+    [Header("Rozmiary slotu (px ekranu)")]
+    [SerializeField, Min(8f)] private float backgroundSize = 48f;
+    [SerializeField, Min(8f)] private float iconSize = 32f;
+    [SerializeField, Min(1)] private int backgroundCornerRadius = 12;
 
     [Header("Ikony (przypisz sprite'y w Inspectorze)")]
     [SerializeField] private HabitatIconEntry[] habitatIcons = new HabitatIconEntry[0];
@@ -57,10 +60,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private readonly Dictionary<HabitatAnimal, Sprite> _iconByAnimal = new();
     private readonly HashSet<Tile> _placeableCache = new();
 
-    private static Material _iconOverlayMaterial;
-    private static Sprite _iconPanelSprite;
-    private static Sprite _iconBracketSprite;
-    private MaterialPropertyBlock _iconMpb;
     private static TileNextTileHoverPreview _activeInstance;
 
     // --- Ghost pool ---
@@ -70,10 +69,12 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private GameObject _activeGhostRoot;   // aktualnie widoczny ghost
     private TileDraw   _activeGhostDraw;   // draw dla aktywnego ghosta (szybkie porównanie)
 
-    // --- Icon pool ---
+    // --- Icon pool (screen-space overlay — bez SSAO/post-process sceny 3D) ---
     private Transform _iconsRoot;
-    private readonly List<GameObject> _iconPool = new();
-    private const int IconPoolCapacity = 18;
+    private RectTransform _iconsAnchor;
+    private Canvas _iconsCanvas;
+    private readonly List<HabitatPreviewSlot> _iconPool = new();
+    private const int IconPoolCapacity = 8;
 
     private Tile _lastHover;
     private TileDraw _lastDraw;
@@ -88,9 +89,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
     public HabitatHoverResult LastHoverResult => _lastResult;
 
     private const int SortGhost = 3100;
-    private const int SortBackdrop = 3199;
-    private const int SortFrame = 3200;
-    private const int SortIcons = 3201;
+    private const int SortIcons = 3200;
 
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -113,7 +112,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
                 if (e.sprite != null && e.animal != HabitatAnimal.None)
                     _iconByAnimal[e.animal] = e.sprite;
 
-        _iconMpb = new MaterialPropertyBlock();
         InitIconPool();
     }
 
@@ -153,10 +151,18 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private void OnDestroy()
     {
         // Poolowane ghosci są dziećmi tego GameObject — Unity je niszczy automatycznie.
-        // Czyścimy tylko słownik, żeby nie trzymać martwych referencji.
         _ghostPool.Clear();
         _activeGhostRoot = null;
         _activeGhostDraw = null;
+
+        if (_iconsRoot != null)
+        {
+            Destroy(_iconsRoot.gameObject);
+            _iconsRoot = null;
+            _iconsAnchor = null;
+            _iconsCanvas = null;
+        }
+        _iconPool.Clear();
     }
 
     private void OnDeckEmptied() { HideAllGhosts(); HideAllIcons(); enabled = false; }
@@ -187,8 +193,11 @@ public class TileNextTileHoverPreview : MonoBehaviour
             _lastResult = new HabitatHoverResult(HabitatHoverPreviewKind.Green, data.Animal, System.Array.Empty<HabitatAnimal>());
             _needsReevaluate = false;
             _lastIconSignature = -1;
-            if (_iconsRoot != null && isActiveAndEnabled)
-                RebuildIcons(_lastHover, _lastResult);
+            if (_iconsAnchor != null && isActiveAndEnabled && mainCamera != null)
+            {
+                RebuildIcons(_lastResult);
+                UpdateIconsScreenPosition(_lastHover, mainCamera);
+            }
             break;
         }
     }
@@ -249,7 +258,8 @@ public class TileNextTileHoverPreview : MonoBehaviour
         {
             _lastHover = tile;
             _lastDraw = next;
-            HabitatHoverEvaluator.Evaluate(runtimeStore, tile, next, maxTiles, maxSteps, _scratch, out _lastResult);
+            HabitatHoverEvaluator.Evaluate(runtimeStore, tile, next, maxTiles, maxSteps, _scratch, out _lastResult,
+                classifier != null ? classifier.RulesProfile : null);
             _needsReevaluate = false;
         }
 
@@ -262,19 +272,17 @@ public class TileNextTileHoverPreview : MonoBehaviour
         {
             _activeGhostRoot.transform.position = tile.worldPos + ghostWorldOffset;
             if (tileGrid != null) _activeGhostRoot.transform.rotation = tileGrid.transform.rotation;
-            _activeGhostRoot.transform.localScale = Vector3.one * ghostUniformScale;
+            ApplyGhostVisualScale(_activeGhostRoot.transform, _activeGhostDraw?.prefab);
         }
 
         int sig = IconSignature(_lastResult);
         if (sig != _lastIconSignature)
         {
             _lastIconSignature = sig;
-            RebuildIcons(tile, _lastResult);
+            RebuildIcons(_lastResult);
         }
-        else if (_iconsRoot != null)
-            _iconsRoot.position = tile.worldPos + Vector3.up * iconsAboveTile;
 
-        FaceIconsToCamera(cam);
+        UpdateIconsScreenPosition(tile, cam);
     }
 
     // -------------------------------------------------------------------------
@@ -319,15 +327,15 @@ public class TileNextTileHoverPreview : MonoBehaviour
         var root = new GameObject($"Ghost_{draw.biome}");
         root.transform.SetParent(transform, false);
 
-        // Pozycja i skala muszą być ustawione przed Populate.
+        // Pozycja przed Populate — dekoracje liczone w skali prefaba (jak przy placement).
         root.transform.position = tile.worldPos + ghostWorldOffset;
         if (tileGrid != null) root.transform.rotation = tileGrid.transform.rotation;
-        root.transform.localScale = Vector3.one * ghostUniformScale;
+        root.transform.localScale = Vector3.one;
 
         var instance = Instantiate(draw.prefab, root.transform);
         instance.transform.localPosition = Vector3.zero;
         instance.transform.localRotation = Quaternion.identity;
-        instance.transform.localScale = Vector3.one;
+        instance.transform.localScale = GetPlacementScale(draw.prefab);
 
         if (draw.biome != TileBiome.None && biomePopulator != null)
         {
@@ -337,14 +345,12 @@ public class TileNextTileHoverPreview : MonoBehaviour
             float radius = tileGrid != null ? tileGrid.HexRadius : 1f;
             biomeRuntime.Initialize(draw.biome, radius);
 
-            // Stały seed per biome — dekoracje stabilne, bez re-generate per hover.
+            // Stały seed per biome — dekoracje stabilne, bez re-generate per hover; skala = prefab.
             int seed = unchecked((int)draw.biome * 73856093);
-            // decorationParentOverride = instance.transform → dekoracje pod ghostem,
-            // nie pod globalnym decorationsParent z BiomeTilePopulator.
             biomePopulator.Populate(biomeRuntime, seed, instance.transform);
-
         }
 
+        ApplyGhostVisualScale(root.transform, draw.prefab);
         ConfigureGhostRenderPipeline(instance);
         root.SetActive(false); // domyślnie ukryty, aktywowany przez ActivateGhostFromPool
         return root;
@@ -371,7 +377,23 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
         if (root.transform.childCount == 0) { Destroy(root); return (null, null); }
         var instance = root.transform.GetChild(0).gameObject;
+        // Dekoracje parentowane w skali prefaba — przed placement musi wrócić ta sama skala.
+        if (draw.prefab != null)
+            instance.transform.localScale = GetPlacementScale(draw.prefab);
         return (instance, root);
+    }
+
+    private static Vector3 GetPlacementScale(GameObject prefab)
+        => prefab != null ? prefab.transform.localScale : Vector3.one;
+
+    /// <summary>Wizualny rozmiar ducha — nie zmienia układu dekoracji zapisanych w skali prefaba.</summary>
+    private void ApplyGhostVisualScale(Transform ghostRoot, GameObject prefab)
+    {
+        if (ghostRoot == null || ghostRoot.childCount == 0) return;
+        var placement = GetPlacementScale(prefab);
+        float uniform = placement.x;
+        float mul = uniform > 0.0001f ? ghostUniformScale / uniform : 1f;
+        ghostRoot.GetChild(0).localScale = placement * mul;
     }
 
     private void HideAllGhosts()
@@ -402,90 +424,135 @@ public class TileNextTileHoverPreview : MonoBehaviour
     {
         if (_iconsRoot == null)
         {
-            var go = new GameObject("HabitatHoverIcons");
+            var go = new GameObject("HabitatHoverIcons",
+                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             _iconsRoot = go.transform;
-            _iconsRoot.SetParent(transform, false);
+            // Overlay + rodzic 3D psuł transform.position — canvas jako root sceny.
+            _iconsRoot.SetParent(null, worldPositionStays: false);
+
+            _iconsCanvas = go.GetComponent<Canvas>();
+            _iconsCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _iconsCanvas.overrideSorting = true;
+            _iconsCanvas.sortingOrder = SortIcons;
+            // Jak GameUI — importowane sprite'y zwierząt tracą kolor przy vertexColorAlwaysGammaSpace.
+
+            var scaler = go.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            var canvasRt = (RectTransform)_iconsRoot;
+            canvasRt.anchorMin = Vector2.zero;
+            canvasRt.anchorMax = Vector2.one;
+            canvasRt.offsetMin = Vector2.zero;
+            canvasRt.offsetMax = Vector2.zero;
+
+            var anchorGo = new GameObject("IconsAnchor", typeof(RectTransform));
+            _iconsAnchor = anchorGo.GetComponent<RectTransform>();
+            _iconsAnchor.SetParent(_iconsRoot, false);
+            _iconsAnchor.anchorMin = _iconsAnchor.anchorMax = new Vector2(0.5f, 0.5f);
+            _iconsAnchor.pivot = new Vector2(0.5f, 0.5f);
+            _iconsAnchor.anchoredPosition = Vector2.zero;
+            _iconsAnchor.sizeDelta = Vector2.zero;
         }
+
         for (int i = _iconPool.Count; i < IconPoolCapacity; i++)
         {
-            var go = new GameObject($"HabitatIcon_{i}");
-            go.transform.SetParent(_iconsRoot, false);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sharedMaterial = GetIconOverlayMaterial();
-            go.SetActive(false);
-            _iconPool.Add(go);
+            var go = new GameObject($"HabitatPreviewSlot_{i}", typeof(RectTransform));
+            go.transform.SetParent(_iconsAnchor, false);
+            var slotRt = (RectTransform)go.transform;
+            slotRt.anchorMin = slotRt.anchorMax = new Vector2(0.5f, 0.5f);
+            slotRt.pivot = new Vector2(0.5f, 0.5f);
+
+            var slot = go.AddComponent<HabitatPreviewSlot>();
+            slot.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius);
+            slot.EnsureBuilt();
+            slot.Clear();
+            _iconPool.Add(slot);
         }
+
+        RefreshIconPoolSizes();
     }
 
-    private void RebuildIcons(Tile tile, HabitatHoverResult result)
+    private float ScaledBackgroundSize => backgroundSize * iconSizeMultiplier;
+    private float ScaledIconSize       => iconSize * iconSizeMultiplier;
+    private float IconSlotPitch        => ScaledBackgroundSize + iconSpacing;
+
+    private void RefreshIconPoolSizes()
+    {
+        foreach (var slot in _iconPool)
+            slot?.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius);
+    }
+
+    private void RebuildIcons(HabitatHoverResult result)
     {
         InitIconPool();
-        _iconsRoot.position = tile.worldPos + Vector3.up * iconsAboveTile;
 
-        foreach (var go in _iconPool)
-            if (go != null) go.SetActive(false);
+        RefreshIconPoolSizes();
 
+        foreach (var slot in _iconPool)
+            slot?.Clear();
+
+        float slotPitch = IconSlotPitch;
         int idx = 0;
 
         if (result.Kind == HabitatHoverPreviewKind.Green && result.GreenAnimal != HabitatAnimal.None
             && _iconByAnimal.TryGetValue(result.GreenAnimal, out var greenSp) && greenSp != null)
         {
-            SetupIconWithBracket(ref idx, greenSp, greenAnimalIconTint,
-                greenPanelFill, greenBracketColor, iconScale, Vector3.zero);
+            ShowPooledSlot(idx++, greenSp, HabitatHoverPreviewKind.Green, Vector2.zero);
         }
         else if (result.Kind == HabitatHoverPreviewKind.Yellow && result.YellowAnimals?.Count > 0)
         {
-            float startX = -0.5f * iconSpacing * Mathf.Max(0, result.YellowAnimals.Count - 1);
+            float startX = -0.5f * slotPitch * Mathf.Max(0, result.YellowAnimals.Count - 1);
             for (int i = 0; i < result.YellowAnimals.Count; i++)
             {
                 var animal = result.YellowAnimals[i];
                 if (!_iconByAnimal.TryGetValue(animal, out var sp) || sp == null) continue;
-                SetupIconWithBracket(ref idx, sp, yellowAnimalIconTint,
-                    yellowPanelFill, yellowBracketColor, iconScale * 0.9f,
-                    new Vector3(startX + i * iconSpacing, 0f, 0f));
+                ShowPooledSlot(idx++, sp, HabitatHoverPreviewKind.Yellow,
+                    new Vector2(startX + i * slotPitch, 0f));
             }
         }
     }
 
-    private void SetupIconWithBracket(ref int idx, Sprite animalSprite, Color animalTint,
-        Color panelFill, Color bracketTint, float baseScale, Vector3 localPos)
+    private void UpdateIconsScreenPosition(Tile tile, Camera cam)
     {
-        if (idx + 2 >= _iconPool.Count) return;
-        SetupPooledIcon(idx++, GetIconPanelSprite(), panelFill, baseScale * iconPanelScale, SortBackdrop, localPos);
-        SetupPooledIcon(idx++, GetIconBracketSprite(), bracketTint, baseScale * iconBracketScale, SortFrame, localPos);
-        SetupPooledIcon(idx++, animalSprite, animalTint, baseScale * iconAnimalScale, SortIcons, localPos);
+        if (_iconsAnchor == null || tile == null || cam == null)
+            return;
+
+        Vector3 world = tile.worldPos + Vector3.up * iconsAboveTile;
+        Vector3 screen = cam.WorldToScreenPoint(world);
+        if (screen.z < 0f)
+        {
+            HideAllIcons();
+            return;
+        }
+
+        var canvasRt = (RectTransform)_iconsRoot;
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRt, screen, null, out Vector2 localPoint))
+        {
+            _iconsAnchor.anchoredPosition = localPoint;
+        }
     }
 
-    private void SetupPooledIcon(int idx, Sprite sprite, Color color, float scale, int sortOrder, Vector3 localPos)
+    private void ShowPooledSlot(int idx, Sprite animalSprite, HabitatHoverPreviewKind kind, Vector2 localPosPx)
     {
         if (idx >= _iconPool.Count) return;
-        var go = _iconPool[idx];
-        if (go == null) return;
-        var sr = go.GetComponent<SpriteRenderer>();
-        sr.sprite = sprite;
-        sr.color = Color.white;
-        sr.sortingOrder = sortOrder;
-        if (_iconMpb == null) _iconMpb = new MaterialPropertyBlock();
-        _iconMpb.Clear();
-        _iconMpb.SetColor("_Color", color);
-        sr.SetPropertyBlock(_iconMpb);
-        go.transform.localPosition = localPos;
-        go.transform.localScale = Vector3.one * scale;
-        go.SetActive(true);
+        var slot = _iconPool[idx];
+        if (slot == null) return;
+
+        slot.Show(animalSprite, kind, grayBackgroundColor, yellowBackgroundColor, greenBackgroundColor, iconColor);
+
+        if (slot.RectTransform != null)
+            slot.RectTransform.anchoredPosition = localPosPx;
     }
 
     private void HideAllIcons()
     {
         if (_iconsRoot != null)
-            foreach (var go in _iconPool)
-                if (go != null) go.SetActive(false);
+            foreach (var slot in _iconPool)
+                slot?.Clear();
         _lastIconSignature = 0;
-    }
-
-    private void FaceIconsToCamera(Camera cam)
-    {
-        if (_iconsRoot == null) return;
-        _iconsRoot.rotation = Quaternion.LookRotation(-cam.transform.forward, cam.transform.up);
     }
 
     // -------------------------------------------------------------------------
@@ -528,22 +595,6 @@ public class TileNextTileHoverPreview : MonoBehaviour
                     h = h * 397 ^ (int)a;
             return h;
         }
-    }
-
-    private static Sprite GetIconPanelSprite() =>
-        _iconPanelSprite ??= UISpriteFactory.RoundedRect(12);
-
-    private static Sprite GetIconBracketSprite() =>
-        _iconBracketSprite ??= UISpriteFactory.IconBracket();
-
-    private static Material GetIconOverlayMaterial()
-    {
-        if (_iconOverlayMaterial != null) return _iconOverlayMaterial;
-        Shader overlayShader = Shader.Find("IdleForest/Sprites/AlwaysOnTop");
-        if (overlayShader == null) overlayShader = Shader.Find("Sprites/Default");
-        if (overlayShader == null) return null;
-        _iconOverlayMaterial = new Material(overlayShader) { name = "HabitatHoverIconOverlay_Mat" };
-        return _iconOverlayMaterial;
     }
 
     private static bool TryGetPointerScreen(out Vector2 screen, out int pointerId)

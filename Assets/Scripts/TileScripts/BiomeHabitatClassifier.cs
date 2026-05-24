@@ -17,12 +17,16 @@ public class BiomeHabitatClassifier : MonoBehaviour
     [SerializeField, Min(1)] private int maxTilesPerHabitat = 5;
     [SerializeField, Min(1)] private int maxGraphStepsFromPlacement = 5;
 
+    [Header("Habitat rules")]
+    [SerializeField] private HabitatRulesProfile rulesProfile;
+
     [Header("Debug")]
     [SerializeField] private bool logClassification = true;
     [SerializeField] private bool verboseDebug;
 
     public int MaxTilesPerHabitat        => maxTilesPerHabitat;
     public int MaxGraphStepsFromPlacement => maxGraphStepsFromPlacement;
+    public HabitatRulesProfile RulesProfile => rulesProfile;
 
     private readonly HabitatRegionScratch _scratch = new();
 
@@ -89,6 +93,14 @@ public class BiomeHabitatClassifier : MonoBehaviour
 
                     var req = HabitatRequirements.GetRequirement(animal);
                     if (!vec.Satisfies(req)) continue;
+
+                    if (!HabitatCoreValidation.ValidateCoreRequirement(
+                            region, animal, rulesProfile, out _))
+                    {
+                        if (verboseDebug)
+                            Debug.Log($"[BiomeHabitat] Odrzucono {animal} — za mało kafli rdzeniowych.");
+                        continue;
+                    }
 
                     float score   = HabitatRequirements.ComputeScore(animal, region.Count);
                     int   basePts = HabitatRequirements.GetBasePoints(animal);

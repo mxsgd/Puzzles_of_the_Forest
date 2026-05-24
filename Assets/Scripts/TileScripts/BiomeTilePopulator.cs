@@ -57,8 +57,6 @@ public class BiomeTilePopulator : MonoBehaviour
     [SerializeField, Tooltip("Opcjonalny rodzic dla zinstancjonowanych dekoracji. Jeśli null — rodzicem jest sam kafel.")]
     private Transform decorationsParent;
 
-    [Header("Dynamiczny tint dekoracji")]
-    [SerializeField, Tooltip("Wspólny profil kolorowania dla trawy/krzaków. Zmiany w assetcie propagują się na instancje runtime.")]
     private readonly Dictionary<TileBiome, BiomeContent> _byBiome = new();
 
     private void Awake()    => RebuildIndex();
