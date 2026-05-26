@@ -296,6 +296,16 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             habitatCountAfter > habitatCountBefore ? PlacementFeedbackKind.Habitat : prePlacementHint;
 
         PlayPlacementFeedback(instance, finalFeedback);
+
+        if (PerkManager.Instance != null)
+        {
+            var neighbors = new List<TileGrid.Tile>();
+            foreach (var n in targetTile.GetNeighbors())
+                neighbors.Add(n);
+            var placementCtx = new PlacementContext(targetTile, draw, neighbors, runtime);
+            PerkManager.Instance.OnTilePlaced(placementCtx);
+        }
+
         selection?.ClearSelectedTile();
         RefreshAvailability();
     

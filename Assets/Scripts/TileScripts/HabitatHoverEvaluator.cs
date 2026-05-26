@@ -120,6 +120,8 @@ public static class HabitatHoverEvaluator
                             continue;
 
                         float score   = HabitatRequirements.ComputeScore(animal, region.Count);
+                        int distinctBiomes = CountDistinctBiomesInRegion(store, region, hoverTile, nextDraw);
+                        score = ApplyPerkScoreModifiers(animal, score, region.Count, distinctBiomes);
                         int   basePts = HabitatRequirements.GetBasePoints(animal);
                         if (IsBetterCandidate(score, basePts, region.Count, animal, region,
                                 bestGreenScore, bestGreenAnimal, bestGreenTileCount, bestGreenRegion))
@@ -239,5 +241,39 @@ public static class HabitatHoverEvaluator
             if (c != 0) return c;
         }
         return aCount.CompareTo(bCount);
+    }
+
+    // -------------------------------------------------------------------------
+    // Perk-aware shared pipeline
+    // -------------------------------------------------------------------------
+
+    private static float ApplyPerkScoreModifiers(HabitatAnimal animal, float baseScore,
+        int regionTileCount, int distinctBiomes)
+    {
+        if (PerkManager.Instance == null) return baseScore;
+        return PerkManager.Instance.ModifyHabitatScore(animal, baseScore, regionTileCount, distinctBiomes);
+    }
+
+    private static int CountDistinctBiomesInRegion(TileRuntimeStore store, List<Tile> region,
+        Tile hoverTile, TileDraw draw)
+    {
+        int mask = 0;
+        foreach (var t in region)
+        {
+            if (t == null) continue;
+            TileBiome biome;
+            if (ReferenceEquals(t, hoverTile))
+                biome = draw != null ? draw.biome : TileBiome.None;
+            else
+            {
+                var rt = store.Get(t);
+                biome = rt != null ? rt.biome : TileBiome.None;
+            }
+            if (biome != TileBiome.None)
+                mask |= 1 << (int)biome;
+        }
+        int count = 0;
+        while (mask != 0) { count += mask & 1; mask >>= 1; }
+        return count;
     }
 }

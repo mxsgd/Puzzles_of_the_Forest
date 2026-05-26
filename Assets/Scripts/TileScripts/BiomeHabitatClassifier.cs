@@ -103,6 +103,8 @@ public class BiomeHabitatClassifier : MonoBehaviour
                     }
 
                     float score   = HabitatRequirements.ComputeScore(animal, region.Count);
+                    int distinctBiomes = CountDistinctBiomesInRegion(region);
+                    score = ApplyPerkScoreModifiers(animal, score, region.Count, distinctBiomes);
                     int   basePts = HabitatRequirements.GetBasePoints(animal);
 
                     if (IsBetterCandidate(score, basePts, region.Count, animal, region,
@@ -188,7 +190,6 @@ public class BiomeHabitatClassifier : MonoBehaviour
         if (b == null || b.Count == 0) return (a != null && a.Count > 0) ? -1 : 0;
         if (a == null || a.Count == 0) return 1;
 
-        // Both lists come sorted from EmitCurrentRegion — no copy/sort needed.
         int n = UnityEngine.Mathf.Min(a.Count, b.Count);
         for (int i = 0; i < n; i++)
         {
@@ -196,5 +197,31 @@ public class BiomeHabitatClassifier : MonoBehaviour
             if (c != 0) return c;
         }
         return a.Count.CompareTo(b.Count);
+    }
+
+    // -------------------------------------------------------------------------
+    // Perk-aware shared pipeline
+    // -------------------------------------------------------------------------
+
+    private static float ApplyPerkScoreModifiers(HabitatAnimal animal, float baseScore,
+        int regionTileCount, int distinctBiomes)
+    {
+        if (PerkManager.Instance == null) return baseScore;
+        return PerkManager.Instance.ModifyHabitatScore(animal, baseScore, regionTileCount, distinctBiomes);
+    }
+
+    private int CountDistinctBiomesInRegion(List<Tile> region)
+    {
+        int mask = 0;
+        foreach (var t in region)
+        {
+            if (t == null) continue;
+            var rt = runtimeStore.Get(t);
+            if (rt != null && rt.biome != TileBiome.None)
+                mask |= 1 << (int)rt.biome;
+        }
+        int count = 0;
+        while (mask != 0) { count += mask & 1; mask >>= 1; }
+        return count;
     }
 }

@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3abd07f578eb23f4dae8b51f4dadf5e1, type: 3}
+  m_Name: Patient Forager
+  m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
+  perkId: patientforager
+  displayName: Patient Forager
+  description: pierwszy reroll po habitacie darmowy
+  icon: {fileID: 0}
+  hooks: 
+  behavior: {fileID: 11400000, guid: 2707730e8227faa4e8d20586cfd747b0, type: 2}

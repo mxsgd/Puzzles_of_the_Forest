@@ -104,7 +104,9 @@ public class GameUI : MonoBehaviour
         _habitatCount = 0;
         _biggestHabitatChain = 0;
         _scoreDisplayed = 0;
-        _rerollsLeft = startingRerolls;
+        _rerollsLeft = PerkManager.Instance != null
+            ? PerkManager.Instance.GetTotalStartingRerolls(startingRerolls)
+            : startingRerolls;
         RefreshScore(animate: false);
         RefreshReroll();
         RefreshNextTile();
@@ -303,9 +305,11 @@ public class GameUI : MonoBehaviour
     // ── Reroll ──────────────────────────────────────────────────────────────
     private void TryReroll()
     {
-        if (_rerollsLeft <= 0 || deck == null) return;
+        bool isFree = PerkManager.Instance != null && PerkManager.Instance.QueryRerollIsFree();
+        if (!isFree && _rerollsLeft <= 0) return;
+        if (deck == null) return;
         if (!deck.RerollCurrent()) return;
-        _rerollsLeft--;
+        if (!isFree) _rerollsLeft--;
         RefreshReroll();
     }
 

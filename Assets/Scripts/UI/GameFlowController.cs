@@ -24,6 +24,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private TileClickSelector clickSelector;
     [SerializeField] private TileSelectionModel selection;
     [SerializeField] private HabitatGridManager habitatGridManager;
+    [SerializeField] private PerkManager perkManager;
 
     [Header("Session")]
     [SerializeField] private bool bonusTilesOnHabitat = true;
@@ -56,6 +57,7 @@ public class GameFlowController : MonoBehaviour
         if (!clickSelector) clickSelector = FindAnyObjectByType<TileClickSelector>();
         if (!selection) selection = FindAnyObjectByType<TileSelectionModel>();
         if (!habitatGridManager) habitatGridManager = FindAnyObjectByType<HabitatGridManager>();
+        if (!perkManager) perkManager = FindAnyObjectByType<PerkManager>();
     }
 
     private void Start()
@@ -97,6 +99,7 @@ public class GameFlowController : MonoBehaviour
         SetGameplayEnabled(true);
 
         placement?.ClearBoard();
+        perkManager?.OnSessionStart();
         tileDeck?.ConfigureSessionRewards(bonusTilesOnHabitat, bonusTilesPerHabitat);
         tileDeck?.RebuildDeck();
         habitatGridManager?.Rebuild();
