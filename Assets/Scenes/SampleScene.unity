@@ -13326,6 +13326,8 @@ GameObject:
   - component: {fileID: 1338635268}
   - component: {fileID: 1338635269}
   - component: {fileID: 1338635272}
+  - component: {fileID: 1338635274}
+  - component: {fileID: 1338635273}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -13448,6 +13450,44 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 62b0850aa73620e4daed6e84405ffba9, type: 3}
   - animal: 3
     sprite: {fileID: 21300000, guid: 3cc37b0a92254e1448471fb0c5b8cca6, type: 3}
+--- !u!114 &1338635273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1338635265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47378bd399bee5e488c8b96ea2ed41b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PerkManager
+  perkPool:
+  - {fileID: 11400000, guid: dc019907769676c43a32c1168e92c461, type: 2}
+  - {fileID: 11400000, guid: 679ca76ac1b54e44a80fdb4cb649727b, type: 2}
+  - {fileID: 11400000, guid: 64eea08fd5b1662449c6e1b9b7e12058, type: 2}
+  - {fileID: 11400000, guid: 468fbbe5475cdf0498a36f4c26bbc290, type: 2}
+  - {fileID: 11400000, guid: 6410cb27c188bf342a849847fe03ce4e, type: 2}
+  - {fileID: 11400000, guid: 72e55d1fbec69e341a01f4431699d43d, type: 2}
+  habitatsPerDraft: 4
+  draftRerollsPerRun: 3
+  tileDeck: {fileID: 1338635269}
+  placement: {fileID: 1211946168}
+  runtimeStore: {fileID: 1211946169}
+  tileGrid: {fileID: 1128265999}
+--- !u!114 &1338635274
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1338635265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ac3079966ae9fe449e764bd9f10bd70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PerkDraftUI
+  perkManager: {fileID: 1338635273}
 --- !u!1 &1411211306
 GameObject:
   m_ObjectHideFlags: 0

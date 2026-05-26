@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3abd07f578eb23f4dae8b51f4dadf5e1, type: 3}
   m_Name: Biodiversity
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
-  perkId: 
-  displayName: 
-  description: 
+  perkId: biodiversity
+  displayName: Biodiversity
+  description: "4 r\xF3\u017Cne biomy w habitacie +1 karta."
   icon: {fileID: 0}
-  hooks: 
-  behavior: {fileID: 0}
+  hooks: 02000000
+  behavior: {fileID: 11400000, guid: d74e50f3c62627b4099772ba9c47772d, type: 2}

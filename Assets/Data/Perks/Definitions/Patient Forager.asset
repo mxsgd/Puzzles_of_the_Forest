@@ -16,5 +16,5 @@ MonoBehaviour:
   displayName: Patient Forager
   description: pierwszy reroll po habitacie darmowy
   icon: {fileID: 0}
-  hooks: 
+  hooks: 0200000003000000
   behavior: {fileID: 11400000, guid: 2707730e8227faa4e8d20586cfd747b0, type: 2}

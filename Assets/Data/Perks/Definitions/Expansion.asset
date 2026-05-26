@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3abd07f578eb23f4dae8b51f4dadf5e1, type: 3}
   m_Name: Expansion
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
-  perkId: 
-  displayName: 
-  description: 
+  perkId: expansion
+  displayName: Expansion
+  description: "<losowy biom> przy <losowy biom> 30% \u017Ce spawnuje <losowy biom> "
   icon: {fileID: 0}
-  hooks: 
-  behavior: {fileID: 0}
+  hooks: 04000000
+  behavior: {fileID: 11400000, guid: 9f25408eea7613d479a845490f8cf034, type: 2}

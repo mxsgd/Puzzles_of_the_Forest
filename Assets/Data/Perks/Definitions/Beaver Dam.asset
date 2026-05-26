@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3abd07f578eb23f4dae8b51f4dadf5e1, type: 3}
   m_Name: Beaver Dam
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
-  perkId: seedbank
-  displayName: Seed Bank
-  description: +5 kart.
+  perkId: beaverdam
+  displayName: Beaver Dam
+  description: "Bobry dodaj\u0105 kafel wody"
   icon: {fileID: 0}
-  hooks: 01000000
-  behavior: {fileID: 11400000, guid: d942f94cb31f66c4da631bb828525ac9, type: 2}
+  hooks: 02000000
+  behavior: {fileID: 11400000, guid: 88625b2bc47291f45a26534ab498171b, type: 2}
