@@ -1,8 +1,7 @@
-# Idle Forest
+# Puzzles of the Forest
+![Puzzles of the Forest gameplay](<docs/gifs/PuzzlesOfTheForest (1).gif>)
 
-![Idle Forest gameplay](<docs/gifs/PuzzlesOfTheForest (1).gif>)
-
-`Idle Forest` is a solo-developed Unity game currently in **alpha**.  
+`Puzzles of the Forest` is a solo-developed Unity game currently in **alpha**.  
 The current build is a playable systems-first version, and the project is moving toward a public **demo** release.
 
 In the current game loop, the player places hex tiles, forms animal habitats, manages a limited deck and rerolls, and tries to stretch each run into the highest score possible.
