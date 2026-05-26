@@ -144,12 +144,16 @@ It is already playable, but still actively changing as the game moves toward a s
 
 ## License
 
-Source code is licensed under the MIT License.
+All contents of this repository are **All Rights Reserved** unless explicit
+written permission is granted by the author.
 
-Game assets are not licensed for reuse. All game assets, including graphics,
-audio, animations, models, UI elements, characters, levels, names, logos and
-narrative content, are the exclusive property of Maks Szygenda and may not be
-copied, modified, redistributed or used without explicit written permission.
+Source code, documentation, and project content may not be copied, modified,
+redistributed, used in other projects, or used commercially without explicit
+written permission.
+
+Game assets are additionally covered by `ASSETS_LICENSE.txt`. All graphics,
+audio, animations, models, UI elements, characters, levels, names, logos, and
+narrative content remain the exclusive property of Maks Szygenda.
 
 ## Notes
 
