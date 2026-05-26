@@ -1,0 +1,10 @@
+All Rights Reserved
+
+All game assets in this repository, including but not limited to graphics,
+audio, animations, models, UI elements, characters, levels, names, logos,
+narrative content, and other creative materials, are the exclusive property
+of Maks Szygenda.
+
+These assets may not be copied, modified, redistributed, used in other
+projects, used commercially, or included in derivative works without explicit
+written permission from the author.

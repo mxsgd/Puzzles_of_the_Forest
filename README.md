@@ -143,6 +143,15 @@ Important parts of the repository:
 This is an **alpha** version focused on gameplay systems, iteration, and architecture.  
 It is already playable, but still actively changing as the game moves toward a stronger and more representative demo build.
 
+## License
+
+Source code is licensed under the MIT License.
+
+Game assets are not licensed for reuse. All game assets, including graphics,
+audio, animations, models, UI elements, characters, levels, names, logos and
+narrative content, are the exclusive property of Maks Szygenda and may not be
+copied, modified, redistributed or used without explicit written permission.
+
 ## Notes
 
 - This repository is public.
