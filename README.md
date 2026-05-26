@@ -11,7 +11,6 @@ In the current game loop, the player places hex tiles, forms animal habitats, ma
 This repository tracks the active development of the game rather than a polished final release.  
 The focus right now is on making the core loop feel good, making the board readable, and building systems that can scale into a larger version of the game.
 
-The in-game UI currently uses the title `Puzzles of the Forest`, while `Idle Forest` is the working project/repo name.
 
 ## Core Player Systems
 
