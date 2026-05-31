@@ -115,7 +115,7 @@ public class TilePlacementService : MonoBehaviour
             if (biomeRuntime == null) biomeRuntime = go.AddComponent<TileBiomeRuntime>();
 
             float radius = tile.grid != null ? tile.grid.HexRadius : 1f;
-            biomeRuntime.Initialize(biome, radius);
+            biomeRuntime.Initialize(biome, radius, tileDraw?.biomeVariantId);
 
             if (biomePopulator != null)
             {

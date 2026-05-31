@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,7 +19,15 @@ public static class UISpriteFactory
     public static readonly Color TextPrimary    = new Color32(0x3A, 0x2A, 0x1A, 0xFF); // ciemny brąz
     public static readonly Color TextMuted      = new Color32(0x7A, 0x6A, 0x4F, 0xFF); // stonowany brąz
     public static readonly Color TextOnAccent   = new Color32(0xFF, 0xF5, 0xE1, 0xFF); // krem (na ciemnych accentach)
+    public static readonly Color ScoreValue     = new Color32(0xFF, 0xFF, 0xFF, 0xFF); // duża liczba wyniku
     public static readonly Color Backdrop       = new Color(0f, 0f, 0f, 0.65f);
+
+    public static void ApplyScoreValueStyle(TextMeshProUGUI label)
+    {
+        if (label == null) return;
+        label.outlineWidth = 0.12f;
+        label.outlineColor = new Color32(0x5A, 0x4A, 0x38, 0x99);
+    }
 
     private static Sprite _roundedSprite;
     private static Sprite _circleSprite;

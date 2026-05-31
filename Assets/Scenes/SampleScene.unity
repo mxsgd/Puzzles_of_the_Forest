@@ -13245,22 +13245,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e22f82390968424397e54fa51fae295, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BiomeTilePopulator
-  biomeContents:
+  biomeVariants:
   - biome: 1
+    variantId: coniferous
+    weight: 1
+    contents:
+    - tag: Tree
+      prefabs:
+      - prefab: {fileID: 1028191730666212210, guid: d135695fb07a40c48beb00dcef2f6ccb, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      - prefab: {fileID: 2196830399615975337, guid: f93bbcd814ffe184cb57f1ba739ee443, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      - prefab: {fileID: 3619197081134415271, guid: 0b48b6d16c9e006479d2f690497d1826, type: 3}
+        slotsPerSpawn: 2
+        spawnCountPerTile: 2
+      randomScaleRange: {x: 1, y: 1}
+      maxRandomYRotation: 360
+      jitterTowardTileCenter: 0.05
+      placeAtTileCenter: 0
+  - biome: 1
+    variantId: deciduous
+    weight: 1
     contents:
     - tag: Tree
       prefabs:
       - prefab: {fileID: 7245867163761069325, guid: d03fce7251c5bd7439f7222d4b51da97, type: 3}
         slotsPerSpawn: 2
-        spawnCountPerTile: 3
+        spawnCountPerTile: 2
       - prefab: {fileID: 1026460230148584098, guid: e6c2928dc36ffd34ba9272379f1fda3c, type: 3}
         slotsPerSpawn: 2
         spawnCountPerTile: 2
       randomScaleRange: {x: 1, y: 1}
-      maxRandomYRotation: 0
+      maxRandomYRotation: 360
       jitterTowardTileCenter: 0.05
       placeAtTileCenter: 0
   - biome: 2
+    variantId: default
+    weight: 1
     contents:
     - tag: Grass
       prefabs:
@@ -13272,6 +13295,8 @@ MonoBehaviour:
       jitterTowardTileCenter: 3.37
       placeAtTileCenter: 0
   - biome: 3
+    variantId: default
+    weight: 1
     contents:
     - tag: Rock
       prefabs:
@@ -13295,6 +13320,8 @@ MonoBehaviour:
       jitterTowardTileCenter: 0.05
       placeAtTileCenter: 0
   - biome: 4
+    variantId: default
+    weight: 1
     contents:
     - tag: Bush
       prefabs:
@@ -13311,8 +13338,7 @@ MonoBehaviour:
       maxRandomYRotation: 73
       jitterTowardTileCenter: 0.42
       placeAtTileCenter: 0
-  - biome: 5
-    contents: []
+  biomeContents: []
   decorationsParent: {fileID: 0}
 --- !u!1 &1338635265
 GameObject:
@@ -13388,26 +13414,31 @@ MonoBehaviour:
     weight: 1
     icon: {fileID: 21300000, guid: 1e2d9f4618bb42f42a6dd68fae065e7d, type: 3}
     displayName: 
+    biomeVariantId: 
   - biome: 2
     baseTilePrefabOverride: {fileID: 3373863832436675125, guid: b5f12f1f88c0cec4bbb2fa347adbfc63, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: 5c839492835515441a98caf63faed7f1, type: 3}
     displayName: 
+    biomeVariantId: 
   - biome: 3
     baseTilePrefabOverride: {fileID: 7402760474302956532, guid: 23c99dc807f1095479f793026c34f6bd, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: dd9ef2af5cbeec942ab00892afe4a66a, type: 3}
     displayName: 
+    biomeVariantId: 
   - biome: 4
     baseTilePrefabOverride: {fileID: 2137025043935777338, guid: fe15623a7e59b4c46a6653d8adb2cb3c, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: 8ed7e3a35be500c46a861049ea2cf624, type: 3}
     displayName: 
+    biomeVariantId: 
   - biome: 5
     baseTilePrefabOverride: {fileID: 6342053853251618933, guid: 9ecfc0c7729c6c34190401a428237776, type: 3}
     weight: 1
     icon: {fileID: 21300000, guid: 73f1113d5b1a71747a9e88d0e7002133, type: 3}
     displayName: 
+    biomeVariantId: 
   tilePool: []
   addTilesOnHabitatCreated: 1
   tilesAddedPerHabitat: 3
@@ -13440,6 +13471,8 @@ MonoBehaviour:
   yellowBackgroundColor: {r: 0.96, g: 0.86, b: 0.35, a: 0.8666667}
   greenBackgroundColor: {r: 0.45, g: 0.82, b: 0.48, a: 0.95}
   iconColor: {r: 1, g: 1, b: 1, a: 1}
+  candidateHighlightTint: {r: 1, g: 0.97, b: 0.82, a: 1}
+  candidateHighlightStrength: 0.2
   backgroundSize: 192
   iconSize: 128
   backgroundCornerRadius: 12

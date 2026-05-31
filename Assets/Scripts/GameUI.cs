@@ -157,14 +157,15 @@ public class GameUI : MonoBehaviour
         caption.characterSpacing = 6f;
 
         // Big score value.
-        _scoreValueLabel = CreateLabel(card, "0", 44f, UISpriteFactory.AccentGold,
-            anchorMin: new Vector2(0f, 0.4f),
-            anchorMax: new Vector2(1f, 0.85f),
+        _scoreValueLabel = CreateLabel(card, "0", 42f, UISpriteFactory.ScoreValue,
+            anchorMin: new Vector2(0f, 0.2f),
+            anchorMax: new Vector2(1f, 0.58f),
             pivot:     new Vector2(0.5f, 0.5f),
             sizeDelta: Vector2.zero,
-            anchoredPosition: Vector2.zero,
+            anchoredPosition: new Vector2(0f, -4f),
             alignment: TextAlignmentOptions.Center);
         _scoreValueLabel.fontStyle = FontStyles.Bold;
+        UISpriteFactory.ApplyScoreValueStyle(_scoreValueLabel);
 
         // Habitat count.
         _habitatCountLabel = CreateLabel(card, "Habitaty: 0", 18f, UISpriteFactory.TextPrimary,

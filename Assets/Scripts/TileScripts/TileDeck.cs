@@ -22,6 +22,9 @@ public class TilePrefabGroup
 
     [Tooltip("Etykieta UI. Gdy puste — nazwa biomu (Lesisty/Łąkowy/...).")]
     public string displayName;
+
+    [Tooltip("Opcjonalny wariant biomu (np. coniferous). Puste = losuj wg wag w BiomeTilePopulator.")]
+    public string biomeVariantId = "";
 }
 
 [Serializable]
@@ -31,13 +34,20 @@ public class TileDraw
     public GameObject prefab;
     public Sprite icon;
     public string displayName;
+    public string biomeVariantId;
 
-    public TileDraw(TileBiome biome, GameObject prefab, Sprite icon, string displayName)
+    public TileDraw(
+        TileBiome biome,
+        GameObject prefab,
+        Sprite icon,
+        string displayName,
+        string biomeVariantId = "")
     {
         this.biome = biome;
         this.prefab = prefab;
         this.icon = icon;
         this.displayName = displayName;
+        this.biomeVariantId = biomeVariantId ?? "";
     }
 }
 
@@ -126,7 +136,7 @@ public class TileDeck : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             var pick = pool[UnityEngine.Random.Range(0, pool.Count)];
-            _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName));
+            _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName, pick.biomeVariantId));
         }
 
         NotifyDeckChanged();
@@ -181,7 +191,7 @@ public class TileDeck : MonoBehaviour
         while (_deck.Count > 0) rest.Add(_deck.Dequeue());
 
         var pick = pool[UnityEngine.Random.Range(0, pool.Count)];
-        _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName));
+        _deck.Enqueue(new TileDraw(pick.biome, pick.prefab, pick.icon, pick.displayName, pick.biomeVariantId));
         foreach (var item in rest) _deck.Enqueue(item);
 
         NotifyDeckChanged();
@@ -206,7 +216,7 @@ public class TileDeck : MonoBehaviour
 
             int weight = Mathf.Max(1, group.weight);
             for (int w = 0; w < weight; w++)
-                pool.Add(new TileDraw(group.biome, prefab, group.icon, label));
+                pool.Add(new TileDraw(group.biome, prefab, group.icon, label, group.biomeVariantId));
         }
         return pool;
     }

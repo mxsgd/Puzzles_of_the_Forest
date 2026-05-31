@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
-/// Wypełnia 12 slotów (trójkątów) świeżo postawionego kafla obiektami zgodnie z biomem.
-/// Konfiguracja odbywa się w Inspectorze: dla każdego biomu lista par (tag → prefaby + density).
-/// Brakujące tagi (np. Flower, Grass) są pomijane — slot zostaje pusty z tagiem null.
+/// Wypełnia 12 slotów kafla dekoracjami zgodnie z biomem i wybranym wariantem biomu.
+/// Jeden biom może mieć wiele wariantów (np. las iglasty / liściasty) — patrz <see cref="BiomeVariantProfile"/>.
+/// Wyboru wariantu dokonuje <see cref="BiomeVariantSelector"/> (obecnie losowanie wg wag, później strefy klimatu).
 /// </summary>
 public class BiomeTilePopulator : MonoBehaviour
 {
@@ -43,60 +46,100 @@ public class BiomeTilePopulator : MonoBehaviour
         public bool placeAtTileCenter = false;
     }
 
+    /// <summary>Stary format serializacji — używany tylko do jednorazowej migracji w edytorze.</summary>
     [Serializable]
-    public class BiomeContent
+    private class LegacyBiomeContent
     {
         public TileBiome biome = TileBiome.None;
         public List<ContentPrefab> contents = new();
+        public bool splitForestTreeTypes;
+        public ContentPrefab coniferousTrees = new();
+        public ContentPrefab deciduousTrees = new();
     }
 
-    [Header("Konfiguracja per-biom")]
-    [SerializeField] private List<BiomeContent> biomeContents = new();
+    [Header("Warianty biomów")]
+    [SerializeField] private List<BiomeVariantProfile> biomeVariants = new();
+
+    [SerializeField, HideInInspector]
+    private List<LegacyBiomeContent> biomeContents = new();
 
     [Header("Hierarchia")]
     [SerializeField, Tooltip("Opcjonalny rodzic dla zinstancjonowanych dekoracji. Jeśli null — rodzicem jest sam kafel.")]
     private Transform decorationsParent;
 
-    private readonly Dictionary<TileBiome, BiomeContent> _byBiome = new();
+    private readonly Dictionary<TileBiome, List<BiomeVariantProfile>> _variantsByBiome = new();
+    private readonly Dictionary<(TileBiome biome, string variantId), BiomeVariantProfile> _variantLookup = new();
 
-    private void Awake()    => RebuildIndex();
-    private void OnValidate() => RebuildIndex();
+    private void Awake() => RebuildIndex();
+
+    private void OnValidate()
+    {
+#if UNITY_EDITOR
+        MigrateLegacyBiomeContents();
+#endif
+        RebuildIndex();
+    }
 
     private void RebuildIndex()
     {
-        _byBiome.Clear();
-        if (biomeContents == null) return;
-        foreach (var bc in biomeContents)
-            if (bc != null) _byBiome[bc.biome] = bc;
+        _variantsByBiome.Clear();
+        _variantLookup.Clear();
+        if (biomeVariants == null) return;
+
+        foreach (var profile in biomeVariants)
+        {
+            if (profile == null || profile.biome == TileBiome.None) continue;
+            if (string.IsNullOrWhiteSpace(profile.variantId))
+                profile.variantId = BiomeVariantIds.Default;
+
+            var key = (profile.biome, profile.variantId.Trim());
+            _variantLookup[key] = profile;
+
+            if (!_variantsByBiome.TryGetValue(profile.biome, out var list))
+            {
+                list = new List<BiomeVariantProfile>();
+                _variantsByBiome[profile.biome] = list;
+            }
+            list.Add(profile);
+        }
     }
 
     /// <summary>
-    /// Wypełnia kafel (każdy z 12 trójkątów dostaje szansę na obiekt zgodnie z biomem).
-    /// Reguły dodatkowe:
-    ///   - sąsiednie sloty (w cyklu 12 trójkątów) nie mogą być oba zajęte — obiekt musi być
-    ///     przynajmniej jeden trójkąt dalej, żeby nie spawnowały się sklejone w klastry,
-    ///   - na kaflu spawnuje się zawsze co najmniej jeden obiekt (jeśli biom ma jakąkolwiek
-    ///     dostępną treść z prefabami).
-    /// Można podać deterministyczny seed (np. hash z (tile.q, tile.r) dla powtarzalności po zapisie).
+    /// Losuje wariant dla biomu (np. 50/50). Używane przed podglądem / spawnem gdy karta talii nie narzuca wariantu.
     /// </summary>
-    /// <param name="decorationParentOverride">
-    /// Gdy nie null — rodzic instancji dekoracji (np. podgląd ducha musi być pod prefabem, nie pod globalnym <see cref="decorationsParent"/>).
-    /// </param>
+    public string PickVariantId(TileBiome biome, string forcedVariantId, System.Random rng)
+    {
+        if (_variantsByBiome.Count == 0) RebuildIndex();
+        if (!_variantsByBiome.TryGetValue(biome, out var candidates) || candidates == null || candidates.Count == 0)
+            return BiomeVariantIds.Default;
+
+        return BiomeVariantSelector.ResolveVariantId(forcedVariantId, candidates, rng);
+    }
+
+    public string PickVariantId(TileBiome biome, string forcedVariantId, int seed)
+        => PickVariantId(biome, forcedVariantId, new System.Random(seed));
+
     public void Populate(TileBiomeRuntime tile, int? randomSeed = null, Transform decorationParentOverride = null)
     {
         if (tile == null) return;
-        if (_byBiome.Count == 0) RebuildIndex();
-
-        if (!_byBiome.TryGetValue(tile.Biome, out var content) || content == null)
-        {
-            Debug.LogWarning($"[BiomeTilePopulator] Brak konfiguracji dla biomu {tile.Biome} — sloty zostają puste.", this);
-            return;
-        }
+        if (_variantsByBiome.Count == 0) RebuildIndex();
 
         var allowed = TileBiomeRules.GetAllowedTags(tile.Biome);
         if (allowed == null || allowed.Count == 0) return;
 
         var rng = randomSeed.HasValue ? new System.Random(randomSeed.Value) : new System.Random();
+
+        var resolvedVariantId = PickVariantId(tile.Biome, tile.BiomeVariantId, rng);
+        tile.SetResolvedVariantId(resolvedVariantId);
+
+        if (!_variantLookup.TryGetValue((tile.Biome, resolvedVariantId), out var profile) || profile == null)
+        {
+            Debug.LogWarning(
+                $"[BiomeTilePopulator] Brak wariantu '{resolvedVariantId}' dla biomu {tile.Biome} — sloty puste.",
+                this);
+            return;
+        }
+
         var parent = decorationParentOverride != null
             ? decorationParentOverride
             : (decorationsParent != null ? decorationsParent : tile.transform);
@@ -104,19 +147,19 @@ public class BiomeTilePopulator : MonoBehaviour
         var slotById = BuildSlotMap(tile.Slots);
         if (slotById.Count == 0) return;
 
-        var plan = BuildPlacementPlan(content, allowed);
+        var plan = BuildPlacementPlan(profile, allowed);
         Shuffle(plan, rng);
 
         for (int i = 0; i < plan.Count; i++)
             TryPlacePlanEntry(tile, slotById, plan[i], parent, rng);
 
-        FillRemainingSlots(tile, slotById, content, allowed, parent, rng);
+        FillRemainingSlots(tile, slotById, profile, allowed, parent, rng);
     }
 
     private void FillRemainingSlots(
         TileBiomeRuntime tile,
         Dictionary<string, TileTriangleSlot> slotById,
-        BiomeContent content,
+        BiomeVariantProfile profile,
         IReadOnlyList<string> allowed,
         Transform parent,
         System.Random rng)
@@ -124,7 +167,7 @@ public class BiomeTilePopulator : MonoBehaviour
         int guard = 0;
         while (TryFindEmptySlot(slotById, out var emptySlot) && guard++ < 256)
         {
-            var fallback = PickRandomSingleSlotDefinition(content, allowed, rng);
+            var fallback = PickRandomSingleSlotDefinition(profile, allowed, rng);
             if (!fallback.HasValue)
                 break;
             var fallbackValue = fallback.Value;
@@ -157,14 +200,15 @@ public class BiomeTilePopulator : MonoBehaviour
         return false;
     }
 
-    private List<PlacementRequest> BuildPlacementPlan(BiomeContent content, IReadOnlyList<string> allowed)
+    private List<PlacementRequest> BuildPlacementPlan(BiomeVariantProfile profile, IReadOnlyList<string> allowed)
     {
         var result = new List<PlacementRequest>();
-        if (allowed == null) return result;
+        if (allowed == null || profile?.contents == null) return result;
+
         for (int i = 0; i < allowed.Count; i++)
         {
             var tag = allowed[i];
-            var def = FindContent(content, tag);
+            var def = FindContent(profile, tag);
             if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
 
             for (int p = 0; p < def.prefabs.Count; p++)
@@ -272,7 +316,6 @@ public class BiomeTilePopulator : MonoBehaviour
         go.transform.localScale = prefab.transform.localScale * scl;
         go.name = $"{chosenTag}_{slot.Id}";
 
-
         slot.contentTag = chosenTag;
         slot.contentInstance = go;
         return true;
@@ -312,14 +355,12 @@ public class BiomeTilePopulator : MonoBehaviour
         go.transform.localScale = prefab.transform.localScale * scl;
         go.name = $"{chosenTag}_{anchor.Id}_{neighborA.Id}_{neighborB.Id}";
 
-
         anchor.contentTag = chosenTag;
         anchor.contentInstance = go;
         neighborA.contentTag = chosenTag;
         neighborB.contentTag = chosenTag;
         return true;
     }
-
 
     private static void Shuffle<T>(IList<T> list, System.Random rng)
     {
@@ -348,16 +389,16 @@ public class BiomeTilePopulator : MonoBehaviour
         tile.ClearAll();
     }
 
-    private static ContentPrefab FindContent(BiomeContent bc, string tag)
+    private static ContentPrefab FindContent(BiomeVariantProfile profile, string tag)
     {
-        if (bc?.contents == null) return null;
-        foreach (var c in bc.contents)
+        if (profile?.contents == null) return null;
+        foreach (var c in profile.contents)
             if (c != null && c.tag == tag) return c;
         return null;
     }
 
     private (string Tag, ContentPrefab Definition, PrefabEntry PrefabEntry)? PickRandomSingleSlotDefinition(
-        BiomeContent content,
+        BiomeVariantProfile profile,
         IReadOnlyList<string> allowed,
         System.Random rng)
     {
@@ -367,7 +408,7 @@ public class BiomeTilePopulator : MonoBehaviour
         for (int i = 0; i < allowed.Count; i++)
         {
             var tag = allowed[i];
-            var def = FindContent(content, tag);
+            var def = FindContent(profile, tag);
             if (def == null || def.prefabs == null || def.prefabs.Count == 0) continue;
             if (def.placeAtTileCenter) continue;
             for (int p = 0; p < def.prefabs.Count; p++)
@@ -398,4 +439,114 @@ public class BiomeTilePopulator : MonoBehaviour
             SlotsPerSpawn = Mathf.Max(1, slotsPerSpawn);
         }
     }
+
+#if UNITY_EDITOR
+    private void MigrateLegacyBiomeContents()
+    {
+        if (biomeContents == null || biomeContents.Count == 0) return;
+
+        biomeVariants ??= new List<BiomeVariantProfile>();
+
+        for (int i = 0; i < biomeContents.Count; i++)
+        {
+            var legacy = biomeContents[i];
+            if (legacy == null || legacy.biome == TileBiome.None) continue;
+
+            bool hasSplit = legacy.splitForestTreeTypes
+                            || HasUsableLegacyProfile(legacy.coniferousTrees)
+                            || HasUsableLegacyProfile(legacy.deciduousTrees);
+
+            if (hasSplit)
+            {
+                if (HasUsableLegacyProfile(legacy.coniferousTrees))
+                    AddOrReplaceVariant(legacy.biome, BiomeVariantIds.Coniferous, BuildSplitVariantContents(legacy, legacy.coniferousTrees));
+
+                if (HasUsableLegacyProfile(legacy.deciduousTrees))
+                    AddOrReplaceVariant(legacy.biome, BiomeVariantIds.Deciduous, BuildSplitVariantContents(legacy, legacy.deciduousTrees));
+            }
+            else if (legacy.contents != null && legacy.contents.Count > 0)
+            {
+                AddOrReplaceVariant(legacy.biome, BiomeVariantIds.Default, legacy.contents);
+            }
+        }
+
+        biomeContents.Clear();
+        EditorUtility.SetDirty(this);
+    }
+
+    private static List<ContentPrefab> BuildSplitVariantContents(LegacyBiomeContent legacy, ContentPrefab treeProfile)
+    {
+        var contents = new List<ContentPrefab>();
+        CopyNonTreeContents(legacy.contents, contents);
+        contents.Add(CloneContentPrefab(treeProfile, TileContentTags.Tree));
+        return contents;
+    }
+
+    private static void CopyNonTreeContents(List<ContentPrefab> source, List<ContentPrefab> target)
+    {
+        if (source == null) return;
+        for (int i = 0; i < source.Count; i++)
+        {
+            var entry = source[i];
+            if (entry == null || entry.tag == TileContentTags.Tree) continue;
+            target.Add(CloneContentPrefab(entry, entry.tag));
+        }
+    }
+
+    private void AddOrReplaceVariant(TileBiome biome, string variantId, List<ContentPrefab> contents)
+    {
+        for (int i = biomeVariants.Count - 1; i >= 0; i--)
+        {
+            var existing = biomeVariants[i];
+            if (existing == null) continue;
+            if (existing.biome == biome && string.Equals(existing.variantId, variantId, StringComparison.OrdinalIgnoreCase))
+                biomeVariants.RemoveAt(i);
+        }
+
+        biomeVariants.Add(new BiomeVariantProfile
+        {
+            biome = biome,
+            variantId = variantId,
+            weight = 1,
+            contents = contents
+        });
+    }
+
+    private static bool HasUsableLegacyProfile(ContentPrefab def)
+    {
+        if (def?.prefabs == null) return false;
+        for (int i = 0; i < def.prefabs.Count; i++)
+            if (def.prefabs[i]?.prefab != null) return true;
+        return false;
+    }
+
+    private static ContentPrefab CloneContentPrefab(ContentPrefab source, string tag)
+    {
+        var copy = new ContentPrefab
+        {
+            tag = tag,
+            randomScaleRange = source.randomScaleRange,
+            maxRandomYRotation = source.maxRandomYRotation,
+            jitterTowardTileCenter = source.jitterTowardTileCenter,
+            placeAtTileCenter = source.placeAtTileCenter,
+            prefabs = new List<PrefabEntry>()
+        };
+
+        if (source.prefabs == null) return copy;
+
+        for (int i = 0; i < source.prefabs.Count; i++)
+        {
+            var entry = source.prefabs[i];
+            if (entry == null) continue;
+            copy.prefabs.Add(new PrefabEntry
+            {
+                prefab = entry.prefab,
+                slotsPerSpawn = entry.slotsPerSpawn,
+                spawnCountPerTile = entry.spawnCountPerTile
+            });
+        }
+
+        return copy;
+    }
+#endif
 }

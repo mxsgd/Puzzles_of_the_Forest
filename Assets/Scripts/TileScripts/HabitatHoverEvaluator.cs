@@ -13,6 +13,7 @@ public sealed class HabitatHoverScratch
     public readonly HabitatRegionScratch          Region        = new();
     public readonly List<HabitatAnimal>           YellowAnimals = new();
     public readonly HashSet<HabitatAnimal>        YellowSet     = new();
+    public readonly List<Tile>                    CandidateRegion = new();
 }
 
 public enum HabitatHoverPreviewKind { Gray, Yellow, Green }
@@ -159,6 +160,121 @@ public static class HabitatHoverEvaluator
         }
 
         result = new HabitatHoverResult(HabitatHoverPreviewKind.Gray, HabitatAnimal.None, Array.Empty<HabitatAnimal>());
+    }
+
+    /// <summary>
+    /// Region kafli będących wstępnym kandydatem na habitat danego zwierzęcia po postawieniu kafelka na <paramref name="hoverTile"/>.
+    /// Zwraca true gdy znaleziono region (pełny habitat lub „prawie” — deficit 1).
+    /// </summary>
+    public static bool TryGetCandidateRegion(
+        TileRuntimeStore store,
+        Tile hoverTile,
+        TileDraw nextDraw,
+        HabitatAnimal animal,
+        int maxTilesPerHabitat,
+        int maxGraphSteps,
+        HabitatHoverScratch s,
+        out IReadOnlyList<Tile> region,
+        HabitatRulesProfile rulesProfile = null)
+    {
+        region = Array.Empty<Tile>();
+        if (store == null || hoverTile == null || animal == HabitatAnimal.None) return false;
+        if (nextDraw == null || nextDraw.biome == TileBiome.None) return false;
+
+        var hoverRt = store.Get(hoverTile);
+        if (hoverRt == null || hoverRt.occupied || !hoverRt.CanAcceptNewHabitat()) return false;
+
+        if (!TryPrepareHoverBall(store, hoverTile, maxGraphSteps, s, out var rs))
+            return false;
+
+        s.CandidateRegion.Clear();
+        List<Tile> bestRegion = null;
+        float bestScore = float.NegativeInfinity;
+        int bestTileCount = int.MaxValue;
+        bool bestIsFull = false;
+
+        HabitatRegionEnumerator.ForEachRegionContaining(
+            rs.Allowed, maxTilesPerHabitat, mustInclude: hoverTile, rs,
+            candidate =>
+            {
+                if (!TryBuildSimulatedBiomeVector(store, candidate, animal, hoverTile, nextDraw, out var vec))
+                    return;
+
+                var req = HabitatRequirements.GetRequirement(animal);
+                bool satisfies = vec.Satisfies(req);
+                if (satisfies)
+                {
+                    if (!HabitatCoreValidation.ValidateCoreRequirement(candidate, animal, rulesProfile, out _))
+                        return;
+
+                    float score = HabitatRequirements.ComputeScore(animal, candidate.Count);
+                    int distinctBiomes = CountDistinctBiomesInRegion(store, candidate, hoverTile, nextDraw);
+                    score = ApplyPerkScoreModifiers(animal, score, candidate.Count, distinctBiomes);
+                    int basePts = HabitatRequirements.GetBasePoints(animal);
+
+                    if (IsBetterCandidate(score, basePts, candidate.Count, animal, candidate,
+                            bestScore, animal, bestTileCount, bestRegion))
+                    {
+                        bestIsFull = true;
+                        bestScore = score;
+                        bestTileCount = candidate.Count;
+                        CopyRegion(candidate, ref bestRegion);
+                    }
+                }
+                else if (!bestIsFull && vec.DeficitSumToward(req) == 1)
+                {
+                    if (bestRegion == null || candidate.Count < bestTileCount)
+                    {
+                        bestTileCount = candidate.Count;
+                        CopyRegion(candidate, ref bestRegion);
+                    }
+                }
+            });
+
+        if (bestRegion == null || bestRegion.Count == 0) return false;
+
+        s.CandidateRegion.Clear();
+        s.CandidateRegion.AddRange(bestRegion);
+        region = s.CandidateRegion;
+        return true;
+    }
+
+    private static bool TryPrepareHoverBall(
+        TileRuntimeStore store,
+        Tile hoverTile,
+        int maxGraphSteps,
+        HabitatHoverScratch s,
+        out HabitatRegionScratch rs)
+    {
+        rs = s.Region;
+        rs.Ball.Clear();
+        rs.Allowed.Clear();
+
+        HabitatRegionEnumerator.CollectOccupiedBall(
+            store, hoverTile, maxGraphSteps, rs,
+            includeCenterRegardlessOfOccupied: true);
+
+        if (rs.Ball.Count == 0) return false;
+
+        foreach (Tile t in rs.Ball)
+        {
+            if (t == null) continue;
+            var r = store.Get(t);
+            if (ReferenceEquals(t, hoverTile))
+            {
+                if (r.CanAcceptNewHabitat()) rs.Allowed.Add(t);
+                continue;
+            }
+            if (r.occupied && r.CanAcceptNewHabitat()) rs.Allowed.Add(t);
+        }
+
+        return rs.Allowed.Contains(hoverTile);
+    }
+
+    private static void CopyRegion(List<Tile> source, ref List<Tile> dest)
+    {
+        if (dest == null) dest = new List<Tile>(source);
+        else { dest.Clear(); dest.AddRange(source); }
     }
 
     // -------------------------------------------------------------------------

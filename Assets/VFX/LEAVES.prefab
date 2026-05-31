@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7703645054373453566}
   - component: {fileID: 6769968063324115693}
   m_Layer: 0
-  m_Name: ParticleSystem
+  m_Name: LEAVES
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1201,7 +1201,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 3
       scalar: 0
-      minScalar: 2.0943952
+      minScalar: 9.960594
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -1254,7 +1254,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 3
       scalar: 0
-      minScalar: 0.5235988
+      minScalar: 1.446878
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -1307,7 +1307,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 3
       scalar: 0
-      minScalar: 2.0943952
+      minScalar: 2.2811453
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -4866,7 +4866,7 @@ ParticleSystemRenderer:
   m_MeshDistribution: 0
   m_SortMode: 0
   m_MinParticleSize: 0.04
-  m_MaxParticleSize: 0.35
+  m_MaxParticleSize: 0.14
   m_CameraVelocityScale: 0
   m_VelocityScale: 0
   m_LengthScale: 2

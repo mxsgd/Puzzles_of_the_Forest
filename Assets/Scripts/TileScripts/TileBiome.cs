@@ -8,7 +8,7 @@ using System.Collections.Generic;
 public enum TileBiome
 {
     None = 0,
-    Forested,    // Lesisty:    drzewa + krzaki
+    Forested,    // Lesisty: drzewa + krzaki
     Meadow,      // Łąkowy:     kwiaty + trawa
     Mountainous, // Górzysty:   drzewa + kamienie
     Bushy,       // Krzaczasty: krzaki + kwiaty

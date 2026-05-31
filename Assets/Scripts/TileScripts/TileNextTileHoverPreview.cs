@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -41,6 +42,11 @@ public class TileNextTileHoverPreview : MonoBehaviour
     [SerializeField] private Color greenBackgroundColor = new(0.45f, 0.82f, 0.48f, 0.95f);
     [SerializeField] private Color iconColor = Color.white;
 
+    [Header("Podświetlenie kandydatów (hover ikony)")]
+    [SerializeField, Tooltip("VFX prefab (świecący kafel) — jedna instancja na kafel kandydata. Water pomijany.")]
+    private GameObject candidateTileHighlightPrefab;
+    [SerializeField] private Vector3 candidateHighlightOffset = new(0f, 1f, 0f);
+
     [Header("Rozmiary slotu (px ekranu)")]
     [SerializeField, Min(8f)] private float backgroundSize = 48f;
     [SerializeField, Min(8f)] private float iconSize = 32f;
@@ -75,6 +81,10 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private Canvas _iconsCanvas;
     private readonly List<HabitatPreviewSlot> _iconPool = new();
     private const int IconPoolCapacity = 8;
+
+    private readonly List<GameObject> _candidateHighlightInstances = new();
+    private Transform _candidateHighlightParent;
+    private bool _iconPointerHandlersRegistered;
 
     private Tile _lastHover;
     private TileDraw _lastDraw;
@@ -163,6 +173,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
             _iconsCanvas = null;
         }
         _iconPool.Clear();
+        ClearCandidateTileHighlight();
     }
 
     private void OnDeckEmptied() { HideAllGhosts(); HideAllIcons(); enabled = false; }
@@ -233,11 +244,28 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
         if (!TryGetPointerScreen(out var screen, out var pointerId)) { ClearVisuals(); return; }
 
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
-        { ClearVisuals(); return; }
-
         var cam = mainCamera != null ? mainCamera : Camera.main;
         if (cam == null) return;
+
+        bool overHabitatIcons = IsPointerOverHabitatIcons(screen);
+        if (!overHabitatIcons && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
+        {
+            ClearVisuals();
+            return;
+        }
+
+        if (overHabitatIcons)
+        {
+            if (_lastHover == null || _lastDraw == null) return;
+            if (_activeGhostRoot != null)
+            {
+                _activeGhostRoot.transform.position = _lastHover.worldPos + ghostWorldOffset;
+                if (tileGrid != null) _activeGhostRoot.transform.rotation = tileGrid.transform.rotation;
+                ApplyGhostVisualScale(_activeGhostRoot.transform, _activeGhostDraw?.prefab);
+            }
+            UpdateIconsScreenPosition(_lastHover, cam);
+            return;
+        }
 
         var ray = cam.ScreenPointToRay(screen);
         if (!Physics.Raycast(ray, out var hit, 800f, ~0, QueryTriggerInteraction.Ignore))
@@ -258,6 +286,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
         {
             _lastHover = tile;
             _lastDraw = next;
+            ClearCandidateTileHighlight();
             HabitatHoverEvaluator.Evaluate(runtimeStore, tile, next, maxTiles, maxSteps, _scratch, out _lastResult,
                 classifier != null ? classifier.RulesProfile : null);
             _needsReevaluate = false;
@@ -343,10 +372,9 @@ public class TileNextTileHoverPreview : MonoBehaviour
                 ?? instance.AddComponent<TileBiomeRuntime>();
 
             float radius = tileGrid != null ? tileGrid.HexRadius : 1f;
-            biomeRuntime.Initialize(draw.biome, radius);
+            biomeRuntime.Initialize(draw.biome, radius, draw.biomeVariantId);
 
-            // Stały seed per biome — dekoracje stabilne, bez re-generate per hover; skala = prefab.
-            int seed = unchecked((int)draw.biome * 73856093);
+            int seed = unchecked((tile.q * 73856093) ^ (tile.r * 19349663));
             biomePopulator.Populate(biomeRuntime, seed, instance.transform);
         }
 
@@ -425,7 +453,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (_iconsRoot == null)
         {
             var go = new GameObject("HabitatHoverIcons",
-                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+                typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             _iconsRoot = go.transform;
             // Overlay + rodzic 3D psuł transform.position — canvas jako root sceny.
             _iconsRoot.SetParent(null, worldPositionStays: false);
@@ -468,8 +496,15 @@ public class TileNextTileHoverPreview : MonoBehaviour
             slot.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius);
             slot.EnsureBuilt();
             slot.Clear();
+            if (!_iconPointerHandlersRegistered)
+            {
+                slot.PointerEntered += OnIconSlotPointerEntered;
+                slot.PointerExited += OnIconSlotPointerExited;
+            }
             _iconPool.Add(slot);
         }
+
+        _iconPointerHandlersRegistered = true;
 
         RefreshIconPoolSizes();
     }
@@ -499,7 +534,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (result.Kind == HabitatHoverPreviewKind.Green && result.GreenAnimal != HabitatAnimal.None
             && _iconByAnimal.TryGetValue(result.GreenAnimal, out var greenSp) && greenSp != null)
         {
-            ShowPooledSlot(idx++, greenSp, HabitatHoverPreviewKind.Green, Vector2.zero);
+            ShowPooledSlot(idx++, greenSp, HabitatHoverPreviewKind.Green, result.GreenAnimal, Vector2.zero);
         }
         else if (result.Kind == HabitatHoverPreviewKind.Yellow && result.YellowAnimals?.Count > 0)
         {
@@ -508,11 +543,33 @@ public class TileNextTileHoverPreview : MonoBehaviour
             {
                 var animal = result.YellowAnimals[i];
                 if (!_iconByAnimal.TryGetValue(animal, out var sp) || sp == null) continue;
-                ShowPooledSlot(idx++, sp, HabitatHoverPreviewKind.Yellow,
+                ShowPooledSlot(idx++, sp, HabitatHoverPreviewKind.Yellow, animal,
                     new Vector2(startX + i * slotPitch, 0f));
             }
         }
     }
+
+    private void OnIconSlotPointerEntered(HabitatPreviewSlot slot)
+    {
+        if (slot == null || slot.Animal == HabitatAnimal.None || _lastHover == null || _lastDraw == null)
+            return;
+
+        int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
+        int maxSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
+
+        if (!HabitatHoverEvaluator.TryGetCandidateRegion(
+                runtimeStore, _lastHover, _lastDraw, slot.Animal, maxTiles, maxSteps, _scratch,
+                out var region, classifier != null ? classifier.RulesProfile : null))
+        {
+            ClearCandidateTileHighlight();
+            return;
+        }
+
+        ApplyCandidateTileHighlight(region);
+    }
+
+    private void OnIconSlotPointerExited(HabitatPreviewSlot _)
+        => ClearCandidateTileHighlight();
 
     private void UpdateIconsScreenPosition(Tile tile, Camera cam)
     {
@@ -535,13 +592,14 @@ public class TileNextTileHoverPreview : MonoBehaviour
         }
     }
 
-    private void ShowPooledSlot(int idx, Sprite animalSprite, HabitatHoverPreviewKind kind, Vector2 localPosPx)
+    private void ShowPooledSlot(int idx, Sprite animalSprite, HabitatHoverPreviewKind kind,
+        HabitatAnimal animal, Vector2 localPosPx)
     {
         if (idx >= _iconPool.Count) return;
         var slot = _iconPool[idx];
         if (slot == null) return;
 
-        slot.Show(animalSprite, kind, grayBackgroundColor, yellowBackgroundColor, greenBackgroundColor, iconColor);
+        slot.Show(animalSprite, kind, animal, grayBackgroundColor, yellowBackgroundColor, greenBackgroundColor, iconColor);
 
         if (slot.RectTransform != null)
             slot.RectTransform.anchoredPosition = localPosPx;
@@ -549,6 +607,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
     private void HideAllIcons()
     {
+        ClearCandidateTileHighlight();
         if (_iconsRoot != null)
             foreach (var slot in _iconPool)
                 slot?.Clear();
@@ -564,8 +623,75 @@ public class TileNextTileHoverPreview : MonoBehaviour
         _lastHover = null;
         _lastDraw = null;
         _needsReevaluate = true;
+        ClearCandidateTileHighlight();
         HideAllGhosts();
         HideAllIcons();
+    }
+
+    private bool IsPointerOverHabitatIcons(Vector2 screen)
+    {
+        if (_iconsCanvas == null || EventSystem.current == null) return false;
+
+        var ped = new PointerEventData(EventSystem.current) { position = screen };
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(ped, results);
+        for (int i = 0; i < results.Count; i++)
+        {
+            if (results[i].gameObject.GetComponentInParent<HabitatPreviewSlot>() != null)
+                return true;
+        }
+        return false;
+    }
+
+    private void ApplyCandidateTileHighlight(IReadOnlyList<Tile> tiles)
+    {
+        ClearCandidateTileHighlight();
+        if (candidateTileHighlightPrefab == null || tiles == null || tiles.Count == 0)
+            return;
+
+        EnsureCandidateHighlightParent();
+        var rotation = tileGrid != null ? tileGrid.transform.rotation : Quaternion.identity;
+
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var tile = tiles[i];
+            if (tile == null || IsWaterTile(tile))
+                continue;
+
+            var instance = Instantiate(
+                candidateTileHighlightPrefab,
+                tile.worldPos + candidateHighlightOffset,
+                rotation,
+                _candidateHighlightParent);
+            _candidateHighlightInstances.Add(instance);
+        }
+    }
+
+    private void ClearCandidateTileHighlight()
+    {
+        for (int i = 0; i < _candidateHighlightInstances.Count; i++)
+        {
+            if (_candidateHighlightInstances[i] != null)
+                Destroy(_candidateHighlightInstances[i]);
+        }
+        _candidateHighlightInstances.Clear();
+    }
+
+    private void EnsureCandidateHighlightParent()
+    {
+        if (_candidateHighlightParent != null) return;
+        var go = new GameObject("HabitatCandidateHighlights");
+        go.transform.SetParent(transform, false);
+        _candidateHighlightParent = go.transform;
+    }
+
+    private bool IsWaterTile(Tile tile)
+    {
+        if (ReferenceEquals(tile, _lastHover))
+            return _lastDraw != null && _lastDraw.biome == TileBiome.Water;
+
+        var rt = runtimeStore != null ? runtimeStore.Get(tile) : null;
+        return rt != null && rt.biome == TileBiome.Water;
     }
 
     private void EnsurePlaceableCache()
@@ -582,7 +708,9 @@ public class TileNextTileHoverPreview : MonoBehaviour
     {
         if (ReferenceEquals(a, b)) return true;
         if (a == null || b == null) return false;
-        return a.biome == b.biome && ReferenceEquals(a.prefab, b.prefab);
+        return a.biome == b.biome
+               && ReferenceEquals(a.prefab, b.prefab)
+               && string.Equals(a.biomeVariantId, b.biomeVariantId, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int IconSignature(HabitatHoverResult r)

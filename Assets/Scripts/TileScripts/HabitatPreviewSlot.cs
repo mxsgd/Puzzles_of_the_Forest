@@ -1,10 +1,12 @@
+using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
 /// Jeden slot podglądu habitatu: zaokrąglone tło (status) + ikona zwierzęcia (bez tintu statusu).
 /// </summary>
-public class HabitatPreviewSlot : MonoBehaviour
+public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [SerializeField] private Image backgroundImage;
     [SerializeField] private Image iconImage;
@@ -14,6 +16,10 @@ public class HabitatPreviewSlot : MonoBehaviour
     [SerializeField, Min(1)] private int backgroundCornerRadius = 24;
 
     public RectTransform RectTransform => transform as RectTransform;
+    public HabitatAnimal Animal { get; private set; }
+
+    public event Action<HabitatPreviewSlot> PointerEntered;
+    public event Action<HabitatPreviewSlot> PointerExited;
 
     public void ConfigureSizes(float bgSize, float icSize, int cornerRadius)
     {
@@ -59,17 +65,18 @@ public class HabitatPreviewSlot : MonoBehaviour
         }
     }
 
-    public void Show(Sprite animalSprite, HabitatHoverPreviewKind kind,
+    public void Show(Sprite animalSprite, HabitatHoverPreviewKind kind, HabitatAnimal animal,
         Color grayBackground, Color yellowBackground, Color greenBackground, Color iconTint)
     {
         EnsureBuilt();
+        Animal = animal;
 
         if (backgroundImage != null)
         {
             backgroundImage.sprite = UISpriteFactory.RoundedRect(backgroundCornerRadius);
             backgroundImage.type = Image.Type.Sliced;
             backgroundImage.color = GetBackgroundColor(kind, grayBackground, yellowBackground, greenBackground);
-            backgroundImage.raycastTarget = false;
+            backgroundImage.raycastTarget = true;
             backgroundImage.enabled = true;
             backgroundImage.material = null;
         }
@@ -95,8 +102,13 @@ public class HabitatPreviewSlot : MonoBehaviour
 
     public void Clear()
     {
+        Animal = HabitatAnimal.None;
+
         if (backgroundImage != null)
+        {
             backgroundImage.enabled = false;
+            backgroundImage.raycastTarget = false;
+        }
 
         if (iconImage != null)
         {
@@ -106,6 +118,10 @@ public class HabitatPreviewSlot : MonoBehaviour
 
         gameObject.SetActive(false);
     }
+
+    public void OnPointerEnter(PointerEventData eventData) => PointerEntered?.Invoke(this);
+
+    public void OnPointerExit(PointerEventData eventData) => PointerExited?.Invoke(this);
 
     public static Color GetBackgroundColor(HabitatHoverPreviewKind kind,
         Color gray, Color yellow, Color green)

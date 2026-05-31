@@ -298,7 +298,8 @@ public class GameFlowController : MonoBehaviour
         AddTitle(card, "KONIEC GRY", 34f, new Vector2(0f, -40f));
         AddSubtitle(card, "Talia wyczerpana — sesja zakończona", new Vector2(0f, -95f));
 
-        _gameOverScore = AddStatLine(card, "Wynik", "0", UISpriteFactory.AccentGold, 40f, new Vector2(0f, -175f));
+        _gameOverScore = AddStatLine(card, "Wynik", "0", UISpriteFactory.ScoreValue, 40f, new Vector2(0f, -195f));
+        UISpriteFactory.ApplyScoreValueStyle(_gameOverScore);
         _gameOverHabitats = AddStatLine(card, "Habitaty", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -250f));
         _gameOverBestChain = AddStatLine(card, "Największy habitat", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -310f));
 
