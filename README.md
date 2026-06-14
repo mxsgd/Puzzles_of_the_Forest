@@ -60,33 +60,6 @@ From the game side, the current project includes:
   - hook-based perk behaviors
   - command-driven world and economy effects
 
-## Problems Solved During Development
-
-One of the main goals of this project has been solving real gameplay and architecture problems, not just getting a prototype on screen.
-
-Some of the important issues solved along the way:
-
-- **Keeping hover preview and final habitat result consistent**  
-  The preview cannot promise one outcome and then produce another after placement, so shared evaluation logic was introduced between preview and final classification.
-
-- **Separating board systems cleanly**  
-  Tile placement, tile runtime state, deck logic, scoring, UI, and habitat detection were split into distinct systems so features could be changed without rewriting everything.
-
-- **Making deck and reroll gameplay readable**  
-  The run economy depends on the player understanding the next tile, reroll value, and habitat rewards clearly enough to make deliberate choices.
-
-- **Handling habitat logic without hardcoding every case into one place**  
-  Habitat detection and scoring needed to stay data-driven and extensible as the design evolved.
-
-- **Building UI without relying on a heavy manually wired scene setup**  
-  A lot of the UI is generated procedurally so iteration is faster and system ownership stays in code.
-
-- **Adding perks without scattering perk exceptions across the whole project**  
-  The perk system was designed around a central manager, hook-based behaviors, and command execution so future perks can stay modular.
-
-- **Making world-effect perks safe to expand later**  
-  Some perks affect deck economy, some affect evaluation rules, and some affect the world itself, so the architecture had to support all three without turning into a giant special-case switch.
-
 ## Art and Asset Authorship
 
 All models, art assets, and visual game assets in this project are **fully my own work**.
