@@ -31,7 +31,7 @@ public class HabitatAnimalPlacement : MonoBehaviour
     [SerializeField] private HabitatRulesProfile rulesProfile;
     [SerializeField] private BiomeHabitatClassifier classifier;
     [SerializeField] private TileGrid tileGrid;
-    [SerializeField, Tooltip("Legacy — zwierzęta trafiają do HabitatAnimalInstances pod tym komponentem.")]
+    [SerializeField, Tooltip("Rodzic instancji zwierząt (np. _occupants). Nie używaj obiektu ze skalą siatki.")]
     private Transform spawnParent;
 
     [Header("Animal prefabs")]
@@ -159,7 +159,7 @@ public class HabitatAnimalPlacement : MonoBehaviour
         if (_resolvedSpawnParent == null)
             return;
 
-        GameObject instance = Instantiate(settings.Prefab, spawnPos, spawnRot, _resolvedSpawnParent);
+        GameObject instance = Instantiate(settings.Prefab, spawnPos, spawnRot);
         if (instance == null)
             return;
 
@@ -170,6 +170,8 @@ public class HabitatAnimalPlacement : MonoBehaviour
             data.Animal,
             motionAnchor,
             GetGridAlignedRotation());
+
+        instance.transform.SetParent(_resolvedSpawnParent, true);
 
         s_spawnedByHabitatId[data.HabitatId] = instance;
         PlaySpawnVfx(spawnPos);
@@ -290,9 +292,11 @@ public class HabitatAnimalPlacement : MonoBehaviour
             return;
 
         Vector3 vfxPos = spawnPos + vfxPositionOffset;
-        GameObject vfx = Instantiate(habitatSpawnVfxPrefab, vfxPos, Quaternion.identity, _resolvedSpawnParent);
+        GameObject vfx = Instantiate(habitatSpawnVfxPrefab, vfxPos, Quaternion.identity);
         if (vfx == null)
             return;
+
+        vfx.transform.SetParent(_resolvedSpawnParent, true);
 
         ScheduleVfxDestroy(vfx, vfxLifetimeFallback);
     }
@@ -323,15 +327,24 @@ public class HabitatAnimalPlacement : MonoBehaviour
         if (_resolvedSpawnParent != null)
             return;
 
-        var existing = transform.Find("HabitatAnimalInstances");
+        if (spawnParent == null)
+        {
+            Debug.LogWarning(
+                "[HabitatAnimalPlacement] Brak spawnParent — przypisz _occupants (skala 1), inaczej zwierzęta mogą być ogromne.",
+                this);
+            _resolvedSpawnParent = new GameObject("HabitatAnimalInstances").transform;
+            return;
+        }
+
+        var existing = spawnParent.Find("HabitatAnimalInstances");
         if (existing != null)
         {
             _resolvedSpawnParent = existing;
             return;
         }
 
-        var go = new GameObject("HabitatAnimalInstances");
-        go.transform.SetParent(transform, false);
-        _resolvedSpawnParent = go.transform;
+        var container = new GameObject("HabitatAnimalInstances");
+        container.transform.SetParent(spawnParent, false);
+        _resolvedSpawnParent = container.transform;
     }
 }
