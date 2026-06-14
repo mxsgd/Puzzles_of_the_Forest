@@ -35,6 +35,9 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private float iconSpacing = 56f;
     [SerializeField, Range(0.5f, 1.25f), Tooltip("Mnożnik rozmiaru slotu (tło + ikona zwierzęcia).")]
     private float iconSizeMultiplier = 0.88f;
+    [SerializeField, Min(10f), Tooltip("Tekst pod żółtą ikoną — czego brakuje do habitatu.")]
+    private float deficitHintFontSize = 18f;
+    [SerializeField] private Color deficitHintColor = new(1f, 0.96f, 0.75f, 0.95f);
 
     [Header("Kolory preview habitatu")]
     [SerializeField] private Color grayBackgroundColor = new(0.55f, 0.55f, 0.55f, 0.85f);
@@ -43,9 +46,15 @@ public class TileNextTileHoverPreview : MonoBehaviour
     [SerializeField] private Color iconColor = Color.white;
 
     [Header("Podświetlenie kandydatów (hover ikony)")]
-    [SerializeField, Tooltip("VFX prefab (świecący kafel) — jedna instancja na kafel kandydata. Water pomijany.")]
-    private GameObject candidateTileHighlightPrefab;
-    [SerializeField] private Vector3 candidateHighlightOffset = new(0f, 1f, 0f);
+    [SerializeField, Min(1), Tooltip("Zielona ikona: maks. kroki heks od hover do obrysu (bez dalekiego ogona).")]
+    private int candidateHighlightMaxGraphSteps = 4;
+    [SerializeField, Min(1), Tooltip("Żółta ikona: tylko najbliższe kafle (prawie habitat); szuka w pełnej kuli placement.")]
+    private int candidateYellowHighlightMaxGraphSteps = 3;
+    [SerializeField, Tooltip("Obrys regionu — LineRenderer + TileGlow.mat (jak HabitatOutlineVisualizer). Water pomijany.")]
+    private Material candidateTileHighlightMaterial;
+    [SerializeField] private float candidateLineHeightOffset = 2.5f;
+    [SerializeField, Min(0f)] private float candidateLineInset = 0.08f;
+    [SerializeField] private float candidateLineWidth = 0.3f;
 
     [Header("Rozmiary slotu (px ekranu)")]
     [SerializeField, Min(8f)] private float backgroundSize = 48f;
@@ -82,7 +91,13 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private readonly List<HabitatPreviewSlot> _iconPool = new();
     private const int IconPoolCapacity = 8;
 
-    private readonly List<GameObject> _candidateHighlightInstances = new();
+    private readonly List<(GameObject go, LineRenderer lr)> _candidateLinePool = new();
+    private readonly List<Tile> _candidateRegionScratch = new();
+    private readonly HashSet<Tile> _candidateRegionSet = new();
+    private readonly List<(Vector3 a, Vector3 b)> _candidateEdgeScratch = new();
+    private readonly List<int> _candidateHighlightTileKeys = new();
+    private readonly List<RaycastResult> _iconRaycastScratch = new();
+    private int _activeCandidateLineCount;
     private Transform _candidateHighlightParent;
     private bool _iconPointerHandlersRegistered;
 
@@ -217,15 +232,29 @@ public class TileNextTileHoverPreview : MonoBehaviour
     {
         _placeableDirty = true;
         _needsReevaluate = true;
-        // Przy zmianie karty: jeśli nowy ghost jest już w puli → swap jest darmowy (SetActive).
-        // Jeśli nie ma go w puli → EnsureGhost zbuduje go przy następnym hover (lazy).
-        // _lastHover null oznacza że gracz jeszcze nie hoverowal — poczekamy na pierwszą pozycję.
-        if (_lastHover != null)
+        _lastDraw = tileDeck?.Current;
+
+        // Po stawianiu z ikony _lastHover może być już zajęty — nie pokazuj ghosta następnej karty.
+        if (_lastHover == null || !IsTileEligibleForPlacementPreview(_lastHover))
         {
-            var next = tileDeck?.Current;
-            if (next != null && next.prefab != null)
-                ActivateGhostFromPool(next, _lastHover);
+            HideAllGhosts();
+            return;
         }
+
+        var next = _lastDraw;
+        if (next != null && next.prefab != null)
+            ActivateGhostFromPool(next, _lastHover);
+    }
+
+    /// <summary>Wywołaj po udanym placement (np. klik na ikonę) — czyści obrys i ghost na starym polu.</summary>
+    public void NotifyPlacementCompleted(Tile placedTile)
+    {
+        ClearCandidateTileHighlight();
+        HideAllGhosts();
+        _placeableDirty = true;
+        _needsReevaluate = true;
+        if (tileDeck != null && !tileDeck.IsEmpty)
+            _lastDraw = tileDeck.Current;
     }
 
     // -------------------------------------------------------------------------
@@ -256,14 +285,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
         if (overHabitatIcons)
         {
-            if (_lastHover == null || _lastDraw == null) return;
-            if (_activeGhostRoot != null)
-            {
-                _activeGhostRoot.transform.position = _lastHover.worldPos + ghostWorldOffset;
-                if (tileGrid != null) _activeGhostRoot.transform.rotation = tileGrid.transform.rotation;
-                ApplyGhostVisualScale(_activeGhostRoot.transform, _activeGhostDraw?.prefab);
-            }
-            UpdateIconsScreenPosition(_lastHover, cam);
+            UpdatePreviewWhilePointerOverIcons(next, cam);
             return;
         }
 
@@ -283,26 +305,43 @@ public class TileNextTileHoverPreview : MonoBehaviour
         bool tileChanged = !ReferenceEquals(tile, _lastHover);
 
         if (drawChanged || tileChanged || _needsReevaluate)
+            RefreshHoverPreviewAtTile(tile, next, maxTiles, maxSteps);
+
+        SyncGhostForPlaceableTile(tile, next, drawChanged);
+        UpdateIconsScreenPosition(tile, cam);
+    }
+
+    private void UpdatePreviewWhilePointerOverIcons(TileDraw next, Camera cam)
+    {
+        if (_lastHover == null)
         {
-            _lastHover = tile;
-            _lastDraw = next;
             ClearCandidateTileHighlight();
-            HabitatHoverEvaluator.Evaluate(runtimeStore, tile, next, maxTiles, maxSteps, _scratch, out _lastResult,
-                classifier != null ? classifier.RulesProfile : null);
-            _needsReevaluate = false;
+            HideAllGhosts();
+            return;
         }
 
-        // Aktywuje ghost z puli (lub buduje jeśli tego biome/prefab jeszcze nie ma).
-        if (drawChanged || _activeGhostRoot == null)
-            ActivateGhostFromPool(next, tile);
+        int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
+        int maxSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
 
-        // Przesuń aktywny ghost — jedyna operacja per-tile.
-        if (_activeGhostRoot != null)
-        {
-            _activeGhostRoot.transform.position = tile.worldPos + ghostWorldOffset;
-            if (tileGrid != null) _activeGhostRoot.transform.rotation = tileGrid.transform.rotation;
-            ApplyGhostVisualScale(_activeGhostRoot.transform, _activeGhostDraw?.prefab);
-        }
+        if (_needsReevaluate || _placeableDirty || !DrawEquals(next, _lastDraw))
+            RefreshHoverPreviewAtTile(_lastHover, next, maxTiles, maxSteps);
+
+        bool drawChanged = !DrawEquals(next, _activeGhostDraw);
+        SyncGhostForPlaceableTile(_lastHover, next, drawChanged);
+        UpdateIconsScreenPosition(_lastHover, cam);
+    }
+
+    private void RefreshHoverPreviewAtTile(Tile tile, TileDraw next, int maxTiles, int maxSteps)
+    {
+        if (tile == null || next == null || runtimeStore == null) return;
+
+        _lastHover = tile;
+        _lastDraw = next;
+        ClearCandidateTileHighlight();
+
+        HabitatHoverEvaluator.Evaluate(runtimeStore, tile, next, maxTiles, maxSteps, _scratch, out _lastResult,
+            classifier != null ? classifier.RulesProfile : null);
+        _needsReevaluate = false;
 
         int sig = IconSignature(_lastResult);
         if (sig != _lastIconSignature)
@@ -310,8 +349,40 @@ public class TileNextTileHoverPreview : MonoBehaviour
             _lastIconSignature = sig;
             RebuildIcons(_lastResult);
         }
+    }
 
-        UpdateIconsScreenPosition(tile, cam);
+    private void SyncGhostForPlaceableTile(Tile tile, TileDraw next, bool drawChanged)
+    {
+        if (!IsTileEligibleForPlacementPreview(tile))
+        {
+            HideAllGhosts();
+            return;
+        }
+
+        if (next == null || next.prefab == null)
+        {
+            HideAllGhosts();
+            return;
+        }
+
+        if (drawChanged || _activeGhostRoot == null)
+            ActivateGhostFromPool(next, tile);
+
+        if (_activeGhostRoot != null)
+        {
+            _activeGhostRoot.transform.position = tile.worldPos + ghostWorldOffset;
+            if (tileGrid != null) _activeGhostRoot.transform.rotation = tileGrid.transform.rotation;
+            ApplyGhostVisualScale(_activeGhostRoot.transform, _activeGhostDraw?.prefab);
+        }
+    }
+
+    private bool IsTileEligibleForPlacementPreview(Tile tile)
+    {
+        if (tile == null || runtimeStore == null) return false;
+        var rt = runtimeStore.Get(tile);
+        if (rt == null || rt.occupied) return false;
+        EnsurePlaceableCache();
+        return _placeableCache.Contains(tile);
     }
 
     // -------------------------------------------------------------------------
@@ -493,7 +564,8 @@ public class TileNextTileHoverPreview : MonoBehaviour
             slotRt.pivot = new Vector2(0.5f, 0.5f);
 
             var slot = go.AddComponent<HabitatPreviewSlot>();
-            slot.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius);
+            slot.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius,
+                deficitHintFontSize, deficitHintColor);
             slot.EnsureBuilt();
             slot.Clear();
             if (!_iconPointerHandlersRegistered)
@@ -516,7 +588,8 @@ public class TileNextTileHoverPreview : MonoBehaviour
     private void RefreshIconPoolSizes()
     {
         foreach (var slot in _iconPool)
-            slot?.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius);
+            slot?.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius,
+                deficitHintFontSize, deficitHintColor);
     }
 
     private void RebuildIcons(HabitatHoverResult result)
@@ -544,7 +617,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
                 var animal = result.YellowAnimals[i];
                 if (!_iconByAnimal.TryGetValue(animal, out var sp) || sp == null) continue;
                 ShowPooledSlot(idx++, sp, HabitatHoverPreviewKind.Yellow, animal,
-                    new Vector2(startX + i * slotPitch, 0f));
+                    new Vector2(startX + i * slotPitch, 0f), result.GetYellowDeficitHint(i));
             }
         }
     }
@@ -555,15 +628,29 @@ public class TileNextTileHoverPreview : MonoBehaviour
             return;
 
         int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
-        int maxSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
+        int searchSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
+
+        bool isYellow = slot.PreviewKind == HabitatHoverPreviewKind.Yellow;
+        var outlineKind = isYellow
+            ? HabitatCandidateOutlineKind.Almost
+            : HabitatCandidateOutlineKind.Full;
+        int displaySteps = isYellow
+            ? Mathf.Max(1, candidateYellowHighlightMaxGraphSteps)
+            : (candidateHighlightMaxGraphSteps > 0
+                ? Mathf.Min(candidateHighlightMaxGraphSteps, searchSteps)
+                : searchSteps);
 
         if (!HabitatHoverEvaluator.TryGetCandidateRegion(
-                runtimeStore, _lastHover, _lastDraw, slot.Animal, maxTiles, maxSteps, _scratch,
+                runtimeStore, _lastHover, _lastDraw, slot.Animal, maxTiles, searchSteps, displaySteps,
+                outlineKind, _scratch,
                 out var region, classifier != null ? classifier.RulesProfile : null))
         {
             ClearCandidateTileHighlight();
             return;
         }
+
+        if (IsSameCandidateHighlightRegion(region))
+            return;
 
         ApplyCandidateTileHighlight(region);
     }
@@ -593,13 +680,14 @@ public class TileNextTileHoverPreview : MonoBehaviour
     }
 
     private void ShowPooledSlot(int idx, Sprite animalSprite, HabitatHoverPreviewKind kind,
-        HabitatAnimal animal, Vector2 localPosPx)
+        HabitatAnimal animal, Vector2 localPosPx, string deficitHint = null)
     {
         if (idx >= _iconPool.Count) return;
         var slot = _iconPool[idx];
         if (slot == null) return;
 
-        slot.Show(animalSprite, kind, animal, grayBackgroundColor, yellowBackgroundColor, greenBackgroundColor, iconColor);
+        slot.Show(animalSprite, kind, animal, grayBackgroundColor, yellowBackgroundColor, greenBackgroundColor,
+            iconColor, deficitHint);
 
         if (slot.RectTransform != null)
             slot.RectTransform.anchoredPosition = localPosPx;
@@ -628,53 +716,127 @@ public class TileNextTileHoverPreview : MonoBehaviour
         HideAllIcons();
     }
 
-    private bool IsPointerOverHabitatIcons(Vector2 screen)
+    /// <summary>Czy wskaznik jest nad slotem podglądu habitatu (do stawiania z ikony).</summary>
+    public bool IsPointerOverHabitatIcons(Vector2 screen)
     {
         if (_iconsCanvas == null || EventSystem.current == null) return false;
 
         var ped = new PointerEventData(EventSystem.current) { position = screen };
-        var results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(ped, results);
-        for (int i = 0; i < results.Count; i++)
+        _iconRaycastScratch.Clear();
+        EventSystem.current.RaycastAll(ped, _iconRaycastScratch);
+        for (int i = 0; i < _iconRaycastScratch.Count; i++)
         {
-            if (results[i].gameObject.GetComponentInParent<HabitatPreviewSlot>() != null)
+            if (_iconRaycastScratch[i].gameObject.GetComponentInParent<HabitatPreviewSlot>() != null)
                 return true;
         }
         return false;
     }
 
+    /// <summary>Kafel pod ghostem/ikonami — ustawiany przy hover siatki, zachowany gdy mysz na ikonie.</summary>
+    public bool TryGetPlacementTileWhileOverIcons(out Tile tile)
+    {
+        tile = _lastHover;
+        return tile != null;
+    }
+
     private void ApplyCandidateTileHighlight(IReadOnlyList<Tile> tiles)
     {
         ClearCandidateTileHighlight();
-        if (candidateTileHighlightPrefab == null || tiles == null || tiles.Count == 0)
+        if (candidateTileHighlightMaterial == null || tiles == null || tiles.Count == 0)
             return;
 
-        EnsureCandidateHighlightParent();
-        var rotation = tileGrid != null ? tileGrid.transform.rotation : Quaternion.identity;
+        _candidateRegionScratch.Clear();
+        _candidateRegionSet.Clear();
+        _candidateHighlightTileKeys.Clear();
 
         for (int i = 0; i < tiles.Count; i++)
         {
             var tile = tiles[i];
-            if (tile == null || IsWaterTile(tile))
-                continue;
+            _candidateRegionScratch.Add(tile);
+            _candidateRegionSet.Add(tile);
+            _candidateHighlightTileKeys.Add(GetTileKey(tile));
+        }
 
-            var instance = Instantiate(
-                candidateTileHighlightPrefab,
-                tile.worldPos + candidateHighlightOffset,
-                rotation,
-                _candidateHighlightParent);
-            _candidateHighlightInstances.Add(instance);
+        if (_candidateRegionScratch.Count == 0)
+            return;
+
+        EnsureCandidateHighlightParent();
+        _candidateEdgeScratch.Clear();
+        HabitatRegionOutlineUtility.CollectBoundaryEdges(
+            _candidateRegionScratch,
+            _candidateRegionSet,
+            candidateLineHeightOffset,
+            0f,
+            candidateLineInset,
+            _candidateEdgeScratch);
+
+        _activeCandidateLineCount = 0;
+        for (int i = 0; i < _candidateEdgeScratch.Count; i++)
+        {
+            var (a, b) = _candidateEdgeScratch[i];
+            var (go, lr) = GetOrCreateCandidateLineSegment(_activeCandidateLineCount);
+            lr.SetPosition(0, a);
+            lr.SetPosition(1, b);
+            lr.material = candidateTileHighlightMaterial;
+            lr.startWidth = candidateLineWidth;
+            lr.endWidth = candidateLineWidth * 0.8f;
+            go.SetActive(true);
+            _activeCandidateLineCount++;
         }
     }
 
     private void ClearCandidateTileHighlight()
     {
-        for (int i = 0; i < _candidateHighlightInstances.Count; i++)
+        for (int i = 0; i < _activeCandidateLineCount; i++)
         {
-            if (_candidateHighlightInstances[i] != null)
-                Destroy(_candidateHighlightInstances[i]);
+            if (i < _candidateLinePool.Count)
+                _candidateLinePool[i].go.SetActive(false);
         }
-        _candidateHighlightInstances.Clear();
+
+        _activeCandidateLineCount = 0;
+        _candidateHighlightTileKeys.Clear();
+    }
+
+    private bool IsSameCandidateHighlightRegion(IReadOnlyList<Tile> tiles)
+    {
+        if (tiles == null || tiles.Count != _candidateHighlightTileKeys.Count)
+            return false;
+
+        var keys = new HashSet<int>(_candidateHighlightTileKeys);
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var tile = tiles[i];
+            if (tile == null || IsWaterTile(tile))
+                continue;
+            if (!keys.Remove(GetTileKey(tile)))
+                return false;
+        }
+
+        return keys.Count == 0;
+    }
+
+    private static int GetTileKey(Tile tile) => tile.q * 10000 + tile.r;
+
+    private (GameObject go, LineRenderer lr) GetOrCreateCandidateLineSegment(int idx)
+    {
+        if (idx < _candidateLinePool.Count)
+            return _candidateLinePool[idx];
+
+        EnsureCandidateHighlightParent();
+        var go = new GameObject("CandidateOutlineSegment");
+        go.transform.SetParent(_candidateHighlightParent, false);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.useWorldSpace = true;
+        lr.numCapVertices = 2;
+        lr.numCornerVertices = 0;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
+        go.SetActive(false);
+
+        var entry = (go, lr);
+        _candidateLinePool.Add(entry);
+        return entry;
     }
 
     private void EnsureCandidateHighlightParent()
@@ -719,8 +881,15 @@ public class TileNextTileHoverPreview : MonoBehaviour
         {
             int h = (int)r.Kind * 397 ^ (int)r.GreenAnimal;
             if (r.YellowAnimals != null)
-                foreach (var a in r.YellowAnimals)
-                    h = h * 397 ^ (int)a;
+            {
+                for (int i = 0; i < r.YellowAnimals.Count; i++)
+                {
+                    h = h * 397 ^ (int)r.YellowAnimals[i];
+                    var hint = r.GetYellowDeficitHint(i);
+                    if (!string.IsNullOrEmpty(hint))
+                        h = h * 397 ^ hint.GetHashCode();
+                }
+            }
             return h;
         }
     }

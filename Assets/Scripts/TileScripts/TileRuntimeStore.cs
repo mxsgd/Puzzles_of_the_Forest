@@ -10,6 +10,7 @@ public class TileRuntimeStore : MonoBehaviour
     {
         public int Id;
         public HabitatAnimal Animal;
+        public Tile PrimaryCoreTile;
         public List<Tile> Tiles = new List<Tile>();
     }
 
@@ -30,6 +31,7 @@ public class TileRuntimeStore : MonoBehaviour
 
     private readonly Dictionary<Tile, Runtime> _map = new();
     private readonly Dictionary<int, HabitatRecord> _habitats = new();
+    private static readonly HabitatRegionScratch _coreScratch = new();
     private int _occupiedCount;
     private int _nextHabitatId = 1;
 
@@ -94,7 +96,11 @@ public class TileRuntimeStore : MonoBehaviour
     /// <summary>
     /// Registers a new habitat if every tile has fewer than two habitats and all tiles are occupied.
     /// </summary>
-    public bool TryRegisterHabitat(HabitatAnimal animal, IReadOnlyList<Tile> tiles, out int habitatId)
+    public bool TryRegisterHabitat(
+        HabitatAnimal animal,
+        IReadOnlyList<Tile> tiles,
+        out int habitatId,
+        HabitatRulesProfile rules = null)
     {
         habitatId = -1;
         if (animal == HabitatAnimal.None || tiles == null || tiles.Count == 0)
@@ -109,8 +115,11 @@ public class TileRuntimeStore : MonoBehaviour
                 return false;
         }
 
+        Tile primaryCore = null;
+        HabitatCoreValidation.TryGetPrimaryCoreTile(tiles, animal, rules, _coreScratch, out primaryCore, this);
+
         int id = _nextHabitatId++;
-        var record = new HabitatRecord { Id = id, Animal = animal };
+        var record = new HabitatRecord { Id = id, Animal = animal, PrimaryCoreTile = primaryCore };
         foreach (var t in tiles)
         {
             if (t == null) continue;
@@ -122,8 +131,8 @@ public class TileRuntimeStore : MonoBehaviour
         int points = HabitatRequirements.ComputeAwardedPoints(animal, tiles.Count);
         float scoreValue = HabitatRequirements.ComputeScore(animal, tiles.Count);
 
-        // Do not RaiseTileStateChanged here — classification listens on placement only; outlines use HabitatAssigned.
-        TileEvents.RaiseHabitatAssigned(new HabitatAssignmentData(id, animal, tiles, points, scoreValue, tiles.Count));
+        TileEvents.RaiseHabitatAssigned(new HabitatAssignmentData(
+            id, animal, tiles, points, scoreValue, tiles.Count, primaryCore));
         return true;
     }
 

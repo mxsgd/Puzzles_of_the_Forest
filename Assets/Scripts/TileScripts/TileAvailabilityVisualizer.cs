@@ -222,10 +222,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (!TryGetPointerDown(out var position, out var pointerId))
             return;
 
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
-            return;
-
-        if (!TryGetAvailableTileUnderPointer(position, out var targetTile))
+        if (!TryResolvePlacementTile(position, pointerId, out var targetTile))
             return;
 
         if (placement == null)
@@ -308,7 +305,23 @@ public class TileAvailabilityVisualizer : MonoBehaviour
 
         selection?.ClearSelectedTile();
         RefreshAvailability();
-    
+        hoverPreview?.NotifyPlacementCompleted(targetTile);
+    }
+
+    private bool TryResolvePlacementTile(Vector2 screenPosition, int pointerId, out TileGrid.Tile tile)
+    {
+        tile = null;
+
+        if (hoverPreview != null && hoverPreview.IsPointerOverHabitatIcons(screenPosition)
+            && hoverPreview.TryGetPlacementTileWhileOverIcons(out tile))
+        {
+            return tile != null && _availableSet.Contains(tile);
+        }
+
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
+            return false;
+
+        return TryGetAvailableTileUnderPointer(screenPosition, out tile);
     }
 
     private bool TryGetAvailableTileUnderPointer(Vector2 screenPosition, out TileGrid.Tile tile)
@@ -319,7 +332,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         var ray = camera.ScreenPointToRay(screenPosition);
         if (!Physics.Raycast(ray, out var hit, 500f, ~0, QueryTriggerInteraction.Ignore))
             return false;
-            
+
         if (!query.TryGetNearestTile(hit.point, out var nearestTile, 500f))
             return false;
 

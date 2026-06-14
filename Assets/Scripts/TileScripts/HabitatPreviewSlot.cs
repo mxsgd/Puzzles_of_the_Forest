@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -10,24 +11,37 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
 {
     [SerializeField] private Image backgroundImage;
     [SerializeField] private Image iconImage;
+    [SerializeField] private TextMeshProUGUI deficitHintLabel;
 
     [SerializeField, Min(8f)] private float backgroundSize = 96f;
     [SerializeField, Min(8f)] private float iconSize = 64f;
     [SerializeField, Min(1)] private int backgroundCornerRadius = 24;
+    [SerializeField, Min(40f)] private float deficitHintWidth = 140f;
+    [SerializeField] private float deficitHintBelowSlot = 6f;
 
     public RectTransform RectTransform => transform as RectTransform;
     public HabitatAnimal Animal { get; private set; }
+    public HabitatHoverPreviewKind PreviewKind { get; private set; }
 
     public event Action<HabitatPreviewSlot> PointerEntered;
     public event Action<HabitatPreviewSlot> PointerExited;
 
-    public void ConfigureSizes(float bgSize, float icSize, int cornerRadius)
+    public void ConfigureSizes(float bgSize, float icSize, int cornerRadius, float hintFontSize, Color hintColor)
     {
         backgroundSize = bgSize;
         iconSize = icSize;
         backgroundCornerRadius = cornerRadius;
         if (RectTransform != null)
             RectTransform.sizeDelta = new Vector2(backgroundSize, backgroundSize);
+
+        if (deficitHintLabel != null)
+        {
+            deficitHintLabel.fontSize = hintFontSize;
+            deficitHintLabel.color = hintColor;
+            var hintRt = deficitHintLabel.rectTransform;
+            hintRt.sizeDelta = new Vector2(deficitHintWidth, hintFontSize * 2.4f);
+            hintRt.anchoredPosition = new Vector2(0f, -backgroundSize * 0.5f - deficitHintBelowSlot);
+        }
     }
 
     public void EnsureBuilt()
@@ -63,13 +77,33 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
             iconRt.anchoredPosition = Vector2.zero;
             iconImage = iconGo.GetComponent<Image>();
         }
+
+        if (deficitHintLabel == null)
+        {
+            var hintGo = new GameObject("DeficitHint", typeof(RectTransform));
+            hintGo.transform.SetParent(transform, false);
+            var hintRt = (RectTransform)hintGo.transform;
+            hintRt.anchorMin = hintRt.anchorMax = new Vector2(0.5f, 0.5f);
+            hintRt.pivot = new Vector2(0.5f, 1f);
+            hintRt.sizeDelta = new Vector2(deficitHintWidth, 36f);
+            hintRt.anchoredPosition = new Vector2(0f, -backgroundSize * 0.5f - deficitHintBelowSlot);
+
+            deficitHintLabel = hintGo.AddComponent<TextMeshProUGUI>();
+            deficitHintLabel.alignment = TextAlignmentOptions.Center;
+            deficitHintLabel.enableWordWrapping = true;
+            deficitHintLabel.overflowMode = TextOverflowModes.Truncate;
+            deficitHintLabel.raycastTarget = false;
+            deficitHintLabel.fontSize = 16f;
+        }
     }
 
     public void Show(Sprite animalSprite, HabitatHoverPreviewKind kind, HabitatAnimal animal,
-        Color grayBackground, Color yellowBackground, Color greenBackground, Color iconTint)
+        Color grayBackground, Color yellowBackground, Color greenBackground, Color iconTint,
+        string deficitHint = null)
     {
         EnsureBuilt();
         Animal = animal;
+        PreviewKind = kind;
 
         if (backgroundImage != null)
         {
@@ -97,12 +131,21 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
             iconImage.SetAllDirty();
         }
 
+        if (deficitHintLabel != null)
+        {
+            bool showHint = kind == HabitatHoverPreviewKind.Yellow
+                && !string.IsNullOrEmpty(deficitHint);
+            deficitHintLabel.text = showHint ? deficitHint : string.Empty;
+            deficitHintLabel.enabled = showHint;
+        }
+
         gameObject.SetActive(true);
     }
 
     public void Clear()
     {
         Animal = HabitatAnimal.None;
+        PreviewKind = HabitatHoverPreviewKind.Gray;
 
         if (backgroundImage != null)
         {
@@ -114,6 +157,12 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
         {
             iconImage.sprite = null;
             iconImage.enabled = false;
+        }
+
+        if (deficitHintLabel != null)
+        {
+            deficitHintLabel.text = string.Empty;
+            deficitHintLabel.enabled = false;
         }
 
         gameObject.SetActive(false);

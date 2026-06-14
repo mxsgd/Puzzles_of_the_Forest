@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
   perkId: beaverdam
   displayName: Beaver Dam
-  description: "Bobry dodaj\u0105 kafel wody"
+  description: Beavers add a water tile.
   icon: {fileID: 0}
   hooks: 02000000
   behavior: {fileID: 11400000, guid: 88625b2bc47291f45a26534ab498171b, type: 2}

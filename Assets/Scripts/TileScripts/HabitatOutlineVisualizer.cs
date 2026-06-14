@@ -32,6 +32,7 @@ public class HabitatOutlineVisualizer : MonoBehaviour
 
     // Segment pool — GameObjects are never destroyed, only activated/deactivated.
     private readonly List<(GameObject go, LineRenderer lr)> _segmentPool = new();
+    private readonly List<(Vector3 a, Vector3 b)> _edgeScratch = new();
     private int _activeSegmentCount;
 
     // One material per animal type — created once in Awake, reused on every refresh.
@@ -114,7 +115,11 @@ public class HabitatOutlineVisualizer : MonoBehaviour
 
             _materialByAnimal.TryGetValue(animal, out var mat);
 
-            foreach (var (a, b) in GetBoundaryEdges(tiles, regionSet, layerYOff))
+            _edgeScratch.Clear();
+            HabitatRegionOutlineUtility.CollectBoundaryEdges(
+                tiles, regionSet, lineHeightOffset, layerYOff, lineInset, _edgeScratch);
+
+            foreach (var (a, b) in _edgeScratch)
             {
                 var (go, lr) = GetOrCreateSegment(_activeSegmentCount);
                 lr.SetPosition(0, a);
@@ -156,41 +161,6 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         var entry = (go, lr);
         _segmentPool.Add(entry);
         return entry;
-    }
-
-    private List<(Vector3 a, Vector3 b)> GetBoundaryEdges(
-        IReadOnlyList<Tile> region, HashSet<Tile> regionSet, float layerYOffset)
-    {
-        var edges = new List<(Vector3, Vector3)>();
-        float y   = 1f;
-        bool  ySet = false;
-
-        foreach (var tile in region)
-        {
-            if (tile == null) continue;
-            if (!ySet) { y = tile.worldPos.y + lineHeightOffset + layerYOffset; ySet = true; }
-
-            var neighbors = tile.GetNeighbors();
-            if (neighbors == null) continue;
-            foreach (var neighbor in neighbors)
-            {
-                if (neighbor == null || regionSet.Contains(neighbor)) continue;
-
-                var toNeighbor = neighbor.worldPos - tile.worldPos;
-                var dist       = new Vector3(toNeighbor.x, 0f, toNeighbor.z).magnitude;
-                if (dist < 0.001f) continue;
-
-                var mid        = tile.worldPos + toNeighbor * 0.5f; mid.y = y;
-                var dirXZ      = new Vector3(toNeighbor.x, 0f, toNeighbor.z).normalized;
-                var perp       = new Vector3(dirXZ.z, 0f, -dirXZ.x);
-                var halfEdge   = dist / (2f * Mathf.Sqrt(3f));
-                var inward     = -dirXZ * lineInset;
-                var c1         = mid + perp * halfEdge + inward; c1.y = y;
-                var c2         = mid - perp * halfEdge + inward; c2.y = y;
-                edges.Add((c1, c2));
-            }
-        }
-        return edges;
     }
 
     private Color GetColorForAnimal(HabitatAnimal animal) => animal switch

@@ -146,7 +146,7 @@ public class GameUI : MonoBehaviour
             anchoredPosition: new Vector2(28f, -28f));
 
         // Score label (small caption).
-        var caption = CreateLabel(card, "WYNIK", 16f, UISpriteFactory.TextMuted,
+        var caption = CreateLabel(card, "SCORE", 16f, UISpriteFactory.TextMuted,
             anchorMin: new Vector2(0f, 1f),
             anchorMax: new Vector2(1f, 1f),
             pivot:     new Vector2(0.5f, 1f),
@@ -162,13 +162,13 @@ public class GameUI : MonoBehaviour
             anchorMax: new Vector2(1f, 0.58f),
             pivot:     new Vector2(0.5f, 0.5f),
             sizeDelta: Vector2.zero,
-            anchoredPosition: new Vector2(0f, -4f),
+            anchoredPosition: new Vector2(0f, 10f),
             alignment: TextAlignmentOptions.Center);
         _scoreValueLabel.fontStyle = FontStyles.Bold;
         UISpriteFactory.ApplyScoreValueStyle(_scoreValueLabel);
 
         // Habitat count.
-        _habitatCountLabel = CreateLabel(card, "Habitaty: 0", 18f, UISpriteFactory.TextPrimary,
+        _habitatCountLabel = CreateLabel(card, "Habitats: 0", 18f, UISpriteFactory.TextPrimary,
             anchorMin: new Vector2(0f, 0f),
             anchorMax: new Vector2(1f, 0.35f),
             pivot:     new Vector2(0.5f, 0.5f),
@@ -186,7 +186,7 @@ public class GameUI : MonoBehaviour
             anchoredPosition: new Vector2(-28f, -28f));
 
         // Caption.
-        var caption = CreateLabel(card, "NASTĘPNY KAFEL", 14f, UISpriteFactory.TextMuted,
+        var caption = CreateLabel(card, "NEXT TILE", 14f, UISpriteFactory.TextMuted,
             anchorMin: new Vector2(0f, 1f),
             anchorMax: new Vector2(1f, 1f),
             pivot:     new Vector2(0.5f, 1f),
@@ -219,7 +219,7 @@ public class GameUI : MonoBehaviour
             alignment: TextAlignmentOptions.MidlineLeft);
         _nextTileName.fontStyle = FontStyles.Bold;
 
-        _nextTileQueue = CreateLabel(card, "w talii: 0", 16f, UISpriteFactory.TextMuted,
+        _nextTileQueue = CreateLabel(card, "tiles left: 0", 16f, UISpriteFactory.TextMuted,
             anchorMin: new Vector2(0.4f, 0.15f),
             anchorMax: new Vector2(1f, 0.45f),
             pivot:     new Vector2(0.5f, 0.5f),
@@ -337,7 +337,7 @@ public class GameUI : MonoBehaviour
         if (_nextTileName != null)
             _nextTileName.text = next != null ? next.displayName : "—";
         if (_nextTileQueue != null)
-            _nextTileQueue.text = $"w talii: {remaining} / {GameFlowController.SessionTileCount}";
+            _nextTileQueue.text = $"tiles left: {remaining}";
 
         RefreshReroll();
     }
@@ -346,7 +346,7 @@ public class GameUI : MonoBehaviour
     private void RefreshScore(bool animate)
     {
         if (_habitatCountLabel != null)
-            _habitatCountLabel.text = $"Habitaty: {_habitatCount}";
+            _habitatCountLabel.text = $"Habitats: {_habitatCount}";
 
         if (!animate || _scoreValueLabel == null)
         {

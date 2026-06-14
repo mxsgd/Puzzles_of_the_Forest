@@ -81,7 +81,7 @@ public class PerkDraftUI : MonoBehaviour
         }
 
         if (_rerollsLeftLabel != null)
-            _rerollsLeftLabel.text = $"Rerolle ofert: {state.DraftRerollsRemaining}";
+            _rerollsLeftLabel.text = $"Draft rerolls: {state.DraftRerollsRemaining}";
     }
 
     private void RefreshSlot(int index, PerkDefinition def)
@@ -156,12 +156,12 @@ public class PerkDraftUI : MonoBehaviour
         _card = CreateCenterCard(_root, "DraftCard", new Vector2(900f, 600f));
 
         // Title
-        _titleLabel = CreateTmp(_card, "Title", "WYBIERZ PERK", 30f,
+        _titleLabel = CreateTmp(_card, "Title", "CHOOSE A PERK", 30f,
             UISpriteFactory.TextPrimary, new Vector2(0f, -30f), new Vector2(800f, 48f));
         _titleLabel.fontStyle = FontStyles.Bold;
 
         // Rerolls left label
-        _rerollsLeftLabel = CreateTmp(_card, "RerollsLeft", "Rerolle ofert: 3", 18f,
+        _rerollsLeftLabel = CreateTmp(_card, "RerollsLeft", "Draft rerolls: 3", 18f,
             UISpriteFactory.TextMuted, new Vector2(0f, -68f), new Vector2(400f, 30f));
 
         // 3 slot cards
@@ -219,7 +219,7 @@ public class PerkDraftUI : MonoBehaviour
         descLabel.alignment = TextAlignmentOptions.Top;
 
         // Pick button
-        var pickBtn = CreateButton(rt, "WYBIERZ", UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,
+        var pickBtn = CreateButton(rt, "CHOOSE", UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,
             new Vector2(0f, -300f), new Vector2(size.x - 30f, 44f));
         int capturedIndex = index;
         pickBtn.onClick.AddListener(() => OnPickSlot(capturedIndex));

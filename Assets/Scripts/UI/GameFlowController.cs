@@ -105,6 +105,7 @@ public class GameFlowController : MonoBehaviour
         habitatGridManager?.Rebuild();
 
         hoverPreview?.ResetForNewSession();
+        HabitatAnimalPlacement.ResetForNewSession();
         selection?.ClearSelectedTile();
         clickSelector?.ClearSelection();
 
@@ -214,9 +215,9 @@ public class GameFlowController : MonoBehaviour
             if (_gameOverScore != null)
                 _gameOverScore.text = gameUI.Score.ToString();
             if (_gameOverHabitats != null)
-                _gameOverHabitats.text = $"Utworzone habitaty: {gameUI.HabitatCount}";
+                _gameOverHabitats.text = $"Habitats created: {gameUI.HabitatCount}";
             if (_gameOverBestChain != null)
-                _gameOverBestChain.text = $"Największy habitat: {gameUI.BiggestHabitatChain} kafli";
+                _gameOverBestChain.text = $"Largest habitat: {gameUI.BiggestHabitatChain} tiles";
         }
 
         _gameOverRoot.gameObject.SetActive(true);
@@ -276,7 +277,7 @@ public class GameFlowController : MonoBehaviour
         var card = CreateCenterCard(backdrop, "MainMenuCard", new Vector2(520f, 520f));
         AddTitle(card, "Puzzles of the Forest", 36f, new Vector2(0f, -48f));
         AddSubtitle(card,
-            "Układaj kafle, twórz habitaty\nzdobywaj jak najwięcej punktów",
+            "Place tiles, build habitats,\nscore as many points as you can",
             new Vector2(0f, -130f));
 
         AddMenuButton(card, "PLAY", UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,
@@ -295,13 +296,13 @@ public class GameFlowController : MonoBehaviour
         var backdrop = AddBackdrop(root);
 
         var card = CreateCenterCard(backdrop, "GameOverCard", new Vector2(560f, 580f));
-        AddTitle(card, "KONIEC GRY", 34f, new Vector2(0f, -40f));
-        AddSubtitle(card, "Talia wyczerpana — sesja zakończona", new Vector2(0f, -95f));
+        AddTitle(card, "GAME OVER", 34f, new Vector2(0f, -40f));
+        AddSubtitle(card, "Deck empty — session ended", new Vector2(0f, -95f));
 
-        _gameOverScore = AddStatLine(card, "Wynik", "0", UISpriteFactory.ScoreValue, 40f, new Vector2(0f, -195f));
+        _gameOverScore = AddStatLine(card, "Score", "0", UISpriteFactory.ScoreValue, 40f, new Vector2(0f, -175f));
         UISpriteFactory.ApplyScoreValueStyle(_gameOverScore);
-        _gameOverHabitats = AddStatLine(card, "Habitaty", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -250f));
-        _gameOverBestChain = AddStatLine(card, "Największy habitat", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -310f));
+        _gameOverHabitats = AddStatLine(card, "Habitats", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -250f));
+        _gameOverBestChain = AddStatLine(card, "Largest habitat", "—", UISpriteFactory.TextPrimary, 24f, new Vector2(0f, -310f));
 
         AddMenuButton(card, "RESTART", UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,
             new Vector2(0f, -400f), StartSession);
@@ -317,17 +318,17 @@ public class GameFlowController : MonoBehaviour
         var backdrop = AddBackdrop(root);
 
         var card = CreateCenterCard(backdrop, "HowToPlayCard", new Vector2(640f, 520f));
-        AddTitle(card, "JAK GRAĆ", 30f, new Vector2(0f, -36f));
+        AddTitle(card, "HOW TO PLAY", 30f, new Vector2(0f, -36f));
 
         string body =
-            $"• Startujesz z {SessionTileCount} kafli w talii (+ darmowy kafel startowy).\n" +
-            $"• Każdy habitat dokłada {bonusTilesPerHabitat} losowe kafle do talii.\n" +
-            "• Kładź kafle na wolne pola obok zajętych.\n" +
-            "• Twórz habitaty — połączone regiony do 5 kafli.\n" +
-            "• Każdy biom ma wektor (łąka, las, krzak, skała, woda).\n" +
-            "• Im mniej kafli w habitacie, tym więcej punktów.\n" +
-            "• Po wyczerpaniu talii — koniec gry.\n" +
-            "• Reroll (3×) wymienia aktualną kartę.";
+            $"• You start with {SessionTileCount} tiles in the deck (+ free starting tile).\n" +
+            $"• Each habitat adds {bonusTilesPerHabitat} random tiles to the deck.\n" +
+            "• Place tiles on empty cells next to occupied ones.\n" +
+            "• Build habitats — connected regions up to 5 tiles.\n" +
+            "• Each biome has a vector (meadow, forest, bush, rock, water).\n" +
+            "• Fewer tiles in a habitat means more points.\n" +
+            "• When the deck runs out, the game ends.\n" +
+            "• Reroll (3×) replaces the current card.";
 
         AddBodyText(card, body, new Vector2(0f, -120f), new Vector2(560f, 280f));
         AddMenuButton(card, "OK", UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,

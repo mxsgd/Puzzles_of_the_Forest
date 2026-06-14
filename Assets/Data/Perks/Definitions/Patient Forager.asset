@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
   perkId: patientforager
   displayName: Patient Forager
-  description: pierwszy reroll po habitacie darmowy
+  description: First reroll after a habitat is free.
   icon: {fileID: 0}
   hooks: 0200000003000000
   behavior: {fileID: 11400000, guid: 2707730e8227faa4e8d20586cfd747b0, type: 2}

@@ -8,11 +8,26 @@ using Tile = TileGrid.Tile;
 /// Contains a HabitatRegionScratch for BFS/DFS (zero alloc) plus hover-specific fields.
 /// Allocate once per consumer, reuse every frame.
 /// </summary>
+public enum HabitatCandidateOutlineKind
+{
+    /// <summary>Pełny habitat (zielona ikona) — vec.Satisfies na regionie przed przycięciem obrysu.</summary>
+    Full,
+    /// <summary>Prawie habitat (żółta ikona) — deficit 1; obrys tylko blisko hover (np. 3 kroki).</summary>
+    Almost
+}
+
 public sealed class HabitatHoverScratch
 {
     public readonly HabitatRegionScratch          Region        = new();
+    /// <summary>Osobny bufor na filtr odległości — nie wolno używać <see cref="Region"/> w callbacku DFS.</summary>
+    public readonly HabitatRegionScratch          Filter        = new();
     public readonly List<HabitatAnimal>           YellowAnimals = new();
+    public readonly List<string>                    YellowDeficitHints = new();
+    /// <summary>Stabilna kopia wyniku — nie czyścić poza <see cref="HabitatHoverEvaluator.Evaluate"/>.</summary>
+    public readonly List<HabitatAnimal>           YellowAnimalsResult = new();
+    public readonly List<string>                    YellowDeficitHintsResult = new();
     public readonly HashSet<HabitatAnimal>        YellowSet     = new();
+    public readonly Dictionary<HabitatAnimal, string> YellowDeficitByAnimal = new();
     public readonly List<Tile>                    CandidateRegion = new();
 }
 
@@ -23,13 +38,23 @@ public readonly struct HabitatHoverResult
     public readonly HabitatHoverPreviewKind      Kind;
     public readonly HabitatAnimal                GreenAnimal;
     public readonly IReadOnlyList<HabitatAnimal> YellowAnimals;
+    /// <summary>Równolegle do <see cref="YellowAnimals"/> — czego brakuje do habitatu.</summary>
+    public readonly IReadOnlyList<string>        YellowDeficitHints;
 
     public HabitatHoverResult(HabitatHoverPreviewKind kind, HabitatAnimal greenAnimal,
-        IReadOnlyList<HabitatAnimal> yellowAnimals)
+        IReadOnlyList<HabitatAnimal> yellowAnimals, IReadOnlyList<string> yellowDeficitHints = null)
     {
         Kind          = kind;
         GreenAnimal   = greenAnimal;
         YellowAnimals = yellowAnimals ?? Array.Empty<HabitatAnimal>();
+        YellowDeficitHints = yellowDeficitHints ?? Array.Empty<string>();
+    }
+
+    public string GetYellowDeficitHint(int yellowIndex)
+    {
+        if (yellowIndex < 0 || yellowIndex >= YellowAnimals.Count)
+            return string.Empty;
+        return yellowIndex < YellowDeficitHints.Count ? YellowDeficitHints[yellowIndex] : string.Empty;
     }
 }
 
@@ -97,6 +122,7 @@ public static class HabitatHoverEvaluator
         if (!rs.Allowed.Contains(hoverTile)) return;
 
         s.YellowSet.Clear();
+        s.YellowDeficitByAnimal.Clear();
 
         HabitatAnimal bestGreenAnimal    = HabitatAnimal.None;
         List<Tile>    bestGreenRegion    = null;
@@ -108,6 +134,8 @@ public static class HabitatHoverEvaluator
             rs.Allowed, maxTilesPerHabitat, mustInclude: hoverTile, rs,
             region =>
             {
+                HabitatCoreValidation.PrepareRegionCoreAnalysis(region, rs);
+
                 foreach (var animal in HabitatRequirements.ClassifiableAnimals)
                 {
                     if (!TryBuildSimulatedBiomeVector(store, region, animal, hoverTile, nextDraw, out var vec))
@@ -117,7 +145,7 @@ public static class HabitatHoverEvaluator
                     if (vec.Satisfies(req))
                     {
                         if (!HabitatCoreValidation.ValidateCoreRequirement(
-                                region, animal, rulesProfile, out _))
+                                region, animal, rulesProfile, rs, out _))
                             continue;
 
                         float score   = HabitatRequirements.ComputeScore(animal, region.Count);
@@ -137,8 +165,18 @@ public static class HabitatHoverEvaluator
                     }
                     else
                     {
-                        if (vec.DeficitSumToward(req) == 1)
+                        if (vec.DeficitSumToward(req) == 1
+                            && HabitatCoreValidation.ValidateCoreRequirement(region, animal, rulesProfile, rs, out _))
+                        {
                             s.YellowSet.Add(animal);
+                            if (!s.YellowDeficitByAnimal.ContainsKey(animal))
+                            {
+                                var missing = HabitatRequirements.FormatMissingBiomes(vec, req);
+                                s.YellowDeficitByAnimal[animal] = string.IsNullOrEmpty(missing)
+                                    ? string.Empty
+                                    : $"Need: {missing}";
+                            }
+                        }
                     }
                 }
             });
@@ -151,11 +189,18 @@ public static class HabitatHoverEvaluator
 
         if (s.YellowSet.Count > 0)
         {
-            s.YellowAnimals.Clear();
-            foreach (var a in s.YellowSet) s.YellowAnimals.Add(a);
-            s.YellowAnimals.Sort(AnimalOrder);
+            s.YellowAnimalsResult.Clear();
+            s.YellowDeficitHintsResult.Clear();
+            foreach (var a in s.YellowSet) s.YellowAnimalsResult.Add(a);
+            s.YellowAnimalsResult.Sort(AnimalOrder);
+            for (int i = 0; i < s.YellowAnimalsResult.Count; i++)
+            {
+                var a = s.YellowAnimalsResult[i];
+                s.YellowDeficitHintsResult.Add(s.YellowDeficitByAnimal.TryGetValue(a, out var hint) ? hint : string.Empty);
+            }
+
             result = new HabitatHoverResult(HabitatHoverPreviewKind.Yellow, HabitatAnimal.None,
-                s.YellowAnimals.ToArray());
+                s.YellowAnimalsResult.ToArray(), s.YellowDeficitHintsResult.ToArray());
             return;
         }
 
@@ -163,8 +208,8 @@ public static class HabitatHoverEvaluator
     }
 
     /// <summary>
-    /// Region kafli będących wstępnym kandydatem na habitat danego zwierzęcia po postawieniu kafelka na <paramref name="hoverTile"/>.
-    /// Zwraca true gdy znaleziono region (pełny habitat lub „prawie” — deficit 1).
+    /// Region kafli do obrysu pod ikoną. Walidacja (wektor + rdzeń) na pełnym regionie DFS;
+    /// obrys = tylko kafle w promieniu <paramref name="maxDisplayStepsFromHover"/> od hover.
     /// </summary>
     public static bool TryGetCandidateRegion(
         TileRuntimeStore store,
@@ -172,7 +217,9 @@ public static class HabitatHoverEvaluator
         TileDraw nextDraw,
         HabitatAnimal animal,
         int maxTilesPerHabitat,
-        int maxGraphSteps,
+        int maxSearchGraphSteps,
+        int maxDisplayStepsFromHover,
+        HabitatCandidateOutlineKind outlineKind,
         HabitatHoverScratch s,
         out IReadOnlyList<Tile> region,
         HabitatRulesProfile rulesProfile = null)
@@ -180,63 +227,100 @@ public static class HabitatHoverEvaluator
         region = Array.Empty<Tile>();
         if (store == null || hoverTile == null || animal == HabitatAnimal.None) return false;
         if (nextDraw == null || nextDraw.biome == TileBiome.None) return false;
+        if (maxSearchGraphSteps < 1 || maxDisplayStepsFromHover < 1) return false;
 
         var hoverRt = store.Get(hoverTile);
         if (hoverRt == null || hoverRt.occupied || !hoverRt.CanAcceptNewHabitat()) return false;
 
-        if (!TryPrepareHoverBall(store, hoverTile, maxGraphSteps, s, out var rs))
+        if (!TryPrepareHoverBall(store, hoverTile, maxSearchGraphSteps, s, out var rs))
             return false;
 
         s.CandidateRegion.Clear();
         List<Tile> bestRegion = null;
         float bestScore = float.NegativeInfinity;
         int bestTileCount = int.MaxValue;
-        bool bestIsFull = false;
 
         HabitatRegionEnumerator.ForEachRegionContaining(
             rs.Allowed, maxTilesPerHabitat, mustInclude: hoverTile, rs,
             candidate =>
             {
-                if (!TryBuildSimulatedBiomeVector(store, candidate, animal, hoverTile, nextDraw, out var vec))
+                HabitatCoreValidation.PrepareRegionCoreAnalysis(candidate, rs);
+
+                if (!TryValidateRawRegionForOutline(
+                        store, candidate, animal, hoverTile, nextDraw, outlineKind, rulesProfile, rs, out _))
                     return;
 
-                var req = HabitatRequirements.GetRequirement(animal);
-                bool satisfies = vec.Satisfies(req);
-                if (satisfies)
-                {
-                    if (!HabitatCoreValidation.ValidateCoreRequirement(candidate, animal, rulesProfile, out _))
-                        return;
+                if (!TryFilterDisplayRegion(
+                        hoverTile, candidate, maxDisplayStepsFromHover, s.Filter, s.CandidateRegion, out var display))
+                    return;
 
-                    float score = HabitatRequirements.ComputeScore(animal, candidate.Count);
-                    int distinctBiomes = CountDistinctBiomesInRegion(store, candidate, hoverTile, nextDraw);
-                    score = ApplyPerkScoreModifiers(animal, score, candidate.Count, distinctBiomes);
-                    int basePts = HabitatRequirements.GetBasePoints(animal);
+                float score = HabitatRequirements.ComputeScore(animal, display.Count);
+                int distinctBiomes = CountDistinctBiomesInRegion(store, display, hoverTile, nextDraw);
+                score = ApplyPerkScoreModifiers(animal, score, display.Count, distinctBiomes);
+                int basePts = HabitatRequirements.GetBasePoints(animal);
 
-                    if (IsBetterCandidate(score, basePts, candidate.Count, animal, candidate,
-                            bestScore, animal, bestTileCount, bestRegion))
-                    {
-                        bestIsFull = true;
-                        bestScore = score;
-                        bestTileCount = candidate.Count;
-                        CopyRegion(candidate, ref bestRegion);
-                    }
-                }
-                else if (!bestIsFull && vec.DeficitSumToward(req) == 1)
+                if (IsBetterCandidate(score, basePts, display.Count, animal, display,
+                        bestScore, animal, bestTileCount, bestRegion))
                 {
-                    if (bestRegion == null || candidate.Count < bestTileCount)
-                    {
-                        bestTileCount = candidate.Count;
-                        CopyRegion(candidate, ref bestRegion);
-                    }
+                    bestScore = score;
+                    bestTileCount = display.Count;
+                    CopyRegion(display, ref bestRegion);
                 }
             });
 
         if (bestRegion == null || bestRegion.Count == 0) return false;
 
-        s.CandidateRegion.Clear();
-        s.CandidateRegion.AddRange(bestRegion);
+        if (!TryFilterDisplayRegion(
+                hoverTile, bestRegion, maxDisplayStepsFromHover, s.Filter, s.CandidateRegion, out _))
+            return false;
+
         region = s.CandidateRegion;
         return true;
+    }
+
+    private static bool TryValidateRawRegionForOutline(
+        TileRuntimeStore store,
+        List<Tile> rawRegion,
+        HabitatAnimal animal,
+        Tile hoverTile,
+        TileDraw nextDraw,
+        HabitatCandidateOutlineKind outlineKind,
+        HabitatRulesProfile rulesProfile,
+        HabitatRegionScratch scratch,
+        out BiomeVector vector)
+    {
+        vector = BiomeVector.Zero;
+        if (!TryBuildSimulatedBiomeVector(store, rawRegion, animal, hoverTile, nextDraw, out vector))
+            return false;
+
+        if (!HabitatCoreValidation.ValidateCoreRequirement(rawRegion, animal, rulesProfile, scratch, out _))
+            return false;
+
+        var req = HabitatRequirements.GetRequirement(animal);
+        return outlineKind switch
+        {
+            HabitatCandidateOutlineKind.Full => vector.Satisfies(req),
+            HabitatCandidateOutlineKind.Almost =>
+                !vector.Satisfies(req) && vector.DeficitSumToward(req) == 1,
+            _ => false
+        };
+    }
+
+    private static bool TryFilterDisplayRegion(
+        Tile hoverTile,
+        IReadOnlyList<Tile> rawRegion,
+        int maxStepsFromHover,
+        HabitatRegionScratch filterScratch,
+        List<Tile> output,
+        out List<Tile> displayRegion)
+    {
+        displayRegion = null;
+        if (!HabitatRegionEnumerator.TryFilterRegionNearHover(
+                hoverTile, rawRegion, maxStepsFromHover, filterScratch, output))
+            return false;
+
+        displayRegion = output;
+        return displayRegion.Count > 0;
     }
 
     private static bool TryPrepareHoverBall(

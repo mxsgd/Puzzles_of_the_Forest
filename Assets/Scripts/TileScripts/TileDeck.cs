@@ -11,7 +11,7 @@ public class TilePrefabGroup
 
     [Tooltip("Opcjonalny prefab kafla TYLKO dla tego biomu. " +
              "Jeśli null — używa się BaseTilePrefab z TileDeck. " +
-             "Ustaw np. dla Wodnego (osobny shader) albo dla Górzystego (inna podstawa).")]
+             "Ustaw np. dla Wodnego (osobny shader) albo dla Rocks (inna podstawa).")]
     public GameObject baseTilePrefabOverride;
 
     [Min(1), Tooltip("Waga w talii — ile razy ten biom trafia do puli przed tasowaniem.")]

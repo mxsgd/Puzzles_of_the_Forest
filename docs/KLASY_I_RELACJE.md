@@ -511,7 +511,7 @@ GameObject (occupant)
 
 | Enum | Wartości (skrót) |
 |------|-------------------|
-| `TileBiome` | None, Forested, Meadow, Mountainous, Bushy, Water |
+| `TileBiome` | None, Forested, Meadow, Rocks, Bushy, Water |
 | `HabitatAnimal` | None, Deer, Beaver, Bear, Bees, RockDweller |
 | `HabitatHoverPreviewKind` | Gray, Yellow, Green |
 

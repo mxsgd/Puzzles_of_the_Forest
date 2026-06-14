@@ -34,7 +34,7 @@ public struct BiomeVector : IEquatable<BiomeVector>
             TileBiome.Meadow => new BiomeVector { Meadow = 1 },
             TileBiome.Forested => new BiomeVector { Forest = 1 },
             TileBiome.Bushy => new BiomeVector { Bush = 1 },
-            TileBiome.Mountainous => new BiomeVector { Rock = 1 },
+            TileBiome.Rocks       => new BiomeVector { Rock = 1 },
             TileBiome.Water => new BiomeVector { Water = 1 },
             _ => Zero
         };

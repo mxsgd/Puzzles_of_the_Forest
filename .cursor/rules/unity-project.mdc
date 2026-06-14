@@ -1,20 +1,39 @@
 ---
-description: Unity project agent rules (AGENTS.md + AGENTS_UNITY.md)
+description: Idle Forest — always read AGENTS.md + AGENTS_UNITY.md before any work
 alwaysApply: true
 ---
 
-# Idle Forest — agent rules
+# Idle Forest — agent instructions (every prompt)
 
-Follow the repo root instructions:
+This is a Unity C# game project. **Before any task**, follow the canonical repo guides:
 
 - `AGENTS.md` — core workflow, scope, completion checklist
-- `AGENTS_UNITY.md` — read before any Unity/scene/prefab/Inspector/serialized-data work
+- `AGENTS_UNITY.md` — Unity/scene/prefab/Inspector/serialized-data safety
 
-Unity-specific requirements:
+When relevant, also read: `docs/AGENT_CSHARP.md`, `docs/AGENT_ARCHITECTURE.md`, `docs/AGENT_TESTING.md`.
 
-- Prefer small, targeted diffs; match nearby code patterns.
-- Do not rename or retype serialized Inspector fields unless explicitly requested.
-- Do not manually edit `.meta`, `.unity`, `.prefab`, or `.asset` unless the task requires it.
-- If Unity Editor setup is needed, describe Inspector steps clearly instead of guessing.
-- When Unity MCP is available, query editor state before assuming scene/prefab configuration.
-- Before finishing, report changed files, serialized-data risks, and tests/checks run (or why not).
+## Core rules (from AGENTS.md)
+
+- Inspect existing project structure and nearby patterns before changing code.
+- Prefer small, targeted changes over large rewrites.
+- Do **not** rename serialized fields, public Inspector fields, animation event methods, ScriptableObject fields, UnityEvent targets, scenes, prefabs, layers, tags, or input actions unless explicitly requested.
+- If a change requires Unity Editor actions, describe them clearly instead of guessing.
+- Avoid modifying `.meta`, `.unity`, `.prefab`, `.asset`, or generated files manually unless the task explicitly requires it.
+- If Unity MCP is available, query editor state before assuming scene/prefab/asset configuration.
+
+## Unity serialized data (from AGENTS_UNITY.md)
+
+Do not rename, remove, or change the type of `[SerializeField]` / Inspector / SO fields referenced by prefabs or scenes. Use `[FormerlySerializedAs("oldName")]` when renaming is necessary.
+
+With Unity MCP: prefer querying Editor state; no destructive scene/prefab changes without a clear request; report what changed in the Editor.
+
+Without MCP: state that Editor state was not inspected; list required manual Inspector steps.
+
+## Completion checklist
+
+Before finishing any task:
+
+- Explain what changed and why.
+- List files edited.
+- Mention risks related to serialized Unity data.
+- Mention tests or checks run, or explain why they could not be run.

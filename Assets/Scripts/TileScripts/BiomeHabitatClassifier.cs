@@ -87,6 +87,8 @@ public class BiomeHabitatClassifier : MonoBehaviour
             _scratch.Allowed, maxTilesPerHabitat, mustInclude: placedTile, _scratch,
             region =>
             {
+                HabitatCoreValidation.PrepareRegionCoreAnalysis(region, _scratch);
+
                 foreach (var animal in HabitatRequirements.ClassifiableAnimals)
                 {
                     if (!TryBuildFilteredBiomeVector(region, animal, out var vec)) continue;
@@ -95,7 +97,7 @@ public class BiomeHabitatClassifier : MonoBehaviour
                     if (!vec.Satisfies(req)) continue;
 
                     if (!HabitatCoreValidation.ValidateCoreRequirement(
-                            region, animal, rulesProfile, out _))
+                            region, animal, rulesProfile, _scratch, out _))
                     {
                         if (verboseDebug)
                             Debug.Log($"[BiomeHabitat] Odrzucono {animal} — za mało kafli rdzeniowych.");
@@ -123,7 +125,7 @@ public class BiomeHabitatClassifier : MonoBehaviour
         if (bestAnimal == HabitatAnimal.None || bestRegion == null || bestRegion.Count == 0)
             return;
 
-        if (runtimeStore.TryRegisterHabitat(bestAnimal, bestRegion, out _))
+        if (runtimeStore.TryRegisterHabitat(bestAnimal, bestRegion, out _, rulesProfile))
         {
             if (logClassification)
                 Debug.Log($"[BiomeHabitat] Habitat {bestAnimal} — kafle: {bestRegion.Count}, score≈{bestScore:F3}");

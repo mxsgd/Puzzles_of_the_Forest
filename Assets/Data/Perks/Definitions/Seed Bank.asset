@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
   perkId: seedbank
   displayName: Seed Bank
-  description: +5 kart.
+  description: +5 tiles.
   icon: {fileID: 0}
   hooks: 01000000
   behavior: {fileID: 11400000, guid: d942f94cb31f66c4da631bb828525ac9, type: 2}

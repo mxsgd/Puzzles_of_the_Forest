@@ -95,11 +95,11 @@ public class PauseMenuController : MonoBehaviour
     private RectTransform BuildMenuCard(RectTransform parent)
     {
         var card = CreateCard(parent, "PauseMenuCard", new Vector2(420f, 460f));
-        AddTitle(card, "PAUZA", new Vector2(0f, -36f));
+        AddTitle(card, "PAUSED", new Vector2(0f, -36f));
 
-        AddButton(card, "WZNÓW",      UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,  new Vector2(0f, -120f), Close);
-        AddButton(card, "USTAWIENIA", UISpriteFactory.PanelLight,  UISpriteFactory.TextPrimary,   new Vector2(0f, -200f), ShowSettings);
-        AddButton(card, "WYJDŹ",      UISpriteFactory.AccentRed,   UISpriteFactory.TextOnAccent,  new Vector2(0f, -280f), Quit);
+        AddButton(card, "RESUME",   UISpriteFactory.AccentGreen, UISpriteFactory.TextOnAccent,  new Vector2(0f, -120f), Close);
+        AddButton(card, "SETTINGS", UISpriteFactory.PanelLight,  UISpriteFactory.TextPrimary,   new Vector2(0f, -200f), ShowSettings);
+        AddButton(card, "QUIT",     UISpriteFactory.AccentRed,   UISpriteFactory.TextOnAccent,  new Vector2(0f, -280f), Quit);
 
         return card;
     }
@@ -107,15 +107,15 @@ public class PauseMenuController : MonoBehaviour
     private RectTransform BuildSettingsCard(RectTransform parent)
     {
         var card = CreateCard(parent, "SettingsCard", new Vector2(460f, 380f));
-        AddTitle(card, "USTAWIENIA", new Vector2(0f, -36f));
+        AddTitle(card, "SETTINGS", new Vector2(0f, -36f));
 
-        _musicSlider = AddSlider(card, "Muzyka", new Vector2(0f, -130f));
-        _sfxSlider   = AddSlider(card, "Efekty", new Vector2(0f, -210f));
+        _musicSlider = AddSlider(card, "Music", new Vector2(0f, -130f));
+        _sfxSlider   = AddSlider(card, "SFX", new Vector2(0f, -210f));
 
         _musicSlider.onValueChanged.AddListener(v => OnMusicChanged(v));
         _sfxSlider.onValueChanged.AddListener(v => OnSfxChanged(v));
 
-        AddButton(card, "POWRÓT", UISpriteFactory.PanelLight, UISpriteFactory.TextPrimary, new Vector2(0f, -310f), ShowMenuFromSettings);
+        AddButton(card, "BACK", UISpriteFactory.PanelLight, UISpriteFactory.TextPrimary, new Vector2(0f, -310f), ShowMenuFromSettings);
         return card;
     }
 

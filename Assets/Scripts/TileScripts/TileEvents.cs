@@ -8,6 +8,7 @@ public readonly struct HabitatAssignmentData
     public readonly int HabitatId;
     public readonly HabitatAnimal Animal;
     public readonly IReadOnlyList<Tile> Tiles;
+    public readonly Tile PrimaryCoreTile;
     public readonly int PointsAwarded;
     public readonly float ScoreValue;
     public readonly int TileCount;
@@ -18,11 +19,13 @@ public readonly struct HabitatAssignmentData
         IReadOnlyList<Tile> tiles,
         int pointsAwarded,
         float scoreValue,
-        int tileCount)
+        int tileCount,
+        Tile primaryCoreTile = null)
     {
         HabitatId = habitatId;
         Animal = animal;
         Tiles = tiles;
+        PrimaryCoreTile = primaryCoreTile;
         PointsAwarded = pointsAwarded;
         ScoreValue = scoreValue;
         TileCount = tileCount;

@@ -10,7 +10,7 @@ public enum TileBiome
     None = 0,
     Forested,    // Lesisty: drzewa + krzaki
     Meadow,      // Łąkowy:     kwiaty + trawa
-    Mountainous, // Górzysty:   drzewa + kamienie
+    Rocks,       // Skalny:     drzewa + kamienie
     Bushy,       // Krzaczasty: krzaki + kwiaty
     Water        // Wodny (dedykowany prefab kafla z osobnym shaderem)
 }
@@ -36,7 +36,7 @@ public static class TileBiomeRules
     {
         { TileBiome.Forested,    new[] { TileContentTags.Tree,   TileContentTags.Bush   } },
         { TileBiome.Meadow,      new[] { TileContentTags.Flower, TileContentTags.Grass  } },
-        { TileBiome.Mountainous, new[] { TileContentTags.Tree,   TileContentTags.Rock   } },
+        { TileBiome.Rocks,       new[] { TileContentTags.Tree,   TileContentTags.Rock   } },
         { TileBiome.Bushy,       new[] { TileContentTags.Bush,   TileContentTags.Flower } },
         { TileBiome.Water,       Array.Empty<string>() }
     };
@@ -48,11 +48,11 @@ public static class TileBiomeRules
 
     public static string GetDisplayName(TileBiome biome) => biome switch
     {
-        TileBiome.Forested    => "Lesisty",
-        TileBiome.Meadow      => "Łąkowy",
-        TileBiome.Mountainous => "Górzysty",
-        TileBiome.Bushy       => "Krzaczasty",
-        TileBiome.Water       => "Wodny",
+        TileBiome.Forested    => "Forested",
+        TileBiome.Meadow      => "Meadow",
+        TileBiome.Rocks       => "Rocks",
+        TileBiome.Bushy       => "Bushy",
+        TileBiome.Water       => "Water",
         _                     => biome.ToString()
     };
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using Tile = TileGrid.Tile;
 
 /// <summary>
@@ -26,6 +27,13 @@ public sealed class HabitatRegionScratch
     public readonly HashSet<Tile> Ball    = new();
     public readonly HashSet<Tile> Allowed = new();
     public readonly List<Tile>    Seeds   = new();
+
+    /// <summary>Cache analizy rdzenia dla bieżącego regionu DFS (PrepareRegionCoreAnalysis).</summary>
+    public int CoreAnalysisHash;
+    public readonly Dictionary<Tile, int> NeighborsInRegion = new();
+    /// <summary>CoreCountByMinThreshold[i] = liczba kafli z ≥ i sąsiadami w regionie.</summary>
+    public readonly int[] CoreCountByMinThreshold = new int[7];
+    public Vector3 CoreCentroid;
 }
 
 /// <summary>
@@ -84,6 +92,73 @@ public static class HabitatRegionEnumerator
             if (rc == null || !rc.occupied)
                 s.Ball.Remove(center);
         }
+    }
+
+    /// <summary>
+    /// Keeps only tiles from <paramref name="source"/> within <paramref name="maxStepsFromHover"/>
+    /// hex steps of <paramref name="hoverTile"/> (BFS inside the source set). Used so preview outlines
+    /// do not stretch across the full placement ball (e.g. 5 steps).
+    /// </summary>
+    public static bool TryFilterRegionNearHover(
+        Tile hoverTile,
+        IReadOnlyList<Tile> source,
+        int maxStepsFromHover,
+        HabitatRegionScratch s,
+        List<Tile> output)
+    {
+        output.Clear();
+        if (hoverTile == null || source == null || source.Count == 0 || maxStepsFromHover < 1)
+            return false;
+
+        s.RegionSet.Clear();
+        for (int i = 0; i < source.Count; i++)
+        {
+            var t = source[i];
+            if (t != null)
+                s.RegionSet.Add(t);
+        }
+
+        if (!s.RegionSet.Contains(hoverTile))
+            return false;
+
+        s.BfsTiles.Clear();
+        s.BfsDist.Clear();
+        s.BfsTiles.Add(hoverTile);
+        s.BfsDist.Add(0);
+        output.Add(hoverTile);
+
+        for (int head = 0; head < s.BfsTiles.Count; head++)
+        {
+            Tile t = s.BfsTiles[head];
+            int dist = s.BfsDist[head];
+            if (dist >= maxStepsFromHover)
+                continue;
+
+            foreach (Tile n in GetNeighborsSafe(t))
+            {
+                if (n == null || !s.RegionSet.Contains(n))
+                    continue;
+
+                bool already = false;
+                for (int i = 0; i < output.Count; i++)
+                {
+                    if (ReferenceEquals(output[i], n))
+                    {
+                        already = true;
+                        break;
+                    }
+                }
+
+                if (already)
+                    continue;
+
+                output.Add(n);
+                s.BfsTiles.Add(n);
+                s.BfsDist.Add(dist + 1);
+            }
+        }
+
+        return output.Count > 0;
     }
 
     // -------------------------------------------------------------------------

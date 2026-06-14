@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
   perkId: mulligan
   displayName: Mulligan
-  description: +2 rerolle
+  description: +2 rerolls.
   icon: {fileID: 0}
   hooks: 01000000
   behavior: {fileID: 11400000, guid: f38b8cd939a316b4e87c4d99eadeb5ba, type: 2}
