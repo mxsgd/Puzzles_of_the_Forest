@@ -8,13 +8,38 @@ using UnityEngine.InputSystem;
 public class CameraWASDController : MonoBehaviour
 {
     [Header("Ruch")]
-    [SerializeField] private float moveSpeed = 10f;
+    [SerializeField] private float moveSpeed = 32f;
     [SerializeField] private bool useCameraDirection = true;
 
     [Header("Ograniczenie (opcjonalne)")]
     [SerializeField] private bool clampPosition = false;
     [SerializeField] private Vector3 clampMin = new Vector3(-50f, 0f, -50f);
     [SerializeField] private Vector3 clampMax = new Vector3(50f, 0f, 50f);
+
+    private Vector3 _sessionStartPosition;
+    private Quaternion _sessionStartRotation;
+    private bool _sessionStartPoseCaptured;
+
+    private void Awake()
+    {
+        CaptureSessionStartPose();
+    }
+
+    /// <summary>Przywraca pozycję i obrót z momentu wejścia w Play Mode (pierwszy start sesji).</summary>
+    public void ResetToSessionStart()
+    {
+        if (!_sessionStartPoseCaptured)
+            CaptureSessionStartPose();
+
+        transform.SetPositionAndRotation(_sessionStartPosition, _sessionStartRotation);
+    }
+
+    public void CaptureSessionStartPose()
+    {
+        _sessionStartPosition = transform.position;
+        _sessionStartRotation = transform.rotation;
+        _sessionStartPoseCaptured = true;
+    }
 
     private void Update()
     {

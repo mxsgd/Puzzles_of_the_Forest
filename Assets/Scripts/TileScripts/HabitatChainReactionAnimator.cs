@@ -9,6 +9,7 @@ using Tile = TileGrid.Tile;
 /// wtedy dostaje właściwy kolor habitatu w shaderze (_HabitatColor / _HabitatStrength).
 ///
 /// Wymaga: HabitatGridManager.deferInfectionToAnimator = true.
+/// Po zakończeniu podnosi TileEvents.HabitatChainCompleted(habitatId).
 /// </summary>
 [DisallowMultipleComponent]
 public class HabitatChainReactionAnimator : MonoBehaviour
@@ -36,10 +37,26 @@ public class HabitatChainReactionAnimator : MonoBehaviour
     [SerializeField] private Color highlightColor = new Color(1.8f, 1.8f, 1.5f, 1f);
     [SerializeField, Min(0f)] private float highlightFlashDuration = 0.07f;
 
+    [Header("Chain SFX — rosnący pitch")]
+    [SerializeField] private AudioSource chainAudioSource;
+    [SerializeField] private AudioClip   chainTileClip;
+    [SerializeField, Range(0f, 1f)] private float chainVolume   = 0.75f;
+    [SerializeField] private float basePitch  = 0.85f;
+    [SerializeField] private float pitchStep  = 0.07f;
+    [SerializeField] private float maxPitch   = 2.0f;
+
     private void Awake()
     {
         if (!gridManager) gridManager = FindAnyObjectByType<HabitatGridManager>();
         if (!runtimeStore) runtimeStore = FindAnyObjectByType<TileRuntimeStore>();
+
+        if (!chainAudioSource)
+            chainAudioSource = GetComponent<AudioSource>();
+        if (!chainAudioSource)
+        {
+            chainAudioSource = gameObject.AddComponent<AudioSource>();
+            chainAudioSource.playOnAwake = false;
+        }
     }
 
     private void OnEnable()  => TileEvents.HabitatAssigned += OnHabitatAssigned;
@@ -48,20 +65,26 @@ public class HabitatChainReactionAnimator : MonoBehaviour
     private void OnHabitatAssigned(HabitatAssignmentData data)
     {
         if (data.Tiles == null || data.Tiles.Count == 0)
+        {
+            TileEvents.RaiseHabitatChainCompleted(data.HabitatId);
             return;
+        }
 
         Color habitatColor = Color.white;
         tintProfile?.TryGetColor(data.Animal, out habitatColor);
 
-        StartCoroutine(ChainReactionRoutine(new List<Tile>(data.Tiles), habitatColor));
+        StartCoroutine(ChainReactionRoutine(data.HabitatId, new List<Tile>(data.Tiles), habitatColor));
     }
 
-    private IEnumerator ChainReactionRoutine(List<Tile> tiles, Color habitatColor)
+    private IEnumerator ChainReactionRoutine(int habitatId, List<Tile> tiles, Color habitatColor)
     {
         for (int i = 0; i < tiles.Count; i++)
         {
             Tile tile = tiles[i];
             if (tile == null) continue;
+
+            float pitch = Mathf.Min(basePitch + pitchStep * i, maxPitch);
+            PlayChainTick(pitch);
 
             var rt  = runtimeStore?.Get(tile);
             var pos = new Vector2Int(tile.q, tile.r);
@@ -71,6 +94,22 @@ public class HabitatChainReactionAnimator : MonoBehaviour
             if (i < tiles.Count - 1 && delayBetweenTiles > 0f)
                 yield return new WaitForSeconds(delayBetweenTiles);
         }
+
+        // Czekaj aż ostatni kafel skończy animację (rise + flash + fall).
+        float lastTileAnimDuration = riseDuration + Mathf.Max(highlightFlashDuration, peakHold) + fallDuration;
+        if (lastTileAnimDuration > 0f)
+            yield return new WaitForSeconds(lastTileAnimDuration);
+
+        TileEvents.RaiseHabitatChainCompleted(habitatId);
+    }
+
+    private void PlayChainTick(float pitch)
+    {
+        if (chainAudioSource == null || chainTileClip == null)
+            return;
+
+        chainAudioSource.pitch = pitch;
+        chainAudioSource.PlayOneShot(chainTileClip, chainVolume);
     }
 
     private IEnumerator AnimateTile(GameObject instance, Vector2Int tilePos, Color habitatColor)

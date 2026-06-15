@@ -33,21 +33,6 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     [SerializeField, Min(1f)] private float pulsePeakScale = 1.1f;
     [SerializeField, Min(0.02f)] private float pulseDuration = 0.18f;
 
-    [Header("Placement Feedback - Audio")]
-    [SerializeField] private AudioSource feedbackAudioSource;
-    [SerializeField] private AudioClip habitatSuccessClip;
-    [SerializeField] private AudioClip almostHabitatClip;
-    [SerializeField] private AudioClip failedPlacementClip;
-    [SerializeField, Range(0f, 1f)] private float habitatVolume = 0.9f;
-    [SerializeField, Range(0f, 1f)] private float almostVolume = 0.75f;
-    [SerializeField, Range(0f, 1f)] private float failVolume = 0.65f;
-
-    private enum PlacementFeedbackKind
-    {
-        Fail,
-        Almost,
-        Habitat
-    }
 
     private readonly Dictionary<TileGrid.Tile, GameObject> _availableTiles = new Dictionary<TileGrid.Tile, GameObject>();
     private readonly HabitatHoverScratch _feedbackScratch = new HabitatHoverScratch();
@@ -76,8 +61,6 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (!tileDeck)         tileDeck      = FindAnyObjectByType<TileDeck>();
         if (!classifier)       classifier    = FindAnyObjectByType<BiomeHabitatClassifier>();
         if (!hoverPreview)     hoverPreview  = FindAnyObjectByType<TileNextTileHoverPreview>();
-        if (!feedbackAudioSource) feedbackAudioSource = GetComponent<AudioSource>();
-        if (!feedbackAudioSource) feedbackAudioSource = gameObject.AddComponent<AudioSource>();
 
     }
 
@@ -264,9 +247,6 @@ public class TileAvailabilityVisualizer : MonoBehaviour
                 Debug.LogWarning("[TileAvailabilityVisualizer] DrawTile zwrócił inny draw niż peek — możliwy race condition.", this);
         }
 
-        int habitatCountBefore = runtimeTile.habitatId >= 0 ? 1 : 0;
-        PlacementFeedbackKind prePlacementHint = GetPrePlacementFeedback(targetTile, draw);
-
         // Promuj gotowego ghosta zamiast Instantiate+Populate — zero kosztu przy stawianiu.
         // Fallback na PlaceOccupant tylko jeśli ghost niedostępny (np. brak hovera przed kliknięciem).
         GameObject instance;
@@ -287,12 +267,7 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (instance == null)
             return;
 
-        var placedRuntime = runtime?.Get(targetTile);
-        int habitatCountAfter = placedRuntime != null ? (placedRuntime.habitatId >= 0 ? 1 : 0) : habitatCountBefore;
-        PlacementFeedbackKind finalFeedback =
-            habitatCountAfter > habitatCountBefore ? PlacementFeedbackKind.Habitat : prePlacementHint;
-
-        PlayPlacementFeedback(instance, finalFeedback);
+        PlayPlacementFeedback(instance);
 
         if (PerkManager.Instance != null)
         {
@@ -392,45 +367,10 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         RefreshAvailability();
     }
 
-    private PlacementFeedbackKind GetPrePlacementFeedback(TileGrid.Tile targetTile, TileDraw draw)
-    {
-        if (targetTile == null || draw == null)
-            return PlacementFeedbackKind.Fail;
-
-        // Hover preview już wykonał Evaluate na tym kaflu — odczytujemy gotowy wynik.
-        if (hoverPreview != null && ReferenceEquals(hoverPreview.LastHoverTile, targetTile))
-        {
-            return hoverPreview.LastHoverResult.Kind switch
-            {
-                HabitatHoverPreviewKind.Green  => PlacementFeedbackKind.Habitat,
-                HabitatHoverPreviewKind.Yellow => PlacementFeedbackKind.Almost,
-                _                              => PlacementFeedbackKind.Fail
-            };
-        }
-
-        // Fallback: brak hovera przed kliknięciem (np. tap na mobile) — liczymy raz.
-        if (runtime == null)
-            return PlacementFeedbackKind.Fail;
-
-        int maxTiles = classifier != null ? classifier.MaxTilesPerHabitat : 5;
-        int maxSteps = classifier != null ? classifier.MaxGraphStepsFromPlacement : 5;
-        HabitatHoverEvaluator.Evaluate(runtime, targetTile, draw, maxTiles, maxSteps, _feedbackScratch, out HabitatHoverResult hover,
-            classifier != null ? classifier.RulesProfile : null);
-
-        return hover.Kind switch
-        {
-            HabitatHoverPreviewKind.Green  => PlacementFeedbackKind.Habitat,
-            HabitatHoverPreviewKind.Yellow => PlacementFeedbackKind.Almost,
-            _                              => PlacementFeedbackKind.Fail
-        };
-    }
-
-    private void PlayPlacementFeedback(GameObject instance, PlacementFeedbackKind kind)
+    private void PlayPlacementFeedback(GameObject instance)
     {
         if (instance != null)
             StartCoroutine(PulseRoutine(instance.transform, pulsePeakScale, pulseDuration));
-
-        PlayFeedbackSfx(kind);
     }
 
     private IEnumerator PulseRoutine(Transform target, float peakScale, float duration)
@@ -465,30 +405,4 @@ public class TileAvailabilityVisualizer : MonoBehaviour
             target.localScale = baseScale;
     }
 
-    private void PlayFeedbackSfx(PlacementFeedbackKind kind)
-    {
-        if (feedbackAudioSource == null)
-            return;
-
-        AudioClip clip;
-        float volume;
-        switch (kind)
-        {
-            case PlacementFeedbackKind.Habitat:
-                clip = habitatSuccessClip;
-                volume = habitatVolume;
-                break;
-            case PlacementFeedbackKind.Almost:
-                clip = almostHabitatClip;
-                volume = almostVolume;
-                break;
-            default:
-                clip = failedPlacementClip;
-                volume = failVolume;
-                break;
-        }
-
-        if (clip != null)
-            feedbackAudioSource.PlayOneShot(clip, volume);
-    }
 }

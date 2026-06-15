@@ -81,6 +81,7 @@ public class TilePlacementService : MonoBehaviour
 
         runtimeStore.MarkOccupied(tile, prebuiltInstance, tileDraw?.prefab, tileDraw, biomeRuntime);
         SpawnBiomeParticles(tile, biome);
+        TileEvents.RaiseTilePlaced(tile, biome);
         return prebuiltInstance;
     }
 
@@ -126,6 +127,7 @@ public class TilePlacementService : MonoBehaviour
 
         runtimeStore.MarkOccupied(tile, go, prefab, tileDraw, biomeRuntime);
         SpawnBiomeParticles(tile, biome);
+        TileEvents.RaiseTilePlaced(tile, biome);
         return go;
     }
 

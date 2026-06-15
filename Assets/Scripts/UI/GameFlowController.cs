@@ -25,6 +25,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private TileSelectionModel selection;
     [SerializeField] private HabitatGridManager habitatGridManager;
     [SerializeField] private PerkManager perkManager;
+    [SerializeField] private CameraWASDController cameraController;
 
     [Header("Session")]
     [SerializeField] private bool bonusTilesOnHabitat = true;
@@ -58,6 +59,7 @@ public class GameFlowController : MonoBehaviour
         if (!selection) selection = FindAnyObjectByType<TileSelectionModel>();
         if (!habitatGridManager) habitatGridManager = FindAnyObjectByType<HabitatGridManager>();
         if (!perkManager) perkManager = FindAnyObjectByType<PerkManager>();
+        if (!cameraController) cameraController = FindAnyObjectByType<CameraWASDController>();
     }
 
     private void Start()
@@ -93,6 +95,7 @@ public class GameFlowController : MonoBehaviour
     private void StartSession()
     {
         _sessionActive = true;
+        cameraController?.ResetToSessionStart();
         HideAllMenus();
         gameUI?.ResetSessionStats();
         gameUI?.SetGameplayHudVisible(true);

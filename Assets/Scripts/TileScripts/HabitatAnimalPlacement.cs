@@ -49,8 +49,16 @@ public class HabitatAnimalPlacement : MonoBehaviour
     [SerializeField] private Vector3 vfxPositionOffset = Vector3.zero;
     [SerializeField, Min(0f)] private float vfxLifetimeFallback = 3f;
 
+    [Header("Spawn SFX")]
+    [SerializeField] private AudioSource spawnAudioSource;
+    [SerializeField] private AudioClip   popClip;
+    [SerializeField, Range(0f, 1f)] private float popVolume = 0.9f;
+    [SerializeField] private Vector2 popPitchRange = new(0.92f, 1.08f);
+
     private static HabitatAnimalPlacement _activeInstance;
     private static readonly Dictionary<int, GameObject> s_spawnedByHabitatId = new();
+
+    private readonly Dictionary<int, HabitatAssignmentData> _pendingSpawns = new();
 
     private readonly Dictionary<HabitatAnimal, AnimalSpawnSettings> _settingsByAnimal = new();
     private readonly HabitatRegionScratch _coreScratch = new();
@@ -80,6 +88,14 @@ public class HabitatAnimalPlacement : MonoBehaviour
         }
 
         EnsureSpawnParent();
+
+        if (!spawnAudioSource)
+            spawnAudioSource = GetComponent<AudioSource>();
+        if (!spawnAudioSource)
+        {
+            spawnAudioSource = gameObject.AddComponent<AudioSource>();
+            spawnAudioSource.playOnAwake = false;
+        }
     }
 
     private void OnEnable()
@@ -91,12 +107,14 @@ public class HabitatAnimalPlacement : MonoBehaviour
         }
 
         _activeInstance = this;
-        TileEvents.HabitatAssigned += OnHabitatAssigned;
+        TileEvents.HabitatAssigned     += OnHabitatAssigned;
+        TileEvents.HabitatChainCompleted += OnHabitatChainCompleted;
     }
 
     private void OnDisable()
     {
-        TileEvents.HabitatAssigned -= OnHabitatAssigned;
+        TileEvents.HabitatAssigned     -= OnHabitatAssigned;
+        TileEvents.HabitatChainCompleted -= OnHabitatChainCompleted;
         if (_activeInstance == this)
             _activeInstance = null;
     }
@@ -122,7 +140,10 @@ public class HabitatAnimalPlacement : MonoBehaviour
         s_spawnedByHabitatId.Clear();
 
         if (_activeInstance != null)
+        {
+            _activeInstance._pendingSpawns.Clear();
             _activeInstance._resolvedSpawnParent = null;
+        }
     }
 
     private void OnHabitatAssigned(HabitatAssignmentData data)
@@ -138,6 +159,28 @@ public class HabitatAnimalPlacement : MonoBehaviour
         if (s_spawnedByHabitatId.ContainsKey(data.HabitatId))
             return;
 
+        // Buforuj — faktyczny spawn po zakończeniu chain reaction.
+        _pendingSpawns[data.HabitatId] = data;
+    }
+
+    private void OnHabitatChainCompleted(int habitatId)
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (!_pendingSpawns.TryGetValue(habitatId, out var data))
+            return;
+
+        _pendingSpawns.Remove(habitatId);
+
+        if (s_spawnedByHabitatId.ContainsKey(habitatId))
+            return;
+
+        DoSpawn(data);
+    }
+
+    private void DoSpawn(HabitatAssignmentData data)
+    {
         if (!TryResolveSpawnCoreTile(data, out var coreTile))
             return;
 
@@ -174,7 +217,18 @@ public class HabitatAnimalPlacement : MonoBehaviour
         instance.transform.SetParent(_resolvedSpawnParent, true);
 
         s_spawnedByHabitatId[data.HabitatId] = instance;
+
+        PlayPopSfx();
         PlaySpawnVfx(spawnPos);
+    }
+
+    private void PlayPopSfx()
+    {
+        if (spawnAudioSource == null || popClip == null)
+            return;
+
+        spawnAudioSource.pitch = UnityEngine.Random.Range(popPitchRange.x, popPitchRange.y);
+        spawnAudioSource.PlayOneShot(popClip, popVolume);
     }
 
     private static void PruneDestroyedSpawns()
