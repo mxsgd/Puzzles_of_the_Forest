@@ -17,6 +17,8 @@ public class PauseMenuController : MonoBehaviour
     private const string PrefMusic = "idle_forest.music_volume";
     private const string PrefSfx   = "idle_forest.sfx_volume";
 
+    [SerializeField] private PauseMenuView view;
+
     private Canvas _hostCanvas;
     private RectTransform _backdrop;
     private CanvasGroup   _backdropGroup;
@@ -31,6 +33,43 @@ public class PauseMenuController : MonoBehaviour
     private Coroutine _anim;
 
     public bool IsOpen => _isOpen;
+
+    public void Bind(PauseMenuView menuView)
+    {
+        view = menuView;
+        if (view == null || !view.IsConfigured)
+        {
+            Debug.LogWarning("[PauseMenuController] PauseMenuView nie jest skonfigurowany.", this);
+            return;
+        }
+
+        _backdrop = view.Backdrop;
+        _backdropGroup = view.BackdropGroup;
+        _menuCard = view.MenuCard;
+        _settingsCard = view.SettingsCard;
+        _musicSlider = view.MusicSlider;
+        _sfxSlider = view.SfxSlider;
+        _hostCanvas = view.Backdrop != null
+            ? view.Backdrop.GetComponentInParent<Canvas>()
+            : null;
+
+        view.ResumeButton.onClick.RemoveAllListeners();
+        view.ResumeButton.onClick.AddListener(Close);
+        view.SettingsButton.onClick.RemoveAllListeners();
+        view.SettingsButton.onClick.AddListener(ShowSettings);
+        view.QuitButton.onClick.RemoveAllListeners();
+        view.QuitButton.onClick.AddListener(Quit);
+        view.SettingsBackButton.onClick.RemoveAllListeners();
+        view.SettingsBackButton.onClick.AddListener(ShowMenuFromSettings);
+
+        _musicSlider.onValueChanged.RemoveAllListeners();
+        _sfxSlider.onValueChanged.RemoveAllListeners();
+        _musicSlider.onValueChanged.AddListener(OnMusicChanged);
+        _sfxSlider.onValueChanged.AddListener(OnSfxChanged);
+
+        ApplyPersistedVolumes();
+        SetMenuVisible(false, instant: true);
+    }
 
     public void Initialize(Canvas hostCanvas)
     {

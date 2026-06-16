@@ -165,9 +165,9 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
             return;
 
         int hash = Animator.StringToHash(stateName);
-        if (animator.HasState(animatorLayer, hash))
-            animator.CrossFade(hash, crossFadeSeconds, animatorLayer, 0f);
-        else
-            animator.CrossFade(stateName, crossFadeSeconds, animatorLayer, 0f);
+        if (!animator.HasState(animatorLayer, hash))
+            return;
+
+        animator.CrossFade(hash, crossFadeSeconds, animatorLayer, 0f);
     }
 }

@@ -67,6 +67,14 @@ public static class HabitatRequirements
         return Mathf.RoundToInt(GetBasePoints(animal) / (float)tileCount);
     }
 
+    /// <summary>Bonus za połączenie wielu habitatów tego samego zwierzęcia w jeden.</summary>
+    public static int ComputeMergeConnectionBonus(HabitatAnimal animal, int habitatsMerged)
+    {
+        if (habitatsMerged <= 1) return 0;
+        int linkRef = ComputeAwardedPoints(animal, 2);
+        return linkRef * (habitatsMerged - 1);
+    }
+
     /// <summary>Krótki opis brakujących osi biomu względem wymagań zwierzęcia (np. „1× Forest”).</summary>
     public static string FormatMissingBiomes(in BiomeVector current, in BiomeVector requirement)
     {

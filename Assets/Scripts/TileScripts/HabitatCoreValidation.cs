@@ -104,7 +104,8 @@ public static class HabitatCoreValidation
         HabitatAnimal animal,
         HabitatRulesProfile rules,
         HabitatRegionScratch scratch,
-        out int coreTileCount)
+        out int coreTileCount,
+        TileRuntimeStore store = null)
     {
         coreTileCount = 0;
         if (regionTiles == null || regionTiles.Count == 0)
@@ -114,8 +115,31 @@ public static class HabitatCoreValidation
 
         int minNeighbors = GetMinNeighborsForCore(animal, rules);
         int requiredCore = GetRequiredCoreTiles(animal, rules);
-        coreTileCount = CountCoreTilesForMinNeighbors(scratch, minNeighbors);
+        coreTileCount = CountLandCoreTiles(scratch, minNeighbors, regionTiles, store);
         return coreTileCount >= requiredCore;
+    }
+
+    /// <summary>Rdzeń habitatu — tylko suche kafle (woda nie liczy się jako rdzeń do spawnu).</summary>
+    public static int CountLandCoreTiles(
+        HabitatRegionScratch scratch,
+        int minNeighborsForCore,
+        IReadOnlyList<Tile> regionTiles,
+        TileRuntimeStore store)
+    {
+        if (scratch == null || regionTiles == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < regionTiles.Count; i++)
+        {
+            var t = regionTiles[i];
+            if (t == null || IsWaterTile(store, t))
+                continue;
+            if (IsCoreTile(t, scratch, minNeighborsForCore))
+                count++;
+        }
+
+        return count;
     }
 
     /// <summary>Fallback bez scratch — tylko pojedyncze wywołania poza hot path.</summary>
@@ -123,7 +147,8 @@ public static class HabitatCoreValidation
         IReadOnlyList<Tile> regionTiles,
         HabitatAnimal animal,
         HabitatRulesProfile rules,
-        out int coreTileCount)
+        out int coreTileCount,
+        TileRuntimeStore store = null)
     {
         coreTileCount = 0;
         if (regionTiles == null || regionTiles.Count == 0)
@@ -131,7 +156,7 @@ public static class HabitatCoreValidation
 
         int minNeighbors = GetMinNeighborsForCore(animal, rules);
         int requiredCore = GetRequiredCoreTiles(animal, rules);
-        coreTileCount = CountCoreTilesSlow(regionTiles, minNeighbors);
+        coreTileCount = CountCoreTilesSlow(regionTiles, minNeighbors, store);
         return coreTileCount >= requiredCore;
     }
 
@@ -186,7 +211,10 @@ public static class HabitatCoreValidation
         return rt != null && rt.biome == TileBiome.Water;
     }
 
-    private static int CountCoreTilesSlow(IReadOnlyList<Tile> regionTiles, int minNeighborsForCore)
+    private static int CountCoreTilesSlow(
+        IReadOnlyList<Tile> regionTiles,
+        int minNeighborsForCore,
+        TileRuntimeStore store)
     {
         var set = new HashSet<Tile>();
         for (int i = 0; i < regionTiles.Count; i++)
@@ -199,7 +227,8 @@ public static class HabitatCoreValidation
         for (int i = 0; i < regionTiles.Count; i++)
         {
             var t = regionTiles[i];
-            if (t == null) continue;
+            if (t == null || IsWaterTile(store, t))
+                continue;
 
             int inRegion = 0;
             foreach (Tile n in HabitatRegionEnumerator.GetNeighborsSafe(t))

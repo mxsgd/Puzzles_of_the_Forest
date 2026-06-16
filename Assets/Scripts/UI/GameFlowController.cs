@@ -26,6 +26,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private HabitatGridManager habitatGridManager;
     [SerializeField] private PerkManager perkManager;
     [SerializeField] private CameraWASDController cameraController;
+    [SerializeField] private GameFlowMenuView menuView;
 
     [Header("Session")]
     [SerializeField] private bool bonusTilesOnHabitat = true;
@@ -60,11 +61,21 @@ public class GameFlowController : MonoBehaviour
         if (!habitatGridManager) habitatGridManager = FindAnyObjectByType<HabitatGridManager>();
         if (!perkManager) perkManager = FindAnyObjectByType<PerkManager>();
         if (!cameraController) cameraController = FindAnyObjectByType<CameraWASDController>();
+
+        GpuResourceBudget.EnsureInstance();
+        QuestManager.EnsureInstance();
     }
 
     private void Start()
     {
-        BuildMenuCanvas();
+        if (menuView == null)
+            menuView = GetComponentInChildren<GameFlowMenuView>(true);
+
+        if (menuView != null && menuView.IsConfigured)
+            BindMenuFromView();
+        else
+            BuildMenuCanvas();
+
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
         ShowMainMenu(clearBoard: false);
@@ -117,6 +128,9 @@ public class GameFlowController : MonoBehaviour
 
         availability?.RebuildCache();
         availabilityVisualizer?.ResetForNewSession();
+
+        GpuResourceBudget.EnsureInstance()?.ResetCounters();
+        QuestManager.EnsureInstance()?.ResetForNewSession();
     }
 
     /// <summary>Stawia kafel startowy na środku — bez zużycia karty z talii.</summary>
@@ -247,6 +261,32 @@ public class GameFlowController : MonoBehaviour
 
     // -------------------------------------------------------------------------
     // UI build
+    // -------------------------------------------------------------------------
+
+    private void BindMenuFromView()
+    {
+        _menuCanvas = menuView.Canvas;
+        _mainMenuRoot = menuView.MainMenuRoot;
+        _gameOverRoot = menuView.GameOverRoot;
+        _howToPlayRoot = menuView.HowToPlayRoot;
+        _gameOverScore = menuView.GameOverScore;
+        _gameOverHabitats = menuView.GameOverHabitats;
+        _gameOverBestChain = menuView.GameOverBestChain;
+
+        menuView.WireButtons(
+            StartSession,
+            ShowHowToPlay,
+            QuitApplication,
+            StartSession,
+            () => ShowMainMenu(clearBoard: true),
+            HideHowToPlay);
+
+        if (_gameOverRoot != null) _gameOverRoot.gameObject.SetActive(false);
+        if (_howToPlayRoot != null) _howToPlayRoot.gameObject.SetActive(false);
+    }
+
+    // -------------------------------------------------------------------------
+    // UI build (fallback gdy brak GameFlowMenuView w scenie)
     // -------------------------------------------------------------------------
 
     private void BuildMenuCanvas()

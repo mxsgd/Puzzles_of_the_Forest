@@ -191,6 +191,15 @@ public class PerkManager : MonoBehaviour
     // Draft actions (called by UI)
     // -------------------------------------------------------------------------
 
+    /// <summary>Otwiera draft perka z zewnątrz (np. nagroda za quest).</summary>
+    public void TriggerPerkDraft()
+    {
+        if (_draft == null) return;
+        if (_state.DraftOpen) return;  // już otwarty
+        _draft.OpenDraft();
+        DraftTriggered?.Invoke();
+    }
+
     public bool DraftRerollSlot(int slotIndex) => _draft.RerollSlot(slotIndex);
 
     public PerkDefinition DraftConfirmPick(int slotIndex)

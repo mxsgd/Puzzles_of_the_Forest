@@ -38,6 +38,7 @@ public class HabitatChainReactionAnimator : MonoBehaviour
     [SerializeField, Min(0f)] private float highlightFlashDuration = 0.07f;
 
     [Header("Chain SFX — rosnący pitch")]
+    [SerializeField] private GameSfxCatalog sfxCatalog;
     [SerializeField] private AudioSource chainAudioSource;
     [SerializeField] private AudioClip   chainTileClip;
     [SerializeField, Range(0f, 1f)] private float chainVolume   = 0.75f;
@@ -57,6 +58,15 @@ public class HabitatChainReactionAnimator : MonoBehaviour
             chainAudioSource = gameObject.AddComponent<AudioSource>();
             chainAudioSource.playOnAwake = false;
         }
+
+        if (sfxCatalog == null)
+            sfxCatalog = GameSfxCatalog.Default;
+
+        if (chainTileClip == null && sfxCatalog != null)
+            chainTileClip = sfxCatalog.chainTileClip;
+
+        if (chainVolume <= 0f && sfxCatalog != null)
+            chainVolume = sfxCatalog.chainVolume;
     }
 
     private void OnEnable()  => TileEvents.HabitatAssigned += OnHabitatAssigned;
@@ -115,8 +125,9 @@ public class HabitatChainReactionAnimator : MonoBehaviour
     private IEnumerator AnimateTile(GameObject instance, Vector2Int tilePos, Color habitatColor)
     {
         Transform tr = instance != null ? instance.transform : null;
+        var rt = ResolveRuntime(instance);
+        Vector3 origScale = TileOccupantScale.GetCanonicalLocalScale(instance, rt);
         Vector3 origPos   = tr != null ? tr.localPosition : Vector3.zero;
-        Vector3 origScale = tr != null ? tr.localScale    : Vector3.one;
         Vector3 peakPos   = origPos   + Vector3.up * riseHeight;
         Vector3 peakScale = origScale * highlightScaleMultiplier;
 
@@ -149,6 +160,18 @@ public class HabitatChainReactionAnimator : MonoBehaviour
         }
     }
 
+    private TileRuntimeStore.Runtime ResolveRuntime(GameObject instance)
+    {
+        if (instance == null || runtimeStore == null)
+            return null;
+
+        var tileObj = instance.GetComponent<TileObject>();
+        if (tileObj?.Tile == null)
+            return null;
+
+        return runtimeStore.Get(tileObj.Tile);
+    }
+
     private static IEnumerator LerpTransform(
         Transform tr,
         Vector3 fromPos, Vector3 fromScale,
@@ -170,6 +193,12 @@ public class HabitatChainReactionAnimator : MonoBehaviour
             tr.localPosition = Vector3.Lerp(fromPos,   toPos,   p);
             tr.localScale    = Vector3.Lerp(fromScale, toScale, p);
             yield return null;
+        }
+
+        if (tr != null)
+        {
+            tr.localPosition = toPos;
+            tr.localScale    = toScale;
         }
     }
 }

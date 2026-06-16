@@ -142,6 +142,42 @@ public class TileDeck : MonoBehaviour
         NotifyDeckChanged();
     }
 
+    /// <summary>
+    /// Dodaje N kafli konkretnego biomu na koniec talii (nagroda za quest).
+    /// Szuka metadanych (ikona, nazwa) w tileGroups; fallback do GetPrefabFor.
+    /// </summary>
+    public void EnqueueBiomeTile(TileBiome biome, int count = 1)
+    {
+        if (count <= 0 || biome == TileBiome.None) return;
+
+        TileDraw template = null;
+        foreach (var g in tileGroups)
+        {
+            if (g == null || g.biome != biome) continue;
+            var p = g.baseTilePrefabOverride != null ? g.baseTilePrefabOverride : baseTilePrefab;
+            if (p == null) continue;
+            var label = string.IsNullOrWhiteSpace(g.displayName)
+                ? TileBiomeRules.GetDisplayName(biome)
+                : g.displayName;
+            template = new TileDraw(biome, p, g.icon, label, g.biomeVariantId);
+            break;
+        }
+
+        if (template == null)
+        {
+            var p = GetPrefabFor(biome);
+            if (p == null) return;
+            template = new TileDraw(biome, p, null, TileBiomeRules.GetDisplayName(biome), "");
+        }
+
+        for (int i = 0; i < count; i++)
+            _deck.Enqueue(new TileDraw(
+                template.biome, template.prefab, template.icon,
+                template.displayName, template.biomeVariantId));
+
+        NotifyDeckChanged();
+    }
+
     public void RebuildDeck()
     {
         _deck.Clear();

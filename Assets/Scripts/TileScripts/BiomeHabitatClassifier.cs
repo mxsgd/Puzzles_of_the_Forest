@@ -97,7 +97,7 @@ public class BiomeHabitatClassifier : MonoBehaviour
                     if (!vec.Satisfies(req)) continue;
 
                     if (!HabitatCoreValidation.ValidateCoreRequirement(
-                            region, animal, rulesProfile, _scratch, out _))
+                            region, animal, rulesProfile, _scratch, out _, runtimeStore))
                     {
                         if (verboseDebug)
                             Debug.Log($"[BiomeHabitat] Odrzucono {animal} — za mało kafli rdzeniowych.");

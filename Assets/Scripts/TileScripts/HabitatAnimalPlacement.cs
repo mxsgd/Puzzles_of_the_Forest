@@ -50,6 +50,7 @@ public class HabitatAnimalPlacement : MonoBehaviour
     [SerializeField, Min(0f)] private float vfxLifetimeFallback = 3f;
 
     [Header("Spawn SFX")]
+    [SerializeField] private GameSfxCatalog sfxCatalog;
     [SerializeField] private AudioSource spawnAudioSource;
     [SerializeField] private AudioClip   popClip;
     [SerializeField, Range(0f, 1f)] private float popVolume = 0.9f;
@@ -96,6 +97,15 @@ public class HabitatAnimalPlacement : MonoBehaviour
             spawnAudioSource = gameObject.AddComponent<AudioSource>();
             spawnAudioSource.playOnAwake = false;
         }
+
+        if (sfxCatalog == null)
+            sfxCatalog = GameSfxCatalog.Default;
+
+        if (popClip == null && sfxCatalog != null)
+            popClip = sfxCatalog.popClip;
+
+        if (popVolume <= 0f && sfxCatalog != null)
+            popVolume = sfxCatalog.popVolume;
     }
 
     private void OnEnable()
@@ -108,12 +118,14 @@ public class HabitatAnimalPlacement : MonoBehaviour
 
         _activeInstance = this;
         TileEvents.HabitatAssigned     += OnHabitatAssigned;
+        TileEvents.HabitatMerged       += OnHabitatMerged;
         TileEvents.HabitatChainCompleted += OnHabitatChainCompleted;
     }
 
     private void OnDisable()
     {
         TileEvents.HabitatAssigned     -= OnHabitatAssigned;
+        TileEvents.HabitatMerged       -= OnHabitatMerged;
         TileEvents.HabitatChainCompleted -= OnHabitatChainCompleted;
         if (_activeInstance == this)
             _activeInstance = null;
@@ -161,6 +173,12 @@ public class HabitatAnimalPlacement : MonoBehaviour
 
         // Buforuj — faktyczny spawn po zakończeniu chain reaction.
         _pendingSpawns[data.HabitatId] = data;
+    }
+
+    private void OnHabitatMerged(HabitatMergeData data)
+    {
+        // Sub-habitaty zachowują swoje zwierzęta — każdy dostaje własnego spawna po chain reaction.
+        // Nic nie niszczymy. Liczymy tylko jako jeden region (to robi GameUI).
     }
 
     private void OnHabitatChainCompleted(int habitatId)
@@ -269,10 +287,52 @@ public class HabitatAnimalPlacement : MonoBehaviour
             && TryAcceptCoreTile(coreTile, out coreTile))
             return true;
 
+        if (TryFindAnyDryHabitatTile(data.Tiles, out coreTile))
+            return true;
+
         Debug.LogWarning(
-            $"[HabitatAnimalPlacement] Brak suchego kafelka rdzeniowego dla {data.Animal} (habitat {data.HabitatId}).",
+            $"[HabitatAnimalPlacement] Brak suchego kafelka w habitacie {data.Animal} (habitat {data.HabitatId}).",
             this);
         return false;
+    }
+
+    private bool TryFindAnyDryHabitatTile(IReadOnlyList<Tile> tiles, out Tile best)
+    {
+        best = null;
+        if (tiles == null || tiles.Count == 0 || runtimeStore == null)
+            return false;
+
+        Vector3 centroid = Vector3.zero;
+        int count = 0;
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var t = tiles[i];
+            if (t == null) continue;
+            centroid += t.worldPos;
+            count++;
+        }
+
+        if (count == 0)
+            return false;
+
+        centroid /= count;
+
+        float bestDist = float.PositiveInfinity;
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            var t = tiles[i];
+            if (!TryAcceptCoreTile(t, out _))
+                continue;
+
+            float dist = (t.worldPos - centroid).sqrMagnitude;
+            if (best == null || dist < bestDist)
+            {
+                best = t;
+                bestDist = dist;
+            }
+        }
+
+        return best != null;
     }
 
     private bool TryAcceptCoreTile(Tile candidate, out Tile accepted)

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -23,18 +24,55 @@ public class TilePlacementService : MonoBehaviour
     [SerializeField] private Vector3 occupantOffset = new(0, 1f, 0);
     [SerializeField] private Vector3 availabilityOffset = new(0, 1f, 0);
     [Header("Availability Pool")]
-    [SerializeField, Min(1)] private int maxPooledPerPrefab = 48;
+    [SerializeField, Min(1)] private int maxPooledPerPrefab = 24;
     [Header("Placement Feedback - Particles")]
     [SerializeField] private BiomeParticleEntry[] biomeParticles = Array.Empty<BiomeParticleEntry>();
     [SerializeField] private Vector3 particleOffset = new(0f, 0.2f, 0f);
+    [SerializeField, Min(1)] private int maxConcurrentPlacementParticles = 4;
+    [SerializeField, Min(0)] private int maxPooledPlacementParticles = 6;
 
     private readonly Dictionary<TileBiome, ParticleSystem> _particlesByBiome = new();
+    private readonly Dictionary<TileBiome, Stack<ParticleSystem>> _placementParticlePool = new();
     private readonly Dictionary<int, Stack<GameObject>> _availabilityPoolByPrefabId = new();
     private readonly Dictionary<GameObject, int> _availabilityInstancePrefabId = new();
+    private Transform _particleParent;
+    private int _activePlacementParticles;
 
     private void Awake()
     {
         RebuildParticleLookup();
+        EnsureParticleParent();
+    }
+
+    /// <summary>Obcina nieaktywne instancje availability ponad limit per prefab.</summary>
+    public void TrimAvailabilityPools(int maxPerPrefab)
+    {
+        maxPerPrefab = Mathf.Max(1, maxPerPrefab);
+        foreach (var kv in _availabilityPoolByPrefabId)
+        {
+            var stack = kv.Value;
+            while (stack.Count > maxPerPrefab)
+            {
+                var go = stack.Pop();
+                _availabilityInstancePrefabId.Remove(go);
+                Destroy(go);
+            }
+        }
+    }
+
+    /// <summary>Usuwa nadmiarowe partikle z puli (nie te aktualnie grające).</summary>
+    public void TrimPlacementParticlePool()
+    {
+        foreach (var kv in _placementParticlePool)
+        {
+            var stack = kv.Value;
+            while (stack.Count > maxPooledPlacementParticles)
+            {
+                var ps = stack.Pop();
+                if (ps != null)
+                    Destroy(ps.gameObject);
+            }
+        }
     }
 
     public GameObject PlaceOccupant(Tile tile, Quaternion rotation)
@@ -185,7 +223,26 @@ public class TilePlacementService : MonoBehaviour
         ClearChildren(availabilityParent);
         _availabilityPoolByPrefabId.Clear();
         _availabilityInstancePrefabId.Clear();
+        ClearPlacementParticles();
         runtimeStore?.ClearAll();
+    }
+
+    private void ClearPlacementParticles()
+    {
+        _activePlacementParticles = 0;
+        StopAllCoroutines();
+        foreach (var kv in _placementParticlePool)
+        {
+            while (kv.Value.Count > 0)
+            {
+                var ps = kv.Value.Pop();
+                if (ps != null)
+                    Destroy(ps.gameObject);
+            }
+        }
+        _placementParticlePool.Clear();
+        if (_particleParent != null)
+            ClearChildren(_particleParent);
     }
 
     private static void ClearChildren(Transform parent)
@@ -320,11 +377,73 @@ public class TilePlacementService : MonoBehaviour
             return;
         if (!_particlesByBiome.TryGetValue(biome, out ParticleSystem prefab) || prefab == null)
             return;
+        if (_activePlacementParticles >= maxConcurrentPlacementParticles)
+            return;
 
+        EnsureParticleParent();
         Vector3 spawnPos = tile.worldPos + particleOffset;
-        var ps = Instantiate(prefab, spawnPos, Quaternion.identity);
+        var ps = AcquirePlacementParticle(biome, prefab, spawnPos);
+        if (ps == null)
+            return;
+
+        ps.gameObject.SetActive(true);
         ps.Play(true);
+        _activePlacementParticles++;
+
         float lifetime = ps.main.duration + ps.main.startLifetime.constantMax + 0.5f;
-        Destroy(ps.gameObject, lifetime);
+        StartCoroutine(ReleasePlacementParticleAfter(ps, biome, lifetime));
+    }
+
+    private void EnsureParticleParent()
+    {
+        if (_particleParent != null)
+            return;
+        var go = new GameObject("PlacementParticles");
+        go.transform.SetParent(transform, false);
+        _particleParent = go.transform;
+    }
+
+    private ParticleSystem AcquirePlacementParticle(TileBiome biome, ParticleSystem prefab, Vector3 position)
+    {
+        if (_placementParticlePool.TryGetValue(biome, out var stack))
+        {
+            while (stack.Count > 0)
+            {
+                var pooled = stack.Pop();
+                if (pooled == null)
+                    continue;
+                pooled.transform.SetParent(_particleParent, false);
+                pooled.transform.position = position;
+                return pooled;
+            }
+        }
+
+        var ps = Instantiate(prefab, position, Quaternion.identity, _particleParent);
+        return ps;
+    }
+
+    private IEnumerator ReleasePlacementParticleAfter(ParticleSystem ps, TileBiome biome, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (ps == null)
+        {
+            _activePlacementParticles = Mathf.Max(0, _activePlacementParticles - 1);
+            yield break;
+        }
+
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        ps.gameObject.SetActive(false);
+        _activePlacementParticles = Mathf.Max(0, _activePlacementParticles - 1);
+
+        if (!_placementParticlePool.TryGetValue(biome, out var stack))
+        {
+            stack = new Stack<ParticleSystem>();
+            _placementParticlePool[biome] = stack;
+        }
+
+        if (stack.Count >= maxPooledPlacementParticles)
+            Destroy(ps.gameObject);
+        else
+            stack.Push(ps);
     }
 }

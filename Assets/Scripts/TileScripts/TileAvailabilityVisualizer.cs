@@ -223,8 +223,8 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         // KOLEJNOŚĆ KRYTYCZNA:
         // 1. Peek aktualny draw (to co pokazuje hover) — bez konsumpcji.
         // 2. Take ghost — DOPÓKI tileDeck.Current się nie zmienił.
-        // 3. DrawTile — dopiero teraz; DeckChanged przebuduje ghost na kolejny typ,
-        //    ale my mamy już swoje prebuilt poza pulą.
+        // 3. Placement — najpierw postaw kafel.
+        // 4. DrawTile — dopiero po sukcesie; inaczej karta ginie bez kafelka na planszy.
         TileDraw draw = null;
         if (tileDeck != null)
         {
@@ -237,15 +237,6 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         GameObject ghostRoot = null;
         if (hoverPreview != null)
             (prebuilt, ghostRoot) = hoverPreview.TakeActiveGhostForPlacement();
-
-        if (tileDeck != null)
-        {
-            TileDraw consumed = tileDeck.DrawTile();
-            if (consumed == null)
-                return;
-            if (!ReferenceEquals(consumed, draw))
-                Debug.LogWarning("[TileAvailabilityVisualizer] DrawTile zwrócił inny draw niż peek — możliwy race condition.", this);
-        }
 
         // Promuj gotowego ghosta zamiast Instantiate+Populate — zero kosztu przy stawianiu.
         // Fallback na PlaceOccupant tylko jeśli ghost niedostępny (np. brak hovera przed kliknięciem).
@@ -267,7 +258,16 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         if (instance == null)
             return;
 
-        PlayPlacementFeedback(instance);
+        if (tileDeck != null)
+        {
+            TileDraw consumed = tileDeck.DrawTile();
+            if (consumed == null)
+                return;
+            if (!ReferenceEquals(consumed, draw))
+                Debug.LogWarning("[TileAvailabilityVisualizer] DrawTile zwrócił inny draw niż peek — możliwy race condition.", this);
+        }
+
+        PlayPlacementFeedback(instance, targetTile);
 
         if (PerkManager.Instance != null)
         {
@@ -287,9 +287,12 @@ public class TileAvailabilityVisualizer : MonoBehaviour
     {
         tile = null;
 
-        if (hoverPreview != null && hoverPreview.IsPointerOverHabitatIcons(screenPosition)
-            && hoverPreview.TryGetPlacementTileWhileOverIcons(out tile))
+        if (hoverPreview != null && hoverPreview.IsPointerOverHabitatIcons(screenPosition))
         {
+            if (!hoverPreview.TryGetPlacementTileWhileOverIcons(out tile))
+                return false;
+
+            RefreshAvailability();
             return tile != null && _availableSet.Contains(tile);
         }
 
@@ -367,18 +370,25 @@ public class TileAvailabilityVisualizer : MonoBehaviour
         RefreshAvailability();
     }
 
-    private void PlayPlacementFeedback(GameObject instance)
+    private void PlayPlacementFeedback(GameObject instance, TileGrid.Tile tile)
     {
-        if (instance != null)
-            StartCoroutine(PulseRoutine(instance.transform, pulsePeakScale, pulseDuration));
+        if (instance == null || tile == null)
+            return;
+
+        var rt = runtime?.Get(tile);
+        // Chain reaction already scales habitat tiles — skip pulse to avoid scale race.
+        if (rt != null && rt.habitatId >= 0)
+            return;
+
+        Vector3 baseScale = TileOccupantScale.GetCanonicalLocalScale(instance, rt);
+        StartCoroutine(PulseRoutine(instance.transform, baseScale, pulsePeakScale, pulseDuration));
     }
 
-    private IEnumerator PulseRoutine(Transform target, float peakScale, float duration)
+    private IEnumerator PulseRoutine(Transform target, Vector3 baseScale, float peakScale, float duration)
     {
         if (target == null)
             yield break;
 
-        Vector3 baseScale = target.localScale;
         float half = Mathf.Max(0.01f, duration * 0.5f);
         float t = 0f;
         while (t < half)

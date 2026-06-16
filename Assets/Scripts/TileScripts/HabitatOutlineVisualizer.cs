@@ -72,6 +72,7 @@ public class HabitatOutlineVisualizer : MonoBehaviour
     {
         TileEvents.TileStateChanged += OnTileStateChanged;
         TileEvents.HabitatAssigned  += OnHabitatAssigned;
+        TileEvents.HabitatMerged      += OnHabitatMerged;
         RefreshAllOutlines();
     }
 
@@ -79,6 +80,7 @@ public class HabitatOutlineVisualizer : MonoBehaviour
     {
         TileEvents.TileStateChanged -= OnTileStateChanged;
         TileEvents.HabitatAssigned  -= OnHabitatAssigned;
+        TileEvents.HabitatMerged      -= OnHabitatMerged;
         DeactivateAllSegments();
     }
 
@@ -92,6 +94,7 @@ public class HabitatOutlineVisualizer : MonoBehaviour
 
     private void OnTileStateChanged(Tile _) => RefreshAllOutlines();
     private void OnHabitatAssigned(HabitatAssignmentData _) => RefreshAllOutlines();
+    private void OnHabitatMerged(HabitatMergeData _) => RefreshAllOutlines();
 
     // -------------------------------------------------------------------------
 
@@ -102,16 +105,17 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         DeactivateAllSegments();
         _activeSegmentCount = 0;
 
-        var groups = runtimeStore.GetHabitatGroups();
-        groups.Sort((a, b) => a.habitatId.CompareTo(b.habitatId));
+        // GetVisualHabitatGroups łączy kafle sub-habitatów tej samej grupy w jeden obrys
+        var groups = runtimeStore.GetVisualHabitatGroups();
+        groups.Sort((a, b) => a.groupId.CompareTo(b.groupId));
 
         int layerIndex = 0;
         foreach (var (_, animal, tiles) in groups)
         {
             if (tiles == null || tiles.Count == 0) continue;
 
-            var regionSet    = new HashSet<Tile>(tiles);
-            float layerYOff  = perHabitatHeightStep * layerIndex;
+            var regionSet   = new HashSet<Tile>(tiles);
+            float layerYOff = perHabitatHeightStep * layerIndex;
 
             _materialByAnimal.TryGetValue(animal, out var mat);
 
@@ -139,6 +143,20 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         for (int i = 0; i < _activeSegmentCount; i++)
             if (i < _segmentPool.Count) _segmentPool[i].go.SetActive(false);
         _activeSegmentCount = 0;
+    }
+
+    /// <summary>Usuwa nieaktywne segmenty ponad limit — pula inaczej rośnie bez końca.</summary>
+    public void TrimInactiveSegmentPool(int maxPoolSize)
+    {
+        maxPoolSize = Mathf.Max(_activeSegmentCount, maxPoolSize);
+        while (_segmentPool.Count > maxPoolSize)
+        {
+            int last = _segmentPool.Count - 1;
+            var entry = _segmentPool[last];
+            _segmentPool.RemoveAt(last);
+            if (entry.go != null)
+                Destroy(entry.go);
+        }
     }
 
     // Returns an existing (inactive) pooled segment or creates a new one.

@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Odtwarza per-biom SFX przy każdym postawieniu kafla.
-/// Subskrybuje TileEvents.TilePlaced. Umieść jako komponent gdziekolwiek w scenie.
+/// Subskrybuje TileEvents.TilePlaced.
 /// </summary>
 [DisallowMultipleComponent]
 public class TilePlacementSfx : MonoBehaviour
@@ -19,14 +19,15 @@ public class TilePlacementSfx : MonoBehaviour
     [Header("Audio Source")]
     [SerializeField] private AudioSource audioSource;
 
+    [Header("Katalog (fallback gdy biomeClips puste)")]
+    [SerializeField] private GameSfxCatalog sfxCatalog;
+
     [Header("Per-biom klipy")]
     [SerializeField] private BiomeSfxEntry[] biomeClips = Array.Empty<BiomeSfxEntry>();
 
     [Header("Pitch randomizacja")]
     [SerializeField] private bool randomizePitch = true;
     [SerializeField] private Vector2 pitchRange = new(0.95f, 1.05f);
-
-    private BiomeSfxEntry[] _lookup;
 
     private void Awake()
     {
@@ -36,7 +37,12 @@ public class TilePlacementSfx : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
 
         audioSource.playOnAwake = false;
-        RebuildLookup();
+
+        if (sfxCatalog == null)
+            sfxCatalog = GameSfxCatalog.Default;
+
+        if ((biomeClips == null || biomeClips.Length == 0) && sfxCatalog != null)
+            biomeClips = BuildDefaultBiomeClips(sfxCatalog);
     }
 
     private void OnEnable()  => TileEvents.TilePlaced += OnTilePlaced;
@@ -47,31 +53,57 @@ public class TilePlacementSfx : MonoBehaviour
         if (audioSource == null || biome == TileBiome.None)
             return;
 
-        for (int i = 0; i < biomeClips.Length; i++)
-        {
-            ref var entry = ref biomeClips[i];
-            if (entry.biome != biome || entry.clip == null)
-                continue;
-
-            float vol = entry.volume > 0f ? entry.volume : 1f;
-
-            if (randomizePitch)
-                audioSource.pitch = UnityEngine.Random.Range(pitchRange.x, pitchRange.y);
-            else
-                audioSource.pitch = 1f;
-
-            audioSource.PlayOneShot(entry.clip, vol);
+        if (!TryGetClip(biome, out var clip, out float vol))
             return;
+
+        if (randomizePitch)
+            audioSource.pitch = UnityEngine.Random.Range(pitchRange.x, pitchRange.y);
+        else
+            audioSource.pitch = 1f;
+
+        audioSource.PlayOneShot(clip, vol);
+    }
+
+    private bool TryGetClip(TileBiome biome, out AudioClip clip, out float volume)
+    {
+        clip = null;
+        volume = 1f;
+
+        if (biomeClips != null)
+        {
+            for (int i = 0; i < biomeClips.Length; i++)
+            {
+                ref var entry = ref biomeClips[i];
+                if (entry.biome != biome || entry.clip == null)
+                    continue;
+
+                clip = entry.clip;
+                volume = entry.volume > 0f ? entry.volume : 1f;
+                return true;
+            }
         }
+
+        if (sfxCatalog == null)
+            return false;
+
+        clip = sfxCatalog.GetPlacementClip(biome);
+        volume = sfxCatalog.placementVolume;
+        return clip != null;
     }
 
-    private void RebuildLookup()
+    public static BiomeSfxEntry[] BuildDefaultBiomeClips(GameSfxCatalog catalog)
     {
-        _lookup = biomeClips ?? Array.Empty<BiomeSfxEntry>();
-    }
+        if (catalog == null || catalog.leavesClip == null)
+            return Array.Empty<BiomeSfxEntry>();
 
-    private void OnValidate()
-    {
-        RebuildLookup();
+        float vol = catalog.placementVolume > 0f ? catalog.placementVolume : 1f;
+        return new[]
+        {
+            new BiomeSfxEntry { biome = TileBiome.Forested, clip = catalog.leavesClip, volume = vol },
+            new BiomeSfxEntry { biome = TileBiome.Meadow,   clip = catalog.leavesClip, volume = vol },
+            new BiomeSfxEntry { biome = TileBiome.Bushy,    clip = catalog.leavesClip, volume = vol },
+            new BiomeSfxEntry { biome = TileBiome.Rocks,    clip = catalog.rocksClip,  volume = vol },
+            new BiomeSfxEntry { biome = TileBiome.Water,    clip = catalog.waterClip,  volume = vol },
+        };
     }
 }

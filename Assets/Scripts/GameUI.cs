@@ -5,24 +5,14 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Główne UI gry — kompletnie proceduralne, brak ręcznego przeciągania referencji.
-///
-/// Layout:
-///  ┌────────────────────────────────────────────────────────────┐
-///  │ [Score card]                            [Pause btn]        │
-///  │                                                            │
-///  │                              [Next tile card]              │
-///  │                              [Reroll btn (3)]              │
-///  └────────────────────────────────────────────────────────────┘
-///
-/// Komponenty satelitarne:
-///  - PauseMenuController (auto-dodawany) — modal z Resume/Settings/Quit + ESC.
-///  - TileDeck.RerollCurrent — wymienia aktualną kartę za koszt 1 rerolla.
+/// Główne UI gry. Preferuje <see cref="GameHudView"/> z Hierarchy (edytowalne w Inspectorze).
+/// Wygeneruj: Idle Forest → UI → Generate Gameplay HUD.
 /// </summary>
 public class GameUI : MonoBehaviour
 {
     [Header("Refs")]
     [SerializeField] private TileDeck deck;
+    [SerializeField] private GameHudView hudView;
 
     [Header("Rerolle")]
     [SerializeField, Min(0)] private int startingRerolls = 3;
@@ -54,11 +44,57 @@ public class GameUI : MonoBehaviour
     public int BiggestHabitatChain => _biggestHabitatChain;
     public int RerollsLeft => _rerollsLeft;
 
+    /// <summary>Dodaje reroll w trakcie sesji (np. nagroda za quest).</summary>
+    public void AddRerolls(int amount)
+    {
+        if (amount <= 0) return;
+        _rerollsLeft += amount;
+        RefreshReroll();
+    }
+
+    /// <summary>Dodaje punkty w trakcie sesji (np. nagroda za quest).</summary>
+    public void AddScore(int points, bool animate = true)
+    {
+        if (points <= 0) return;
+        _score += points;
+        RefreshScore(animate: animate);
+    }
+
     private void Awake()
     {
         if (!deck) deck = FindAnyObjectByType<TileDeck>();
+        if (!hudView) hudView = GetComponentInChildren<GameHudView>(true);
         _rerollsLeft = startingRerolls;
-        BuildUI();
+
+        if (hudView != null && hudView.IsConfigured)
+            BindFromView();
+        else
+            BuildUI();
+    }
+
+    private void BindFromView()
+    {
+        _canvas = hudView.Canvas;
+        _scoreValueLabel = hudView.ScoreValueLabel;
+        _habitatCountLabel = hudView.HabitatCountLabel;
+        _nextTileIcon = hudView.NextTileIcon;
+        _nextTileName = hudView.NextTileName;
+        _nextTileQueue = hudView.NextTileQueue;
+        _rerollButton = hudView.RerollButton;
+        _rerollLabel = hudView.RerollLabel;
+
+        _rerollButton.onClick.RemoveAllListeners();
+        _rerollButton.onClick.AddListener(TryReroll);
+
+        _pauseMenu = GetComponent<PauseMenuController>()
+                     ?? gameObject.AddComponent<PauseMenuController>();
+        _pauseMenu.Bind(hudView.PauseMenu);
+
+        hudView.PauseButton.onClick.RemoveAllListeners();
+        hudView.PauseButton.onClick.AddListener(() => _pauseMenu?.Toggle());
+
+        if (_canvas != null)
+            _canvas.gameObject.SetActive(false);
     }
 
     private void Start()
@@ -78,12 +114,14 @@ public class GameUI : MonoBehaviour
     {
         if (deck != null) deck.DeckChanged += OnDeckChanged;
         TileEvents.HabitatAssigned += OnHabitatAssigned;
+        TileEvents.HabitatMerged += OnHabitatMerged;
     }
 
     private void OnDisable()
     {
         if (deck != null) deck.DeckChanged -= OnDeckChanged;
         TileEvents.HabitatAssigned -= OnHabitatAssigned;
+        TileEvents.HabitatMerged -= OnHabitatMerged;
     }
 
     private void OnDeckChanged(IReadOnlyList<TileDraw> _) => RefreshNextTile();
@@ -93,6 +131,17 @@ public class GameUI : MonoBehaviour
         if (data.Animal == HabitatAnimal.None) return;
         _habitatCount++;
         _score += data.PointsAwarded;
+        if (data.TileCount > _biggestHabitatChain)
+            _biggestHabitatChain = data.TileCount;
+        RefreshScore(animate: true);
+    }
+
+    private void OnHabitatMerged(HabitatMergeData data)
+    {
+        if (data.Animal == HabitatAnimal.None) return;
+
+        _score += data.TotalPointsAwarded;
+        _habitatCount = Mathf.Max(0, _habitatCount - (data.MergedHabitatCount - 1));
         if (data.TileCount > _biggestHabitatChain)
             _biggestHabitatChain = data.TileCount;
         RefreshScore(animate: true);

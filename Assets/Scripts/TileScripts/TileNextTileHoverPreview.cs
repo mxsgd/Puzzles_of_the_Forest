@@ -195,7 +195,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
     public void ResetForNewSession()
     {
-        HideAllGhosts();
+        PurgeGhostPoolInternal();
         HideAllIcons();
         _lastHover = null;
         _lastDraw = null;
@@ -205,10 +205,30 @@ public class TileNextTileHoverPreview : MonoBehaviour
         enabled = true;
     }
 
+    /// <summary>Zwalnia nieaktywne ghosty z puli — wywoływane po Play Mode / przy presji VRAM.</summary>
+    public static void PurgeGhostPool()
+    {
+        if (_activeInstance != null)
+            _activeInstance.PurgeGhostPoolInternal();
+    }
+
+    private void PurgeGhostPoolInternal()
+    {
+        HideAllGhosts();
+        foreach (var kv in _ghostPool)
+        {
+            if (kv.Value != null)
+                Destroy(kv.Value);
+        }
+        _ghostPool.Clear();
+    }
+
     private void OnTileStateChanged(Tile _) { _placeableDirty = true; _needsReevaluate = true; }
 
     private void OnHabitatAssigned(HabitatAssignmentData data)
     {
+        TrimGhostPool();
+
         if (_lastHover == null || data.Tiles == null || data.Animal == HabitatAnimal.None)
             return;
 
@@ -408,9 +428,9 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
         if (!_ghostPool.TryGetValue(key, out var root) || root == null)
         {
-            // Pierwszy raz ten draw — zbuduj i wstaw do puli.
             root = BuildAndPoolGhost(draw, tile);
             _ghostPool[key] = root;
+            TrimGhostPool();
         }
 
         _activeGhostRoot = root;
@@ -438,16 +458,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
         instance.transform.localScale = GetPlacementScale(draw.prefab);
 
         if (draw.biome != TileBiome.None && biomePopulator != null)
-        {
-            var biomeRuntime = instance.GetComponent<TileBiomeRuntime>()
-                ?? instance.AddComponent<TileBiomeRuntime>();
-
-            float radius = tileGrid != null ? tileGrid.HexRadius : 1f;
-            biomeRuntime.Initialize(draw.biome, radius, draw.biomeVariantId);
-
-            int seed = unchecked((tile.q * 73856093) ^ (tile.r * 19349663));
-            biomePopulator.Populate(biomeRuntime, seed, instance.transform);
-        }
+            PopulateGhostBiome(instance, draw, tile);
 
         ApplyGhostVisualScale(root.transform, draw.prefab);
         ConfigureGhostRenderPipeline(instance);
@@ -480,6 +491,80 @@ public class TileNextTileHoverPreview : MonoBehaviour
         if (draw.prefab != null)
             instance.transform.localScale = GetPlacementScale(draw.prefab);
         return (instance, root);
+    }
+
+    private void PopulateGhostBiome(GameObject instance, TileDraw draw, Tile tile)
+    {
+        if (instance == null || draw == null || tile == null || biomePopulator == null)
+            return;
+        if (draw.biome == TileBiome.None)
+            return;
+
+        var biomeRuntime = instance.GetComponent<TileBiomeRuntime>()
+            ?? instance.AddComponent<TileBiomeRuntime>();
+
+        float radius = tileGrid != null ? tileGrid.HexRadius : 1f;
+        biomeRuntime.Initialize(draw.biome, radius, draw.biomeVariantId);
+
+        int seed = unchecked((tile.q * 73856093) ^ (tile.r * 19349663));
+        biomePopulator.Populate(biomeRuntime, seed, instance.transform);
+    }
+
+    /// <summary>Ogranicza pule linii kandydata i ghostów — wywoływane przez <see cref="GpuResourceBudget"/>.</summary>
+    public void TrimGpuPools(int maxCandidateLines, int maxGhosts)
+    {
+        TrimCandidateLinePool(maxCandidateLines);
+        TrimGhostPoolToLimit(maxGhosts);
+    }
+
+    private void TrimCandidateLinePool(int maxPoolSize)
+    {
+        maxPoolSize = Mathf.Max(_activeCandidateLineCount, maxPoolSize);
+        while (_candidateLinePool.Count > maxPoolSize)
+        {
+            int last = _candidateLinePool.Count - 1;
+            var entry = _candidateLinePool[last];
+            _candidateLinePool.RemoveAt(last);
+            if (entry.go != null)
+                Destroy(entry.go);
+        }
+    }
+
+    private const int DefaultMaxGhostPoolEntries = 6;
+
+    private void TrimGhostPool()
+    {
+        TrimGhostPoolToLimit(DefaultMaxGhostPoolEntries);
+    }
+
+    private void TrimGhostPoolToLimit(int limit)
+    {
+        limit = Mathf.Max(1, limit);
+        if (_ghostPool.Count <= limit)
+            return;
+
+        var keysToRemove = new List<(TileBiome, int)>();
+        foreach (var kv in _ghostPool)
+        {
+            if (kv.Value == null || kv.Value == _activeGhostRoot)
+                continue;
+            keysToRemove.Add(kv.Key);
+        }
+
+        while (_ghostPool.Count > limit && keysToRemove.Count > 0)
+        {
+            var key = keysToRemove[keysToRemove.Count - 1];
+            keysToRemove.RemoveAt(keysToRemove.Count - 1);
+            if (!_ghostPool.TryGetValue(key, out var go) || go == null)
+            {
+                _ghostPool.Remove(key);
+                continue;
+            }
+            if (go == _activeGhostRoot)
+                continue;
+            Destroy(go);
+            _ghostPool.Remove(key);
+        }
     }
 
     private static Vector3 GetPlacementScale(GameObject prefab)

@@ -145,6 +145,6 @@ public class HabitatBeeFigureEightFlight : MonoBehaviour
         if (animator.HasState(animatorLayer, hash))
             animator.Play(hash, animatorLayer, Random.value);
         else
-            animator.Play(wingFlapStateName, animatorLayer, Random.value);
+            animator.Play(0, animatorLayer, Random.value);
     }
 }

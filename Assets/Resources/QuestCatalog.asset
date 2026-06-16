@@ -1,0 +1,217 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce19c12aad88ded4084e8078aedcbb86, type: 3}
+  m_Name: QuestCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::QuestCatalog
+  mainQuests:
+  - id: main_deer_1
+    displayName: Wielkie Stado
+    description: Zbuduj habitat Jelenia z 10+ kaflami.
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 1
+    conditionTarget: 10
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_deer_2
+    displayName: Migracja Stada
+    description: Zbuduj habitat Jelenia z 15+ kaflami.
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 1
+    conditionTarget: 15
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_beaver_1
+    displayName: Wielka Tama
+    description: Zbuduj habitat Bobra z 10+ kaflami.
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 2
+    conditionTarget: 10
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_beaver_2
+    displayName: "Sie\u0107 Mokrade\u0142"
+    description: Zbuduj habitat Bobra z 15+ kaflami.
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 2
+    conditionTarget: 15
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_bees_1
+    displayName: "Wielki R\xF3j"
+    description: "Zbuduj habitat Pszcz\xF3\u0142 z 10+ kaflami."
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 4
+    conditionTarget: 10
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_bees_2
+    displayName: Wielka Kolonia
+    description: "Zbuduj habitat Pszcz\xF3\u0142 z 15+ kaflami."
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 4
+    conditionTarget: 15
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_bear_1
+    displayName: "Kr\xF3l Lasu"
+    description: "Zbuduj habitat Nied\u017Awiedzia z 10+ kaflami."
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 3
+    conditionTarget: 10
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  - id: main_bear_2
+    displayName: "Terytorium Drapie\u017Ccy"
+    description: "Zbuduj habitat Nied\u017Awiedzia z 15+ kaflami."
+    questType: 0
+    conditionType: 0
+    conditionAnimal: 3
+    conditionTarget: 15
+    rewards:
+    - type: 0
+      amount: 1
+      biome: 0
+  sideQuests:
+  - id: side_deer_1
+    displayName: Pierwsze Stado
+    description: "Stw\xF3rz 1 habitat Jelenia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 1
+    conditionTarget: 1
+    rewards:
+    - type: 1
+      amount: 1
+      biome: 0
+  - id: side_deer_2
+    displayName: Dwa Stada
+    description: "Stw\xF3rz 2 habitaty Jelenia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 1
+    conditionTarget: 2
+    rewards:
+    - type: 2
+      amount: 2
+      biome: 0
+  - id: side_beaver_1
+    displayName: "Ma\u0142a Tama"
+    description: "Stw\xF3rz 1 habitat Bobra."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 2
+    conditionTarget: 1
+    rewards:
+    - type: 2
+      amount: 2
+      biome: 0
+  - id: side_beaver_2
+    displayName: "\u017Beremia"
+    description: "Stw\xF3rz 2 habitaty Bobra."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 2
+    conditionTarget: 2
+    rewards:
+    - type: 1
+      amount: 1
+      biome: 0
+    - type: 4
+      amount: 1
+      biome: 5
+  - id: side_bees_1
+    displayName: Pierwsza Ul
+    description: "Stw\xF3rz 1 habitat Pszcz\xF3\u0142."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 4
+    conditionTarget: 1
+    rewards:
+    - type: 1
+      amount: 1
+      biome: 0
+  - id: side_bees_2
+    displayName: "Kwitn\u0105ca \u0141\u0105ka"
+    description: "Stw\xF3rz 2 habitaty Pszcz\xF3\u0142."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 4
+    conditionTarget: 2
+    rewards:
+    - type: 2
+      amount: 2
+      biome: 0
+  - id: side_bear_1
+    displayName: Nora
+    description: "Stw\xF3rz 1 habitat Nied\u017Awiedzia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 3
+    conditionTarget: 1
+    rewards:
+    - type: 3
+      amount: 1000
+      biome: 0
+  - id: side_bear_2
+    displayName: "\u015Alady Drapie\u017Ccy"
+    description: "Stw\xF3rz 2 habitaty Nied\u017Awiedzia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 3
+    conditionTarget: 2
+    rewards:
+    - type: 4
+      amount: 2
+      biome: 3
+  - id: side_any_1
+    displayName: "Pocz\u0105tek Ekosystemu"
+    description: "Stw\xF3rz 2 habitaty dowolnego zwierz\u0119cia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 0
+    conditionTarget: 2
+    rewards:
+    - type: 1
+      amount: 1
+      biome: 0
+  - id: side_any_2
+    displayName: "\u017Bywy Las"
+    description: "Stw\xF3rz 4 habitaty dowolnego zwierz\u0119cia."
+    questType: 1
+    conditionType: 1
+    conditionAnimal: 0
+    conditionTarget: 4
+    rewards:
+    - type: 2
+      amount: 3
+      biome: 0

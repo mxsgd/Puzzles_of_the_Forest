@@ -145,7 +145,7 @@ public static class HabitatHoverEvaluator
                     if (vec.Satisfies(req))
                     {
                         if (!HabitatCoreValidation.ValidateCoreRequirement(
-                                region, animal, rulesProfile, rs, out _))
+                                region, animal, rulesProfile, rs, out _, store))
                             continue;
 
                         float score   = HabitatRequirements.ComputeScore(animal, region.Count);
@@ -166,7 +166,7 @@ public static class HabitatHoverEvaluator
                     else
                     {
                         if (vec.DeficitSumToward(req) == 1
-                            && HabitatCoreValidation.ValidateCoreRequirement(region, animal, rulesProfile, rs, out _))
+                            && HabitatCoreValidation.ValidateCoreRequirement(region, animal, rulesProfile, rs, out _, store))
                         {
                             s.YellowSet.Add(animal);
                             if (!s.YellowDeficitByAnimal.ContainsKey(animal))
@@ -293,7 +293,7 @@ public static class HabitatHoverEvaluator
         if (!TryBuildSimulatedBiomeVector(store, rawRegion, animal, hoverTile, nextDraw, out vector))
             return false;
 
-        if (!HabitatCoreValidation.ValidateCoreRequirement(rawRegion, animal, rulesProfile, scratch, out _))
+        if (!HabitatCoreValidation.ValidateCoreRequirement(rawRegion, animal, rulesProfile, scratch, out _, store))
             return false;
 
         var req = HabitatRequirements.GetRequirement(animal);
