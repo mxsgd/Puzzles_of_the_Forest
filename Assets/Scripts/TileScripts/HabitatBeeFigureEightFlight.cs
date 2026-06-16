@@ -45,6 +45,12 @@ public class HabitatBeeFigureEightFlight : MonoBehaviour
         if (!string.IsNullOrEmpty(wingFlapStateName) && HasState(wingFlapStateName))
             return;
 
+        if (HasState("Fly"))
+        {
+            wingFlapStateName = "Fly";
+            return;
+        }
+
         var clips = animator.runtimeAnimatorController.animationClips;
         if (clips == null || clips.Length == 0)
             return;

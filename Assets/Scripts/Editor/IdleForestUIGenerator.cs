@@ -12,6 +12,7 @@ public static class IdleForestUIGenerator
 {
     private const string HudRootName = "GameUI_Hud";
     private const string MenuRootName = "GameFlow_Menu";
+    private const string QuestHudRootName = "QuestHud_Hud";
 
     [MenuItem("Idle Forest/UI/Generate Gameplay HUD")]
     public static void GenerateGameplayHud()
@@ -55,7 +56,7 @@ public static class IdleForestUIGenerator
             new Vector2(0.4f, 0.45f), new Vector2(1f, 0.85f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(-10f, 0f), FontStyles.Bold);
         nextName.alignment = TextAlignmentOptions.MidlineLeft;
-        var nextQueue = CreateLabel(nextCard, "tiles left: 0", 16f, UISpriteFactory.TextMuted,
+        var nextQueue = CreateLabel(nextCard, "0", 16f, UISpriteFactory.TextMuted,
             new Vector2(0.4f, 0.15f), new Vector2(1f, 0.45f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(-10f, 0f));
         nextQueue.alignment = TextAlignmentOptions.MidlineLeft;
@@ -159,11 +160,70 @@ public static class IdleForestUIGenerator
         Debug.Log("[IdleForestUIGenerator] Menu Flow UI wygenerowany pod GameFlowController → GameFlow_Menu.");
     }
 
+    [MenuItem("Idle Forest/UI/Generate Quest HUD")]
+    public static void GenerateQuestHud()
+    {
+        var flow = UnityEngine.Object.FindAnyObjectByType<GameFlowController>();
+        var gameUi = UnityEngine.Object.FindAnyObjectByType<GameUI>();
+        Transform parent = flow != null ? flow.transform : gameUi != null ? gameUi.transform : null;
+        if (parent == null)
+        {
+            EditorUtility.DisplayDialog("Idle Forest UI",
+                "Brak GameFlowController / GameUI w scenie.", "OK");
+            return;
+        }
+
+        var staleOnParent = parent.GetComponent<QuestHudView>();
+        if (staleOnParent != null)
+            UnityEngine.Object.DestroyImmediate(staleOnParent);
+
+        DestroyExistingChild(parent, QuestHudRootName);
+        var root = CreateCanvasRoot(parent, QuestHudRootName, 99);
+        var view = root.AddComponent<QuestHudView>();
+
+        var panel = CreateQuestPanel(root.transform);
+        float y = -16f;
+
+        CreateQuestHeader(panel, "MAIN QUEST", ref y);
+        var mqTitle = CreateQuestLabel(panel, "mq_title", "", 16f, Color.white, FontStyles.Bold, ref y, 2f);
+        var mqGoal = CreateQuestLabel(panel, "mq_goal", "", 12f, new Color(0.85f, 0.85f, 0.85f), FontStyles.Normal, ref y, 4f);
+        var mqProg = CreateQuestLabel(panel, "mq_prog", "", 11f, new Color(0.6f, 0.95f, 0.6f), FontStyles.Normal, ref y, 2f);
+        var mqBar = CreateQuestSlider(panel, "mq_bar", ref y, 8f);
+        var mqRew = CreateQuestLabel(panel, "mq_rew", "", 11f, new Color(0.9f, 0.75f, 0.35f), FontStyles.Italic, ref y, 12f);
+        CreateQuestSeparator(panel, ref y);
+
+        CreateQuestHeader(panel, "SIDE QUEST", ref y);
+        var sqTitle = CreateQuestLabel(panel, "sq_title", "", 16f, Color.white, FontStyles.Bold, ref y, 2f);
+        var sqGoal = CreateQuestLabel(panel, "sq_goal", "", 12f, new Color(0.85f, 0.85f, 0.85f), FontStyles.Normal, ref y, 4f);
+        var sqProg = CreateQuestLabel(panel, "sq_prog", "", 11f, new Color(0.6f, 0.95f, 0.6f), FontStyles.Normal, ref y, 2f);
+        var sqBar = CreateQuestSlider(panel, "sq_bar", ref y, 8f);
+        var sqRew = CreateQuestLabel(panel, "sq_rew", "", 11f, new Color(0.9f, 0.75f, 0.35f), FontStyles.Italic, ref y, 4f);
+        panel.sizeDelta = new Vector2(270f, -y + 16f);
+
+        var banner = CreateQuestBanner(root.transform, out var bannerText);
+
+        AssignQuestHudView(view, root, mqTitle, mqGoal, mqProg, mqBar, mqRew,
+            sqTitle, sqGoal, sqProg, sqBar, sqRew, banner, bannerText);
+
+        if (flow != null)
+        {
+            var so = new SerializedObject(flow);
+            so.FindProperty("questHudView").objectReferenceValue = view;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(flow);
+        }
+
+        root.SetActive(false);
+        Selection.activeGameObject = root;
+        Debug.Log("[IdleForestUIGenerator] Quest HUD wygenerowany → QuestHud_Hud. Edytuj w Hierarchy.");
+    }
+
     [MenuItem("Idle Forest/UI/Generate All UI")]
     public static void GenerateAllUi()
     {
         GenerateGameplayHud();
         GenerateMenuFlowUi();
+        GenerateQuestHud();
     }
 
     // ── Pause menu build ─────────────────────────────────────────────────────
@@ -257,6 +317,186 @@ public static class IdleForestUIGenerator
         so.FindProperty("mainMenuButton").objectReferenceValue = mainMenuBtn;
         so.FindProperty("howToPlayOkButton").objectReferenceValue = ok;
         so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void AssignQuestHudView(QuestHudView view, GameObject canvas,
+        TextMeshProUGUI mqTitle, TextMeshProUGUI mqGoal, TextMeshProUGUI mqProg, Slider mqBar, TextMeshProUGUI mqRew,
+        TextMeshProUGUI sqTitle, TextMeshProUGUI sqGoal, TextMeshProUGUI sqProg, Slider sqBar, TextMeshProUGUI sqRew,
+        GameObject banner, TextMeshProUGUI bannerText)
+    {
+        var so = new SerializedObject(view);
+        so.FindProperty("questCanvas").objectReferenceValue = canvas.GetComponent<Canvas>();
+        so.FindProperty("mainQuestTitle").objectReferenceValue = mqTitle;
+        so.FindProperty("mainQuestGoal").objectReferenceValue = mqGoal;
+        so.FindProperty("mainQuestProgress").objectReferenceValue = mqProg;
+        so.FindProperty("mainQuestBar").objectReferenceValue = mqBar;
+        so.FindProperty("mainQuestReward").objectReferenceValue = mqRew;
+        so.FindProperty("sideQuestTitle").objectReferenceValue = sqTitle;
+        so.FindProperty("sideQuestGoal").objectReferenceValue = sqGoal;
+        so.FindProperty("sideQuestProgress").objectReferenceValue = sqProg;
+        so.FindProperty("sideQuestBar").objectReferenceValue = sqBar;
+        so.FindProperty("sideQuestReward").objectReferenceValue = sqRew;
+        so.FindProperty("completeBanner").objectReferenceValue = banner;
+        so.FindProperty("completeBannerText").objectReferenceValue = bannerText;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    // ── Quest HUD primitives ───────────────────────────────────────────────
+
+    private static RectTransform CreateQuestPanel(Transform canvasRoot)
+    {
+        var go = new GameObject("QuestPanel", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(canvasRoot, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = new Vector2(12f, 120f);
+        rt.sizeDelta = new Vector2(270f, 320f);
+        var img = go.GetComponent<Image>();
+        img.color = new Color(0.06f, 0.06f, 0.08f, 0.35f);
+        img.raycastTarget = false;
+        return rt;
+    }
+
+    private static void CreateQuestHeader(RectTransform parent, string text, ref float yOffset)
+    {
+        var go = new GameObject("Header_" + text, typeof(RectTransform), typeof(TextMeshProUGUI));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(12f, 0f);
+        rt.offsetMax = new Vector2(-12f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yOffset);
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, 20f);
+        var tmp = go.GetComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = 10f;
+        tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        tmp.color = new Color(0.9f, 0.75f, 0.35f);
+        tmp.characterSpacing = 3f;
+        tmp.raycastTarget = false;
+        yOffset -= 22f;
+    }
+
+    private static TextMeshProUGUI CreateQuestLabel(RectTransform parent, string goName, string text,
+        float size, Color color, FontStyles style, ref float yOffset, float extraPad)
+    {
+        var go = new GameObject(goName, typeof(RectTransform), typeof(TextMeshProUGUI));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(12f, 0f);
+        rt.offsetMax = new Vector2(-12f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yOffset);
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, size * 1.6f);
+        var tmp = go.GetComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = size;
+        tmp.fontStyle = style;
+        tmp.color = color;
+        tmp.enableWordWrapping = true;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.raycastTarget = false;
+        yOffset -= size * 1.6f + extraPad;
+        return tmp;
+    }
+
+    private static Slider CreateQuestSlider(RectTransform parent, string goName, ref float yOffset, float extraPad)
+    {
+        const float height = 6f;
+        var go = new GameObject(goName, typeof(RectTransform), typeof(Slider));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(12f, 0f);
+        rt.offsetMax = new Vector2(-12f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yOffset);
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, height);
+
+        var slider = go.GetComponent<Slider>();
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.interactable = false;
+        slider.transition = Selectable.Transition.None;
+
+        var bgGo = new GameObject("BG", typeof(RectTransform), typeof(Image));
+        bgGo.transform.SetParent(go.transform, false);
+        StretchRect(bgGo.GetComponent<RectTransform>());
+        bgGo.GetComponent<Image>().color = new Color(0.2f, 0.2f, 0.2f, 1f);
+        slider.targetGraphic = bgGo.GetComponent<Image>();
+
+        var fillArea = new GameObject("FillArea", typeof(RectTransform));
+        fillArea.transform.SetParent(go.transform, false);
+        var faRt = fillArea.GetComponent<RectTransform>();
+        faRt.anchorMin = Vector2.zero;
+        faRt.anchorMax = Vector2.one;
+        faRt.sizeDelta = Vector2.zero;
+
+        var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillGo.transform.SetParent(fillArea.transform, false);
+        StretchRect(fillGo.GetComponent<RectTransform>());
+        fillGo.GetComponent<Image>().color = new Color(0.35f, 0.75f, 0.4f);
+        slider.fillRect = fillGo.GetComponent<RectTransform>();
+
+        yOffset -= height + extraPad;
+        return slider;
+    }
+
+    private static void CreateQuestSeparator(RectTransform parent, ref float yOffset)
+    {
+        var go = new GameObject("Sep", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(12f, 0f);
+        rt.offsetMax = new Vector2(-12f, 0f);
+        rt.anchoredPosition = new Vector2(0f, yOffset);
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, 1f);
+        go.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+        yOffset -= 13f;
+    }
+
+    private static GameObject CreateQuestBanner(Transform canvasRoot, out TextMeshProUGUI bannerText)
+    {
+        var bannerGo = new GameObject("QuestCompleteBanner", typeof(RectTransform), typeof(Image));
+        bannerGo.transform.SetParent(canvasRoot, false);
+        var rt = bannerGo.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.sizeDelta = new Vector2(500f, 90f);
+        rt.anchoredPosition = new Vector2(0f, -20f);
+        bannerGo.GetComponent<Image>().color = new Color(0.1f, 0.55f, 0.2f, 0.92f);
+
+        var textGo = new GameObject("BannerText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        textGo.transform.SetParent(bannerGo.transform, false);
+        StretchRect(textGo.GetComponent<RectTransform>(), 8f);
+        bannerText = textGo.GetComponent<TextMeshProUGUI>();
+        bannerText.text = "Quest complete!";
+        bannerText.fontSize = 18f;
+        bannerText.fontStyle = FontStyles.Bold;
+        bannerText.color = Color.white;
+        bannerText.alignment = TextAlignmentOptions.Center;
+        bannerText.raycastTarget = false;
+
+        bannerGo.SetActive(false);
+        return bannerGo;
+    }
+
+    private static void StretchRect(RectTransform rt, float margin = 0f)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(margin, margin);
+        rt.offsetMax = new Vector2(-margin, -margin);
     }
 
     // ── Primitives ─────────────────────────────────────────────────────────

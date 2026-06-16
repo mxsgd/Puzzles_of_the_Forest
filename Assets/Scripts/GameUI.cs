@@ -66,15 +66,27 @@ public class GameUI : MonoBehaviour
         if (!hudView) hudView = GetComponentInChildren<GameHudView>(true);
         _rerollsLeft = startingRerolls;
 
-        if (hudView != null && hudView.IsConfigured)
+        if (hudView != null && hudView.ResolveCanvas() != null)
+        {
+            if (!hudView.IsConfigured)
+            {
+                Debug.LogWarning(
+                    $"[GameUI] Scene HUD '{hudView.name}' is missing refs: {hudView.FormatMissingRefs()}. " +
+                    "Using scene canvas (no runtime GameUI_Canvas). Wire missing fields in Inspector.",
+                    this);
+            }
+
             BindFromView();
+        }
         else
+        {
             BuildUI();
+        }
     }
 
     private void BindFromView()
     {
-        _canvas = hudView.Canvas;
+        _canvas = hudView.ResolveCanvas();
         _scoreValueLabel = hudView.ScoreValueLabel;
         _habitatCountLabel = hudView.HabitatCountLabel;
         _nextTileIcon = hudView.NextTileIcon;
@@ -83,15 +95,25 @@ public class GameUI : MonoBehaviour
         _rerollButton = hudView.RerollButton;
         _rerollLabel = hudView.RerollLabel;
 
-        _rerollButton.onClick.RemoveAllListeners();
-        _rerollButton.onClick.AddListener(TryReroll);
+        if (_rerollButton != null)
+        {
+            _rerollButton.onClick.RemoveAllListeners();
+            _rerollButton.onClick.AddListener(TryReroll);
+        }
 
         _pauseMenu = GetComponent<PauseMenuController>()
                      ?? gameObject.AddComponent<PauseMenuController>();
-        _pauseMenu.Bind(hudView.PauseMenu);
 
-        hudView.PauseButton.onClick.RemoveAllListeners();
-        hudView.PauseButton.onClick.AddListener(() => _pauseMenu?.Toggle());
+        if (hudView.PauseMenu != null)
+            _pauseMenu.Bind(hudView.PauseMenu);
+        else if (_canvas != null)
+            Debug.LogWarning("[GameUI] PauseMenuView not assigned on GameHudView — pause menu will not work.", this);
+
+        if (hudView.PauseButton != null)
+        {
+            hudView.PauseButton.onClick.RemoveAllListeners();
+            hudView.PauseButton.onClick.AddListener(() => _pauseMenu?.Toggle());
+        }
 
         if (_canvas != null)
             _canvas.gameObject.SetActive(false);
@@ -268,7 +290,7 @@ public class GameUI : MonoBehaviour
             alignment: TextAlignmentOptions.MidlineLeft);
         _nextTileName.fontStyle = FontStyles.Bold;
 
-        _nextTileQueue = CreateLabel(card, "tiles left: 0", 16f, UISpriteFactory.TextMuted,
+        _nextTileQueue = CreateLabel(card, "0", 16f, UISpriteFactory.TextMuted,
             anchorMin: new Vector2(0.4f, 0.15f),
             anchorMax: new Vector2(1f, 0.45f),
             pivot:     new Vector2(0.5f, 0.5f),
@@ -386,7 +408,7 @@ public class GameUI : MonoBehaviour
         if (_nextTileName != null)
             _nextTileName.text = next != null ? next.displayName : "—";
         if (_nextTileQueue != null)
-            _nextTileQueue.text = $"tiles left: {remaining}";
+            _nextTileQueue.text = remaining.ToString();
 
         RefreshReroll();
     }

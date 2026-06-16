@@ -1,11 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
 /// Lewy panel HUD z aktywnym main questem i side questem.
-/// Przypisz referencje w Inspectorze lub zostaw puste — wtedy buduje się proceduralnie.
+/// Wygeneruj hierarchię: Idle Forest → UI → Generate Quest HUD.
 /// </summary>
 [DisallowMultipleComponent]
 public class QuestHudView : MonoBehaviour
@@ -48,7 +49,104 @@ public class QuestHudView : MonoBehaviour
     private bool _built;
 
     public bool IsConfigured =>
-        mainQuestTitle != null && sideQuestTitle != null;
+        ResolveCanvas() != null
+        && mainQuestTitle != null
+        && mainQuestGoal != null
+        && mainQuestProgress != null
+        && mainQuestBar != null
+        && mainQuestReward != null
+        && sideQuestTitle != null
+        && sideQuestGoal != null
+        && sideQuestProgress != null
+        && sideQuestBar != null
+        && sideQuestReward != null;
+
+    public bool HasMinimumBindings =>
+        ResolveCanvas() != null && mainQuestTitle != null && sideQuestTitle != null;
+
+    public Canvas ResolveCanvas()
+    {
+        if (questCanvas == null)
+            questCanvas = GetComponent<Canvas>();
+        return questCanvas;
+    }
+
+    public bool TryAutoBindFromHierarchy()
+    {
+        ResolveCanvas();
+        if (questCanvas == null) return false;
+
+        mainQuestTitle    ??= FindTmp("mq_title");
+        mainQuestGoal     ??= FindTmp("mq_goal");
+        mainQuestProgress ??= FindTmp("mq_prog");
+        mainQuestBar      ??= FindSlider("mq_bar");
+        mainQuestReward   ??= FindTmp("mq_rew");
+        sideQuestTitle    ??= FindTmp("sq_title");
+        sideQuestGoal     ??= FindTmp("sq_goal");
+        sideQuestProgress ??= FindTmp("sq_prog");
+        sideQuestBar      ??= FindSlider("sq_bar");
+        sideQuestReward   ??= FindTmp("sq_rew");
+
+        if (completeBanner == null)
+        {
+            var banner = transform.Find("QuestCompleteBanner");
+            if (banner != null) completeBanner = banner.gameObject;
+        }
+
+        completeBannerText ??= FindTmp("BannerText");
+
+        return HasMinimumBindings;
+    }
+
+    public string FormatMissingRefs()
+    {
+        var missing = new List<string>(12);
+        if (ResolveCanvas() == null) missing.Add(nameof(questCanvas));
+        if (mainQuestTitle == null) missing.Add(nameof(mainQuestTitle));
+        if (mainQuestGoal == null) missing.Add(nameof(mainQuestGoal));
+        if (mainQuestProgress == null) missing.Add(nameof(mainQuestProgress));
+        if (mainQuestBar == null) missing.Add(nameof(mainQuestBar));
+        if (mainQuestReward == null) missing.Add(nameof(mainQuestReward));
+        if (sideQuestTitle == null) missing.Add(nameof(sideQuestTitle));
+        if (sideQuestGoal == null) missing.Add(nameof(sideQuestGoal));
+        if (sideQuestProgress == null) missing.Add(nameof(sideQuestProgress));
+        if (sideQuestBar == null) missing.Add(nameof(sideQuestBar));
+        if (sideQuestReward == null) missing.Add(nameof(sideQuestReward));
+        return missing.Count == 0 ? "none" : string.Join(", ", missing);
+    }
+
+    private TextMeshProUGUI FindTmp(string goName)
+    {
+        foreach (var tmp in GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (tmp.gameObject.name == goName) return tmp;
+        }
+        return null;
+    }
+
+    private Slider FindSlider(string goName)
+    {
+        foreach (var slider in GetComponentsInChildren<Slider>(true))
+        {
+            if (slider.gameObject.name == goName) return slider;
+        }
+        return null;
+    }
+
+    private void Awake()
+    {
+        if (ResolveCanvas() == null)
+        {
+            foreach (var other in GetComponentsInChildren<QuestHudView>(true))
+            {
+                if (other != this && other.ResolveCanvas() != null)
+                {
+                    enabled = false;
+                    return;
+                }
+            }
+        }
+    }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
     private void OnEnable()
@@ -70,7 +168,21 @@ public class QuestHudView : MonoBehaviour
 
     private IEnumerator InitRoutine()
     {
-        if (!IsConfigured && !_built)
+        TryAutoBindFromHierarchy();
+
+        if (ResolveCanvas() != null)
+        {
+            if (!IsConfigured)
+            {
+                Debug.LogWarning(
+                    $"[QuestHudView] Scene quest HUD '{name}' is missing refs: {FormatMissingRefs()}. " +
+                    "Wire QuestHudView in Inspector or run Idle Forest → UI → Generate Quest HUD.",
+                    this);
+            }
+
+            ConfigureAllTmpRefs();
+        }
+        else if (!IsConfigured && !_built)
         {
             BuildPanel();
             _built = true;
@@ -103,8 +215,9 @@ public class QuestHudView : MonoBehaviour
     public void SetVisible(bool visible)
     {
         _panelVisible = visible;
-        if (questCanvas != null)
-            questCanvas.gameObject.SetActive(visible);
+        var canvas = ResolveCanvas();
+        if (canvas != null)
+            canvas.gameObject.SetActive(visible);
     }
 
     // ── Odświeżanie ──────────────────────────────────────────────────────────

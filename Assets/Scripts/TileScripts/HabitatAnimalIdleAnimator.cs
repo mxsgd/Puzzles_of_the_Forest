@@ -3,8 +3,8 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Losowo odtwarza idle i krótkie animacje typu „rozglądanie się” na Animatorze.
-/// Nazwy stanów można wpisać w Inspectorze albo zostawić puste — skrypt spróbuje je znaleźć po nazwie klipu.
+/// Steruje cyklem idle → animacja → idle na Animatorze (CrossFade ze skryptu).
+/// Kontroler nie powinien mieć automatycznych transitionów — tylko stany z clipami.
 /// </summary>
 [DisallowMultipleComponent]
 public class HabitatAnimalIdleAnimator : MonoBehaviour
@@ -12,18 +12,19 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private int animatorLayer;
 
-    [Header("Stany / klipy")]
+    [Header("Stany")]
     [SerializeField] private string idleStateName = "Idle";
     [SerializeField] private string[] lookAroundStateNames = Array.Empty<string>();
 
     [Header("Timing")]
-    [SerializeField] private Vector2 idleWaitSeconds = new(3f, 7f);
-    [SerializeField] private Vector2 lookWaitSeconds = new(1.2f, 2.5f);
-    [SerializeField, Range(0f, 1f)] private float lookAroundChance = 0.45f;
+    [SerializeField] private Vector2 idleWaitSeconds = new(4f, 4f);
+    [SerializeField, Range(0f, 1f)] private float lookAroundChance = 1f;
     [SerializeField, Min(0f)] private float crossFadeSeconds = 0.25f;
+    [SerializeField, Min(0f)] private float lookClipLengthPadding = 0.05f;
 
     private Coroutine _loop;
     private bool _clipNamesResolved;
+    private int _nextLookStateIndex;
 
     private void Awake()
     {
@@ -51,7 +52,13 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
     {
         yield return null;
 
+        if (!EnsureAnimatorReady())
+            yield break;
+
         ResolveClipNamesIfNeeded();
+
+        if (lookAroundStateNames == null || lookAroundStateNames.Length == 0)
+            Debug.LogWarning($"[HabitatAnimalIdleAnimator] Brak stanów animacji na {name}.", this);
 
         while (enabled)
         {
@@ -64,13 +71,104 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
             if (UnityEngine.Random.value > lookAroundChance)
                 continue;
 
-            string lookState = lookAroundStateNames[UnityEngine.Random.Range(0, lookAroundStateNames.Length)];
+            string lookState = PickNextLookState();
             if (string.IsNullOrEmpty(lookState))
                 continue;
 
             PlayState(lookState);
-            yield return new WaitForSeconds(UnityEngine.Random.Range(lookWaitSeconds.x, lookWaitSeconds.y));
+            yield return WaitForCurrentStateClip(lookState);
         }
+    }
+
+    private bool EnsureAnimatorReady()
+    {
+        if (!animator)
+            animator = GetComponentInChildren<Animator>();
+
+        if (animator == null)
+        {
+            Debug.LogWarning($"[HabitatAnimalIdleAnimator] Brak Animator na {name}.", this);
+            return false;
+        }
+
+        animator.enabled = true;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+        if (animator.avatar == null)
+            Debug.LogWarning($"[HabitatAnimalIdleAnimator] Animator bez Avatar na {name} — animacje mogą nie działać.", this);
+
+        if (animator.runtimeAnimatorController == null)
+            Debug.LogWarning($"[HabitatAnimalIdleAnimator] Animator bez kontrolera na {name}.", this);
+
+        animator.Rebind();
+        animator.Update(0f);
+        return animator.runtimeAnimatorController != null;
+    }
+
+    private string PickNextLookState()
+    {
+        if (lookAroundStateNames.Length == 1)
+            return lookAroundStateNames[0];
+
+        string state = lookAroundStateNames[_nextLookStateIndex];
+        _nextLookStateIndex = (_nextLookStateIndex + 1) % lookAroundStateNames.Length;
+        return state;
+    }
+
+    private IEnumerator WaitForCurrentStateClip(string stateName)
+    {
+        if (animator == null)
+            yield break;
+
+        int hash = Animator.StringToHash(stateName);
+        float clipLength = GetClipLengthForState(stateName);
+        float wait = Mathf.Max(clipLength, 0.1f) + lookClipLengthPadding;
+
+        float elapsed = 0f;
+        while (elapsed < crossFadeSeconds + 0.15f)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < wait)
+        {
+            var info = animator.GetCurrentAnimatorStateInfo(animatorLayer);
+            if (info.shortNameHash == hash && info.normalizedTime >= 0.98f)
+                yield break;
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    private float GetClipLengthForState(string stateName)
+    {
+        if (animator?.runtimeAnimatorController == null)
+            return 1f;
+
+        var clips = animator.runtimeAnimatorController.animationClips;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            var clip = clips[i];
+            if (clip == null)
+                continue;
+
+            if (string.Equals(clip.name, stateName, StringComparison.OrdinalIgnoreCase))
+                return clip.length;
+        }
+
+        for (int i = 0; i < clips.Length; i++)
+        {
+            var clip = clips[i];
+            if (clip == null || string.Equals(clip.name, "AnimalBindPoseIdle", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return clip.length;
+        }
+
+        return 1f;
     }
 
     private void ResolveClipNamesIfNeeded()
@@ -79,72 +177,29 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
             return;
 
         _clipNamesResolved = true;
-        var clips = animator.runtimeAnimatorController.animationClips;
-        if (clips == null || clips.Length == 0)
-            return;
 
         if (string.IsNullOrEmpty(idleStateName) || !HasState(idleStateName))
-            idleStateName = FindClipName(clips, "idle") ?? clips[0].name;
+        {
+            if (HasState("Idle"))
+                idleStateName = "Idle";
+        }
 
         if (lookAroundStateNames == null || lookAroundStateNames.Length == 0)
-            lookAroundStateNames = CollectClipNames(clips, "look", "glance", "scan", "watch", "head");
+            lookAroundStateNames = CollectLookAroundStateNames();
     }
 
-    private static string FindClipName(AnimationClip[] clips, string keyword)
+    private string[] CollectLookAroundStateNames()
     {
-        for (int i = 0; i < clips.Length; i++)
-        {
-            var clip = clips[i];
-            if (clip == null)
-                continue;
-            if (clip.name.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
-                return clip.name;
-        }
+        if (HasState("Headshake") && HasState("LookingAround"))
+            return new[] { "Headshake", "LookingAround" };
 
-        return null;
-    }
+        if (HasState("Headshake"))
+            return new[] { "Headshake" };
 
-    private static string[] CollectClipNames(AnimationClip[] clips, params string[] keywords)
-    {
-        int count = 0;
-        for (int i = 0; i < clips.Length; i++)
-        {
-            var clip = clips[i];
-            if (clip == null || string.Equals(clip.name, "Idle", StringComparison.OrdinalIgnoreCase))
-                continue;
+        if (HasState("LookingAround"))
+            return new[] { "LookingAround" };
 
-            for (int k = 0; k < keywords.Length; k++)
-            {
-                if (clip.name.IndexOf(keywords[k], StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    count++;
-                    break;
-                }
-            }
-        }
-
-        if (count == 0)
-            return Array.Empty<string>();
-
-        var names = new string[count];
-        int idx = 0;
-        for (int i = 0; i < clips.Length; i++)
-        {
-            var clip = clips[i];
-            if (clip == null)
-                continue;
-
-            for (int k = 0; k < keywords.Length; k++)
-            {
-                if (clip.name.IndexOf(keywords[k], StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    names[idx++] = clip.name;
-                    break;
-                }
-            }
-        }
-
-        return names;
+        return Array.Empty<string>();
     }
 
     private bool HasState(string stateName)
@@ -168,6 +223,11 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
         if (!animator.HasState(animatorLayer, hash))
             return;
 
-        animator.CrossFade(hash, crossFadeSeconds, animatorLayer, 0f);
+        if (crossFadeSeconds > 0f)
+            animator.CrossFade(hash, crossFadeSeconds, animatorLayer, 0f);
+        else
+            animator.Play(hash, animatorLayer, 0f);
+
+        animator.Update(0f);
     }
 }

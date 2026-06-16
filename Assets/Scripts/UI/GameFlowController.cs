@@ -27,6 +27,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private PerkManager perkManager;
     [SerializeField] private CameraWASDController cameraController;
     [SerializeField] private GameFlowMenuView menuView;
+    [SerializeField] private QuestHudView questHudView;
 
     [Header("Session")]
     [SerializeField] private bool bonusTilesOnHabitat = true;
@@ -61,6 +62,7 @@ public class GameFlowController : MonoBehaviour
         if (!habitatGridManager) habitatGridManager = FindAnyObjectByType<HabitatGridManager>();
         if (!perkManager) perkManager = FindAnyObjectByType<PerkManager>();
         if (!cameraController) cameraController = FindAnyObjectByType<CameraWASDController>();
+        if (!questHudView) questHudView = FindQuestHudView();
 
         GpuResourceBudget.EnsureInstance();
         QuestManager.EnsureInstance();
@@ -71,13 +73,38 @@ public class GameFlowController : MonoBehaviour
         if (menuView == null)
             menuView = GetComponentInChildren<GameFlowMenuView>(true);
 
-        if (menuView != null && menuView.IsConfigured)
-            BindMenuFromView();
+        if (menuView != null && menuView.ResolveCanvas() != null)
+        {
+            menuView.TryAutoBindFromHierarchy();
+            if (menuView.PlayButton != null)
+            {
+                BindMenuFromView();
+                if (!menuView.IsConfigured)
+                {
+                    Debug.LogWarning(
+                        $"[GameFlowController] Scene menu '{menuView.name}' partially wired. Missing: {menuView.FormatMissingRefs()}",
+                        this);
+                }
+            }
+            else
+            {
+                Debug.LogError(
+                    $"[GameFlowController] Scene menu '{menuView.name}' has no PLAY button. " +
+                    "Add a Button with label \"PLAY\" or wire playButton on GameFlowMenuView.",
+                    this);
+            }
+        }
         else
+        {
             BuildMenuCanvas();
+        }
+
+        if (questHudView != null)
+            questHudView.TryAutoBindFromHierarchy();
 
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
+        questHudView?.SetVisible(false);
         ShowMainMenu(clearBoard: false);
     }
 
@@ -110,6 +137,7 @@ public class GameFlowController : MonoBehaviour
         HideAllMenus();
         gameUI?.ResetSessionStats();
         gameUI?.SetGameplayHudVisible(true);
+        questHudView?.SetVisible(true);
         SetGameplayEnabled(true);
 
         placement?.ClearBoard();
@@ -195,6 +223,7 @@ public class GameFlowController : MonoBehaviour
 
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
+        questHudView?.SetVisible(false);
         ShowGameOver();
     }
 
@@ -216,6 +245,7 @@ public class GameFlowController : MonoBehaviour
         HideAllMenus();
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
+        questHudView?.SetVisible(false);
         if (clearBoard)
             placement?.ClearBoard();
         selection?.ClearSelectedTile();
@@ -265,8 +295,8 @@ public class GameFlowController : MonoBehaviour
 
     private void BindMenuFromView()
     {
-        _menuCanvas = menuView.Canvas;
-        _mainMenuRoot = menuView.MainMenuRoot;
+        _menuCanvas = menuView.ResolveCanvas();
+        _mainMenuRoot = menuView.GetMainMenuRoot();
         _gameOverRoot = menuView.GameOverRoot;
         _howToPlayRoot = menuView.HowToPlayRoot;
         _gameOverScore = menuView.GameOverScore;
@@ -505,6 +535,20 @@ public class GameFlowController : MonoBehaviour
         label.alignment = alignment;
         label.raycastTarget = false;
         return label;
+    }
+
+    private QuestHudView FindQuestHudView()
+    {
+        if (questHudView != null && questHudView.ResolveCanvas() != null)
+            return questHudView;
+
+        foreach (var view in GetComponentsInChildren<QuestHudView>(true))
+        {
+            if (view.ResolveCanvas() != null)
+                return view;
+        }
+
+        return GetComponentInChildren<QuestHudView>(true);
     }
 
     private static void QuitApplication()

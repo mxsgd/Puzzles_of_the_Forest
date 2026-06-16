@@ -83,6 +83,9 @@ public static class TileEvents
     /// <summary>Emitted when the chain-reaction animation for a habitat finishes.</summary>
     public static event Action<int> HabitatChainCompleted;
 
+    /// <summary>Chain reaction finished and habitat presentation (e.g. animal spawn) is done.</summary>
+    public static event Action<int> HabitatPresentationCompleted;
+
     public static void RaiseTileStateChanged(Tile tile)
         => TileStateChanged?.Invoke(tile);
 
@@ -97,4 +100,7 @@ public static class TileEvents
 
     public static void RaiseHabitatChainCompleted(int habitatId)
         => HabitatChainCompleted?.Invoke(habitatId);
+
+    public static void RaiseHabitatPresentationCompleted(int habitatId)
+        => HabitatPresentationCompleted?.Invoke(habitatId);
 }

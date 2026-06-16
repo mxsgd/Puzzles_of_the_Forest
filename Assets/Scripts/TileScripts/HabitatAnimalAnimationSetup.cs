@@ -31,6 +31,7 @@ public static class HabitatAnimalAnimationSetup
         if (flight == null)
             flight = instance.AddComponent<HabitatBeeFigureEightFlight>();
 
+        WarmupAnimator(instance);
         flight.Initialize(motionAnchorWorld, gridRotation);
     }
 
@@ -39,7 +40,21 @@ public static class HabitatAnimalAnimationSetup
         if (instance.GetComponent<HabitatBeeFigureEightFlight>() != null)
             return;
 
+        WarmupAnimator(instance);
+
         if (instance.GetComponent<HabitatAnimalIdleAnimator>() == null)
             instance.AddComponent<HabitatAnimalIdleAnimator>();
+    }
+
+    private static void WarmupAnimator(GameObject instance)
+    {
+        var animator = instance.GetComponentInChildren<Animator>();
+        if (animator == null)
+            return;
+
+        animator.enabled = true;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        animator.Rebind();
+        animator.Update(0f);
     }
 }

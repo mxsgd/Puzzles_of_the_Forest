@@ -186,15 +186,15 @@ public class HabitatAnimalPlacement : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
 
-        if (!_pendingSpawns.TryGetValue(habitatId, out var data))
-            return;
+        if (_pendingSpawns.TryGetValue(habitatId, out var data))
+        {
+            _pendingSpawns.Remove(habitatId);
 
-        _pendingSpawns.Remove(habitatId);
+            if (!s_spawnedByHabitatId.ContainsKey(habitatId))
+                DoSpawn(data);
+        }
 
-        if (s_spawnedByHabitatId.ContainsKey(habitatId))
-            return;
-
-        DoSpawn(data);
+        TileEvents.RaiseHabitatPresentationCompleted(habitatId);
     }
 
     private void DoSpawn(HabitatAssignmentData data)

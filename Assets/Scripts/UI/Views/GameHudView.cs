@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -41,7 +42,7 @@ public class GameHudView : MonoBehaviour
     public PauseMenuView PauseMenu => pauseMenu;
 
     public bool IsConfigured =>
-        canvas != null
+        ResolveCanvas() != null
         && scoreValueLabel != null
         && habitatCountLabel != null
         && nextTileName != null
@@ -50,4 +51,27 @@ public class GameHudView : MonoBehaviour
         && rerollLabel != null
         && pauseButton != null
         && pauseMenu != null;
+
+    /// <summary>Canvas z Inspectora lub na tym samym GameObject.</summary>
+    public Canvas ResolveCanvas()
+    {
+        if (canvas == null)
+            canvas = GetComponent<Canvas>();
+        return canvas;
+    }
+
+    public string FormatMissingRefs()
+    {
+        var missing = new List<string>(8);
+        if (ResolveCanvas() == null) missing.Add(nameof(canvas));
+        if (scoreValueLabel == null) missing.Add(nameof(scoreValueLabel));
+        if (habitatCountLabel == null) missing.Add(nameof(habitatCountLabel));
+        if (nextTileName == null) missing.Add(nameof(nextTileName));
+        if (nextTileQueue == null) missing.Add(nameof(nextTileQueue));
+        if (rerollButton == null) missing.Add(nameof(rerollButton));
+        if (rerollLabel == null) missing.Add(nameof(rerollLabel));
+        if (pauseButton == null) missing.Add(nameof(pauseButton));
+        if (pauseMenu == null) missing.Add(nameof(pauseMenu));
+        return missing.Count == 0 ? "none" : string.Join(", ", missing);
+    }
 }

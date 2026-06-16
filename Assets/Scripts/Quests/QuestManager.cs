@@ -35,6 +35,9 @@ public class QuestManager : MonoBehaviour
     /// <summary>Największa dotychczas widziana liczba kafli w grupie (per animal).</summary>
     private readonly Dictionary<HabitatAnimal, int> _maxGroupTilesByAnimal = new();
 
+    /// <summary>Perk draft z questa czeka na chain + spawn zwierzęcia dla tego habitatu.</summary>
+    private int _pendingPerkDraftHabitatId = -1;
+
     // ── Publiczne dane bieżących questów ─────────────────────────────────────
     public QuestDefinition ActiveMainQuest
     {
@@ -89,12 +92,14 @@ public class QuestManager : MonoBehaviour
     {
         TileEvents.HabitatAssigned += OnHabitatAssigned;
         TileEvents.HabitatMerged   += OnHabitatMerged;
+        TileEvents.HabitatPresentationCompleted += OnHabitatPresentationCompleted;
     }
 
     private void OnDisable()
     {
         TileEvents.HabitatAssigned -= OnHabitatAssigned;
         TileEvents.HabitatMerged   -= OnHabitatMerged;
+        TileEvents.HabitatPresentationCompleted -= OnHabitatPresentationCompleted;
     }
 
     private void ResolveRefs()
@@ -113,6 +118,7 @@ public class QuestManager : MonoBehaviour
         _totalHabitatCount = 0;
         _activeMainIdx = 0;
         _activeSideIdx = 0;
+        _pendingPerkDraftHabitatId = -1;
         _sessionActive = true;
         QuestProgressChanged?.Invoke();
     }
@@ -130,8 +136,18 @@ public class QuestManager : MonoBehaviour
         // Dla HabitatMinTiles sprawdzamy tę wartość — merge będzie ją aktualizował
         UpdateMaxGroupTiles(data.Animal, data.TileCount);
 
-        CheckAndAdvanceQuests();
+        CheckAndAdvanceQuests(data.HabitatId);
         QuestProgressChanged?.Invoke();
+    }
+
+    private void OnHabitatPresentationCompleted(int habitatId)
+    {
+        if (_pendingPerkDraftHabitatId != habitatId)
+            return;
+
+        _pendingPerkDraftHabitatId = -1;
+        ResolveRefs();
+        perkManager?.TriggerPerkDraft();
     }
 
     private void OnHabitatMerged(HabitatMergeData data)
@@ -148,7 +164,7 @@ public class QuestManager : MonoBehaviour
         // Zaktualizuj max tiles dla połączonej grupy
         UpdateMaxGroupTiles(data.Animal, data.TileCount);
 
-        CheckAndAdvanceQuests();
+        CheckAndAdvanceQuests(deferPerkDraftForHabitatId: -1);
         QuestProgressChanged?.Invoke();
     }
 
@@ -160,20 +176,23 @@ public class QuestManager : MonoBehaviour
     }
 
     // ── Sprawdzanie questów ───────────────────────────────────────────────────
-    private void CheckAndAdvanceQuests()
+    private void CheckAndAdvanceQuests(int deferPerkDraftForHabitatId = -1)
     {
         bool changed = true;
         while (changed)
         {
             changed = false;
-            if (TryCompleteQuest(ActiveMainQuest, ref _activeMainIdx, Catalog.MainQuests.Count))
+            if (TryCompleteQuest(ActiveMainQuest, ref _activeMainIdx, Catalog.MainQuests.Count, deferPerkDraftForHabitatId))
                 changed = true;
-            if (TryCompleteQuest(ActiveSideQuest, ref _activeSideIdx, Catalog.SideQuests.Count))
+            if (TryCompleteQuest(ActiveSideQuest, ref _activeSideIdx, Catalog.SideQuests.Count, deferPerkDraftForHabitatId))
                 changed = true;
+
+            // Kolejne questy w tej samej pętli nie dziedziczą defer — tylko pierwszy habitat trigger.
+            deferPerkDraftForHabitatId = -1;
         }
     }
 
-    private bool TryCompleteQuest(QuestDefinition quest, ref int idx, int listCount)
+    private bool TryCompleteQuest(QuestDefinition quest, ref int idx, int listCount, int deferPerkDraftForHabitatId)
     {
         if (quest == null) return false;
         if (!IsConditionMet(quest)) return false;
@@ -182,7 +201,7 @@ public class QuestManager : MonoBehaviour
         QuestCompleted?.Invoke(quest, rewardLabel);
         Debug.Log($"[Quest] Completed: \"{quest.displayName}\" → {rewardLabel}");
 
-        ExecuteRewards(quest);
+        ExecuteRewards(quest, deferPerkDraftForHabitatId);
 
         idx++;
         if (idx >= listCount) idx = listCount; // koniec listy = brak aktywnego
@@ -222,7 +241,7 @@ public class QuestManager : MonoBehaviour
     }
 
     // ── Nagrody ───────────────────────────────────────────────────────────────
-    private void ExecuteRewards(QuestDefinition quest)
+    private void ExecuteRewards(QuestDefinition quest, int deferPerkDraftForHabitatId)
     {
         if (quest.rewards == null) return;
         ResolveRefs();
@@ -232,7 +251,10 @@ public class QuestManager : MonoBehaviour
             switch (reward.type)
             {
                 case QuestRewardType.PerkChoice:
-                    perkManager?.TriggerPerkDraft();
+                    if (deferPerkDraftForHabitatId >= 0)
+                        _pendingPerkDraftHabitatId = deferPerkDraftForHabitatId;
+                    else
+                        perkManager?.TriggerPerkDraft();
                     break;
 
                 case QuestRewardType.AddRerolls:
