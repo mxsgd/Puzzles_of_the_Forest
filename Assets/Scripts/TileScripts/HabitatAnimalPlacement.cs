@@ -156,6 +156,8 @@ public class HabitatAnimalPlacement : MonoBehaviour
             _activeInstance._pendingSpawns.Clear();
             _activeInstance._resolvedSpawnParent = null;
         }
+
+        HabitatAnimalAnimatorBudget.ResetForNewSession();
     }
 
     private void OnHabitatAssigned(HabitatAssignmentData data)

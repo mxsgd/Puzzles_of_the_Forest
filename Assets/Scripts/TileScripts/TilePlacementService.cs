@@ -120,6 +120,8 @@ public class TilePlacementService : MonoBehaviour
         runtimeStore.MarkOccupied(tile, prebuiltInstance, tileDraw?.prefab, tileDraw, biomeRuntime);
         SpawnBiomeParticles(tile, biome);
         TileEvents.RaiseTilePlaced(tile, biome);
+        if (runtimeStore != null && tile.grid != null)
+            WaterFoamMaskUtility.RefreshAround(tile, runtimeStore, tile.grid);
         return prebuiltInstance;
     }
 
@@ -166,6 +168,8 @@ public class TilePlacementService : MonoBehaviour
         runtimeStore.MarkOccupied(tile, go, prefab, tileDraw, biomeRuntime);
         SpawnBiomeParticles(tile, biome);
         TileEvents.RaiseTilePlaced(tile, biome);
+        if (runtimeStore != null && tile.grid != null)
+            WaterFoamMaskUtility.RefreshAround(tile, runtimeStore, tile.grid);
         return go;
     }
 

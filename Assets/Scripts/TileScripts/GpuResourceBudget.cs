@@ -107,13 +107,8 @@ public class GpuResourceBudget : MonoBehaviour
         _habitatsSinceHeavyTrim++;
         RunLightTrim();
 
-        if (_habitatsSinceHeavyTrim < habitatsBetweenHeavyTrim)
-            return;
-
-        _habitatsSinceHeavyTrim = 0;
-        // Nie niszczymy ghost poola w trakcie gry — użytkownik może być w trakcie hoverowania.
-        // Tylko lekki trim + unload.
-        RequestUnloadUnusedAssets();
+        // Nie wywołuj UnloadUnusedAssets w trakcie gry — koreluje z D3D12 device removed
+        // gdy GPU wciąż renderuje meshe / animatory (patrz Editor.log).
     }
 
     public void RunLightTrim()

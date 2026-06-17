@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
@@ -42,13 +45,54 @@ public class TileGrid : MonoBehaviour
 
     private float _hexScale = 1f;
     private Bounds _localBounds;
+#if UNITY_EDITOR
+    private bool _editorRebuildQueued;
+#endif
 
-    void OnEnable() { CacheBounds(); BuildGrid(); }
+    void OnEnable()
+    {
+        CacheBounds();
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            QueueEditorRebuild();
+        else
+#endif
+            BuildGrid();
+    }
 
     void OnValidate()
     {
-        if (!Application.isPlaying && rebuildOnValidate) { CacheBounds(); BuildGrid(); }
+        if (!rebuildOnValidate)
+            return;
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            QueueEditorRebuild();
+            return;
+        }
+#endif
+        CacheBounds();
+        BuildGrid();
     }
+
+#if UNITY_EDITOR
+    private void QueueEditorRebuild()
+    {
+        if (_editorRebuildQueued)
+            return;
+        _editorRebuildQueued = true;
+        EditorApplication.delayCall += RunQueuedEditorRebuild;
+    }
+
+    private void RunQueuedEditorRebuild()
+    {
+        _editorRebuildQueued = false;
+        if (this == null)
+            return;
+        CacheBounds();
+        BuildGrid();
+    }
+#endif
 
     void CacheBounds()
     {
@@ -86,9 +130,13 @@ public class TileGrid : MonoBehaviour
                 float zR1 = 1.5f * axialR;
                 Vector3 worldCenter = origin + new Vector3(xR1 * _hexScale, 0f, zR1 * _hexScale);
 
-                Vector3 rayStart = worldCenter + Vector3.up * 5f;
-                if (Physics.Raycast(rayStart, Vector3.down, out var hit, 20f, ~0, QueryTriggerInteraction.Ignore))
-                    worldCenter = hit.point;
+                // Raycasts only in Play Mode — 40k casts in Edit Mode freeze/crash the editor.
+                if (Application.isPlaying)
+                {
+                    Vector3 rayStart = worldCenter + Vector3.up * 5f;
+                    if (Physics.Raycast(rayStart, Vector3.down, out var hit, 20f, ~0, QueryTriggerInteraction.Ignore))
+                        worldCenter = hit.point;
+                }
 
                 var t = new Tile
                 {
@@ -155,6 +203,9 @@ public class TileGrid : MonoBehaviour
     public float HexRadius => _hexScale;
 
     public Tile GetTile(int i, int j) => (i >= 0 && i < rows && j >= 0 && j < cols) ? _grid[i, j] : null;
+
+    public bool TryGetTileAtAxial(int q, int r, out Tile tile) =>
+        _axialLookup.TryGetValue(new Vector2Int(q, r), out tile);
 
     public IEnumerable<Tile> GetNeighbors(Tile tile)
     {

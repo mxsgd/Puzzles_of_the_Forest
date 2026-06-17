@@ -23,6 +23,8 @@ public static class HabitatAnimalAnimationSetup
                 AttachIdleAnimator(instance);
                 break;
         }
+
+        HabitatAnimalAnimatorBudget.Register(instance);
     }
 
     private static void AttachBeeFlight(GameObject instance, Vector3 motionAnchorWorld, Quaternion gridRotation)
@@ -53,8 +55,7 @@ public static class HabitatAnimalAnimationSetup
             return;
 
         animator.enabled = true;
-        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-        animator.Rebind();
-        animator.Update(0f);
+        animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+        animator.updateMode = AnimatorUpdateMode.Normal;
     }
 }

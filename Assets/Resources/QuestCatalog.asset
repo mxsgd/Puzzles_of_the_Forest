@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestCatalog
   mainQuests:
   - id: main_deer_1
-    displayName: Wielkie Stado
-    description: Zbuduj habitat Jelenia z 10+ kaflami.
+    displayName: Great Herd
+    description: Build a deer habitat with 10+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 1
@@ -25,8 +25,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_deer_2
-    displayName: Migracja Stada
-    description: Zbuduj habitat Jelenia z 15+ kaflami.
+    displayName: Herd Migration
+    description: Build a deer habitat with 15+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 1
@@ -36,8 +36,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_beaver_1
-    displayName: Wielka Tama
-    description: Zbuduj habitat Bobra z 10+ kaflami.
+    displayName: Great Dam
+    description: Build a beaver habitat with 10+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 2
@@ -47,8 +47,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_beaver_2
-    displayName: "Sie\u0107 Mokrade\u0142"
-    description: Zbuduj habitat Bobra z 15+ kaflami.
+    displayName: Wetland Network
+    description: Build a beaver habitat with 15+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 2
@@ -58,8 +58,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_bees_1
-    displayName: "Wielki R\xF3j"
-    description: "Zbuduj habitat Pszcz\xF3\u0142 z 10+ kaflami."
+    displayName: Great Swarm
+    description: Build a bees habitat with 10+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 4
@@ -69,8 +69,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_bees_2
-    displayName: Wielka Kolonia
-    description: "Zbuduj habitat Pszcz\xF3\u0142 z 15+ kaflami."
+    displayName: Great Colony
+    description: Build a bees habitat with 15+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 4
@@ -80,8 +80,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_bear_1
-    displayName: "Kr\xF3l Lasu"
-    description: "Zbuduj habitat Nied\u017Awiedzia z 10+ kaflami."
+    displayName: King of the Forest
+    description: Build a bear habitat with 10+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 3
@@ -91,8 +91,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: main_bear_2
-    displayName: "Terytorium Drapie\u017Ccy"
-    description: "Zbuduj habitat Nied\u017Awiedzia z 15+ kaflami."
+    displayName: Predator Territory
+    description: Build a bear habitat with 15+ tiles.
     questType: 0
     conditionType: 0
     conditionAnimal: 3
@@ -103,8 +103,8 @@ MonoBehaviour:
       biome: 0
   sideQuests:
   - id: side_deer_1
-    displayName: Pierwsze Stado
-    description: "Stw\xF3rz 1 habitat Jelenia."
+    displayName: First Herd
+    description: Create 1 deer habitat.
     questType: 1
     conditionType: 1
     conditionAnimal: 1
@@ -114,8 +114,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: side_deer_2
-    displayName: Dwa Stada
-    description: "Stw\xF3rz 2 habitaty Jelenia."
+    displayName: Two Herds
+    description: Create 2 deer habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 1
@@ -125,8 +125,8 @@ MonoBehaviour:
       amount: 2
       biome: 0
   - id: side_beaver_1
-    displayName: "Ma\u0142a Tama"
-    description: "Stw\xF3rz 1 habitat Bobra."
+    displayName: Small Dam
+    description: Create 1 beaver habitat.
     questType: 1
     conditionType: 1
     conditionAnimal: 2
@@ -136,8 +136,8 @@ MonoBehaviour:
       amount: 2
       biome: 0
   - id: side_beaver_2
-    displayName: "\u017Beremia"
-    description: "Stw\xF3rz 2 habitaty Bobra."
+    displayName: Beaver Lodge
+    description: Create 2 beaver habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 2
@@ -150,8 +150,8 @@ MonoBehaviour:
       amount: 1
       biome: 5
   - id: side_bees_1
-    displayName: Pierwsza Ul
-    description: "Stw\xF3rz 1 habitat Pszcz\xF3\u0142."
+    displayName: First Hive
+    description: Create 1 bees habitat.
     questType: 1
     conditionType: 1
     conditionAnimal: 4
@@ -161,8 +161,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: side_bees_2
-    displayName: "Kwitn\u0105ca \u0141\u0105ka"
-    description: "Stw\xF3rz 2 habitaty Pszcz\xF3\u0142."
+    displayName: Blooming Meadow
+    description: Create 2 bees habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 4
@@ -172,8 +172,8 @@ MonoBehaviour:
       amount: 2
       biome: 0
   - id: side_bear_1
-    displayName: Nora
-    description: "Stw\xF3rz 1 habitat Nied\u017Awiedzia."
+    displayName: Den
+    description: Create 1 bear habitat.
     questType: 1
     conditionType: 1
     conditionAnimal: 3
@@ -183,8 +183,8 @@ MonoBehaviour:
       amount: 1000
       biome: 0
   - id: side_bear_2
-    displayName: "\u015Alady Drapie\u017Ccy"
-    description: "Stw\xF3rz 2 habitaty Nied\u017Awiedzia."
+    displayName: Predator Tracks
+    description: Create 2 bear habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 3
@@ -194,8 +194,8 @@ MonoBehaviour:
       amount: 2
       biome: 3
   - id: side_any_1
-    displayName: "Pocz\u0105tek Ekosystemu"
-    description: "Stw\xF3rz 2 habitaty dowolnego zwierz\u0119cia."
+    displayName: Ecosystem Start
+    description: Create 2 any animal habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 0
@@ -205,8 +205,8 @@ MonoBehaviour:
       amount: 1
       biome: 0
   - id: side_any_2
-    displayName: "\u017Bywy Las"
-    description: "Stw\xF3rz 4 habitaty dowolnego zwierz\u0119cia."
+    displayName: Living Forest
+    description: Create 4 any animal habitats.
     questType: 1
     conditionType: 1
     conditionAnimal: 0

@@ -92,17 +92,15 @@ public class HabitatAnimalIdleAnimator : MonoBehaviour
         }
 
         animator.enabled = true;
-        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-
-        if (animator.avatar == null)
-            Debug.LogWarning($"[HabitatAnimalIdleAnimator] Animator bez Avatar na {name} — animacje mogą nie działać.", this);
+        animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
 
         if (animator.runtimeAnimatorController == null)
+        {
             Debug.LogWarning($"[HabitatAnimalIdleAnimator] Animator bez kontrolera na {name}.", this);
+            return false;
+        }
 
-        animator.Rebind();
-        animator.Update(0f);
-        return animator.runtimeAnimatorController != null;
+        return true;
     }
 
     private string PickNextLookState()
