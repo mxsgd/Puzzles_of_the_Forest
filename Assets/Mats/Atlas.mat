@@ -85,7 +85,7 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
-    - _AmbientUpStrength: 0.398
+    - _AmbientUpStrength: 0.28
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
@@ -103,9 +103,10 @@ Material:
     - _GlossyReflections: 0
     - _HabitatStrength: 0.372
     - _HabitatTintInfluence: 0
-    - _HabitatTintIntensity: 0.559
-    - _LightSmoothness: 0.125
-    - _LightSteps: 1.74
+    - _HabitatTintIntensity: 0.42
+    - _LightSmoothness: 0.18
+    - _LightSteps: 3
+    - _MinLight: 0.32
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _OutlineSoftness: 0.08
@@ -116,7 +117,7 @@ Material:
     - _ReceiveShadows: 1
     - _RimPower: 0.94
     - _RimStrength: 0.045
-    - _ShadowTintStrength: 0.229
+    - _ShadowTintStrength: 0.14
     - _Smoothness: 0.064
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
