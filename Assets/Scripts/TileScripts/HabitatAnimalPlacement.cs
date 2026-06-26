@@ -199,6 +199,18 @@ public class HabitatAnimalPlacement : MonoBehaviour
         TileEvents.RaiseHabitatPresentationCompleted(habitatId);
     }
 
+    public static bool TryGetSpawnAnchor(int habitatId, out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        PruneDestroyedSpawns();
+
+        if (!s_spawnedByHabitatId.TryGetValue(habitatId, out var instance) || instance == null)
+            return false;
+
+        worldPosition = instance.transform.position;
+        return true;
+    }
+
     private void DoSpawn(HabitatAssignmentData data)
     {
         if (!TryResolveSpawnCoreTile(data, out var coreTile))

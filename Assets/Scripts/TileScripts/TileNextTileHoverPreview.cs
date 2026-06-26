@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Tile = TileGrid.Tile;
 
@@ -38,6 +39,9 @@ public class TileNextTileHoverPreview : MonoBehaviour
     [SerializeField, Min(10f), Tooltip("Tekst pod żółtą ikoną — czego brakuje do habitatu.")]
     private float deficitHintFontSize = 18f;
     [SerializeField] private Color deficitHintColor = new(1f, 0.96f, 0.75f, 0.95f);
+    [SerializeField, Min(40f)] private float deficitHintWidth = 140f;
+    [SerializeField, FormerlySerializedAs("deficitHintBelowSlot"), Tooltip("Odstęp tekstu nad ikoną zwierzęcia (px ref. 1920).")]
+    private float deficitHintAboveSlot = 10f;
 
     [Header("Kolory preview habitatu")]
     [SerializeField] private Color grayBackgroundColor = new(0.55f, 0.55f, 0.55f, 0.85f);
@@ -650,7 +654,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
 
             var slot = go.AddComponent<HabitatPreviewSlot>();
             slot.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius,
-                deficitHintFontSize, deficitHintColor);
+                deficitHintFontSize, deficitHintColor, deficitHintAboveSlot, deficitHintWidth);
             slot.EnsureBuilt();
             slot.Clear();
             if (!_iconPointerHandlersRegistered)
@@ -674,7 +678,7 @@ public class TileNextTileHoverPreview : MonoBehaviour
     {
         foreach (var slot in _iconPool)
             slot?.ConfigureSizes(ScaledBackgroundSize, ScaledIconSize, backgroundCornerRadius,
-                deficitHintFontSize, deficitHintColor);
+                deficitHintFontSize, deficitHintColor, deficitHintAboveSlot, deficitHintWidth);
     }
 
     private void RebuildIcons(HabitatHoverResult result)
@@ -993,5 +997,20 @@ public class TileNextTileHoverPreview : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    /// <summary>Sprite zwierzęcia z tablicy habitatIcons (dla mockupu edytora).</summary>
+    public Sprite TryGetHabitatSprite(HabitatAnimal animal)
+    {
+        if (animal == HabitatAnimal.None || habitatIcons == null)
+            return null;
+
+        foreach (var e in habitatIcons)
+        {
+            if (e.animal == animal && e.sprite != null)
+                return e.sprite;
+        }
+
+        return null;
     }
 }

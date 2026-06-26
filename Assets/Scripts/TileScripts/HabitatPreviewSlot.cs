@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>
@@ -17,7 +18,8 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
     [SerializeField, Min(8f)] private float iconSize = 64f;
     [SerializeField, Min(1)] private int backgroundCornerRadius = 24;
     [SerializeField, Min(40f)] private float deficitHintWidth = 140f;
-    [SerializeField] private float deficitHintBelowSlot = 6f;
+    [SerializeField, FormerlySerializedAs("deficitHintBelowSlot")]
+    private float deficitHintAboveSlot = 10f;
 
     public RectTransform RectTransform => transform as RectTransform;
     public HabitatAnimal Animal { get; private set; }
@@ -26,22 +28,31 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
     public event Action<HabitatPreviewSlot> PointerEntered;
     public event Action<HabitatPreviewSlot> PointerExited;
 
-    public void ConfigureSizes(float bgSize, float icSize, int cornerRadius, float hintFontSize, Color hintColor)
+    public void ConfigureSizes(float bgSize, float icSize, int cornerRadius, float hintFontSize, Color hintColor,
+        float hintAboveSlot = 10f, float hintWidth = 140f)
     {
         backgroundSize = bgSize;
         iconSize = icSize;
         backgroundCornerRadius = cornerRadius;
+        deficitHintAboveSlot = hintAboveSlot;
+        deficitHintWidth = hintWidth;
         if (RectTransform != null)
             RectTransform.sizeDelta = new Vector2(backgroundSize, backgroundSize);
 
-        if (deficitHintLabel != null)
-        {
-            deficitHintLabel.fontSize = hintFontSize;
-            deficitHintLabel.color = hintColor;
-            var hintRt = deficitHintLabel.rectTransform;
-            hintRt.sizeDelta = new Vector2(deficitHintWidth, hintFontSize * 2.4f);
-            hintRt.anchoredPosition = new Vector2(0f, -backgroundSize * 0.5f - deficitHintBelowSlot);
-        }
+        ApplyHintLayout(hintFontSize, hintColor);
+    }
+
+    private void ApplyHintLayout(float hintFontSize, Color hintColor)
+    {
+        if (deficitHintLabel == null)
+            return;
+
+        deficitHintLabel.fontSize = hintFontSize;
+        deficitHintLabel.color = hintColor;
+        var hintRt = deficitHintLabel.rectTransform;
+        hintRt.pivot = new Vector2(0.5f, 0f);
+        hintRt.sizeDelta = new Vector2(deficitHintWidth, hintFontSize * 2.4f);
+        hintRt.anchoredPosition = new Vector2(0f, backgroundSize * 0.5f + deficitHintAboveSlot);
     }
 
     public void EnsureBuilt()
@@ -84,9 +95,9 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
             hintGo.transform.SetParent(transform, false);
             var hintRt = (RectTransform)hintGo.transform;
             hintRt.anchorMin = hintRt.anchorMax = new Vector2(0.5f, 0.5f);
-            hintRt.pivot = new Vector2(0.5f, 1f);
+            hintRt.pivot = new Vector2(0.5f, 0f);
             hintRt.sizeDelta = new Vector2(deficitHintWidth, 36f);
-            hintRt.anchoredPosition = new Vector2(0f, -backgroundSize * 0.5f - deficitHintBelowSlot);
+            hintRt.anchoredPosition = new Vector2(0f, backgroundSize * 0.5f + deficitHintAboveSlot);
 
             deficitHintLabel = hintGo.AddComponent<TextMeshProUGUI>();
             deficitHintLabel.alignment = TextAlignmentOptions.Center;
@@ -137,6 +148,8 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
                 && !string.IsNullOrEmpty(deficitHint);
             deficitHintLabel.text = showHint ? deficitHint : string.Empty;
             deficitHintLabel.enabled = showHint;
+            if (showHint)
+                ApplyHintLayout(deficitHintLabel.fontSize, deficitHintLabel.color);
         }
 
         gameObject.SetActive(true);

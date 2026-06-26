@@ -1,0 +1,13 @@
+m6x11plus — UI font attribution
+================================
+
+Font: m6x11plus.ttf
+Author: Daniel Linssen (managore)
+Source: https://managore.itch.io/m6x11
+
+License: free to use with attribution (see the itch.io page).
+
+Attribution line (for credits screen / README):
+  UI font — m6x11plus by Daniel Linssen — https://managore.itch.io/m6x11
+
+Recommended sizes for m6x11plus: 18, 36, 54, etc.

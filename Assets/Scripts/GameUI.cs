@@ -43,6 +43,7 @@ public class GameUI : MonoBehaviour
     public int HabitatCount => _habitatCount;
     public int BiggestHabitatChain => _biggestHabitatChain;
     public int RerollsLeft => _rerollsLeft;
+    public RectTransform ScoreValueRect => _scoreValueLabel != null ? _scoreValueLabel.rectTransform : null;
 
     /// <summary>Dodaje reroll w trakcie sesji (np. nagroda za quest).</summary>
     public void AddRerolls(int amount)
@@ -82,6 +83,8 @@ public class GameUI : MonoBehaviour
         {
             BuildUI();
         }
+
+        EnsureScoreFlyoutPresenter();
     }
 
     private void BindFromView()
@@ -117,6 +120,12 @@ public class GameUI : MonoBehaviour
 
         if (_canvas != null)
             _canvas.gameObject.SetActive(false);
+    }
+
+    private void EnsureScoreFlyoutPresenter()
+    {
+        if (GetComponent<HabitatScoreFlyoutPresenter>() == null)
+            gameObject.AddComponent<HabitatScoreFlyoutPresenter>();
     }
 
     private void Start()
@@ -155,7 +164,7 @@ public class GameUI : MonoBehaviour
         _score += data.PointsAwarded;
         if (data.TileCount > _biggestHabitatChain)
             _biggestHabitatChain = data.TileCount;
-        RefreshScore(animate: true);
+        RefreshHabitatCountOnly();
     }
 
     private void OnHabitatMerged(HabitatMergeData data)
@@ -414,6 +423,29 @@ public class GameUI : MonoBehaviour
     }
 
     private Coroutine _scoreTween;
+    private Coroutine _scoreShakeTween;
+
+    /// <summary>Wywoływane po dotarciu flyoutu do licznika score.</summary>
+    public void ApplyScoreFromFlyout(int pointsAwarded)
+    {
+        if (pointsAwarded <= 0 || _scoreValueLabel == null)
+            return;
+
+        int from = _scoreDisplayed;
+        int to = Mathf.Min(_score, from + pointsAwarded);
+        if (to <= from)
+            return;
+
+        if (_scoreTween != null) StopCoroutine(_scoreTween);
+        _scoreTween = StartCoroutine(AnimateScore(from, to, withImpact: true));
+    }
+
+    private void RefreshHabitatCountOnly()
+    {
+        if (_habitatCountLabel != null)
+            _habitatCountLabel.text = $"Habitats: {_habitatCount}";
+    }
+
     private void RefreshScore(bool animate)
     {
         if (_habitatCountLabel != null)
@@ -427,28 +459,65 @@ public class GameUI : MonoBehaviour
         }
 
         if (_scoreTween != null) StopCoroutine(_scoreTween);
-        _scoreTween = StartCoroutine(AnimateScore(_scoreDisplayed, _score));
+        _scoreTween = StartCoroutine(AnimateScore(_scoreDisplayed, _score, withImpact: false));
     }
 
-    private IEnumerator AnimateScore(int from, int to)
+    private IEnumerator AnimateScore(int from, int to, bool withImpact)
     {
         const float dur = 0.55f;
         float t = 0f;
         Vector3 baseScale = _scoreValueLabel.transform.localScale;
+        if (withImpact)
+            PlayScoreImpactShake();
+
         while (t < dur)
         {
             t += Time.unscaledDeltaTime;
             float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / dur));
             int val = Mathf.RoundToInt(Mathf.Lerp(from, to, p));
             _scoreValueLabel.text = val.ToString();
-            float pulse = 1f + 0.15f * Mathf.Sin(p * Mathf.PI);
+            float pulse = 1f + (withImpact ? 0.1f : 0.15f) * Mathf.Sin(p * Mathf.PI);
             _scoreValueLabel.transform.localScale = baseScale * pulse;
             yield return null;
         }
+
         _scoreValueLabel.text = to.ToString();
         _scoreValueLabel.transform.localScale = baseScale;
         _scoreDisplayed = to;
         _scoreTween = null;
+    }
+
+    private void PlayScoreImpactShake()
+    {
+        if (_scoreValueLabel == null)
+            return;
+
+        if (_scoreShakeTween != null)
+            StopCoroutine(_scoreShakeTween);
+
+        _scoreShakeTween = StartCoroutine(ScoreImpactShakeRoutine());
+    }
+
+    private IEnumerator ScoreImpactShakeRoutine()
+    {
+        var rt = _scoreValueLabel.rectTransform;
+        Vector2 basePos = rt.anchoredPosition;
+        const float dur = 0.24f;
+        float elapsed = 0f;
+
+        while (elapsed < dur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / dur;
+            float decay = 1f - t;
+            float offsetX = Mathf.Sin(elapsed * 48f) * 5f * decay;
+            float offsetY = Mathf.Cos(elapsed * 41f) * 3.5f * decay;
+            rt.anchoredPosition = basePos + new Vector2(offsetX, offsetY);
+            yield return null;
+        }
+
+        rt.anchoredPosition = basePos;
+        _scoreShakeTween = null;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

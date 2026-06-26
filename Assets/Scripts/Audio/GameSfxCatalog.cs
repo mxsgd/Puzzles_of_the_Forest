@@ -19,9 +19,13 @@ public class GameSfxCatalog : ScriptableObject
     [Header("Animal spawn")]
     public AudioClip popClip;
 
+    [Header("Score flyout")]
+    public AudioClip scoreFlyoutArriveClip;
+
     [Range(0f, 1f)] public float placementVolume = 1f;
     [Range(0f, 1f)] public float chainVolume = 0.75f;
     [Range(0f, 1f)] public float popVolume = 0.9f;
+    [Range(0f, 1f)] public float scoreFlyoutArriveVolume = 0.85f;
 
     public static GameSfxCatalog Default
     {

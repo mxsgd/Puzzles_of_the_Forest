@@ -8,3 +8,6 @@ of Maks Szygenda.
 These assets may not be copied, modified, redistributed, used in other
 projects, used commercially, or included in derivative works without explicit
 written permission from the author.
+
+Third-party assets used under separate licenses are listed in README.md
+(see "Third-Party Assets") and in attribution files next to those assets.

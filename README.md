@@ -62,11 +62,24 @@ From the game side, the current project includes:
 
 ## Art and Asset Authorship
 
-All models, art assets, and visual game assets in this project are **fully my own work**.
+All models, art assets, and visual game assets in this project are **fully my own work**, except where noted under [Third-Party Assets](#third-party-assets).
 
 - no generative AI was used in the creation of the models
 - no generative AI was used in the creation of the assets
 - the visual side of the project is authored manually from scratch
+
+## Third-Party Assets
+
+### m6x11plus (UI font)
+
+The game UI uses the **m6x11plus** pixel font by **Daniel Linssen** ([managore](https://managore.itch.io)).
+
+- **Source:** [m6x11 on itch.io](https://managore.itch.io/m6x11)
+- **File in project:** `Assets/TextMesh Pro/Fonts/m6x11plus.ttf`
+- **License:** free to use with attribution (see the font page on itch.io)
+- **Attribution:** UI font — **m6x11plus** by [Daniel Linssen](https://managore.itch.io) ([m6x11](https://managore.itch.io/m6x11))
+
+Recommended TMP sizes for m6x11plus: **18, 36, 54**, etc. (see the font page).
 
 ## Tech Overview
 
