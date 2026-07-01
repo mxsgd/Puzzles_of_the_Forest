@@ -11,8 +11,7 @@ public static class HabitatCompatibilityService
         { 0, 1, 0, 1, 1 }, // Deer
         { 1, 0, 0, 1, 0 }, // Beaver
         { 0, 0, 0, 0, 1 }, // Bear
-        { 1, 1, 0, 0, 0 }, // Bees
-        { 1, 0, 1, 0, 0 }  // RockDweller
+        { 1, 1, 0, 0, 0 }
     };
 
     /// <summary>1 = compatible; 0 = incompatible (new animal cannot use tile biome contribution).</summary>
@@ -43,7 +42,6 @@ public static class HabitatCompatibilityService
             HabitatAnimal.Beaver => 1,
             HabitatAnimal.Bear => 2,
             HabitatAnimal.Bees => 3,
-            HabitatAnimal.RockDweller => 4,
             _ => -1
         };
     }

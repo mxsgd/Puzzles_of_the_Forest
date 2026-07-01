@@ -216,8 +216,19 @@ public class QuestHudView : MonoBehaviour
     {
         _panelVisible = visible;
         var canvas = ResolveCanvas();
-        if (canvas != null)
-            canvas.gameObject.SetActive(visible);
+        if (canvas == null) return;
+
+        if (visible)
+        {
+            canvas.gameObject.SetActive(true);
+            var rt = canvas.transform as RectTransform;
+            if (rt != null && rt.localScale.sqrMagnitude < 0.0001f)
+                rt.localScale = Vector3.one;
+        }
+        else
+        {
+            canvas.gameObject.SetActive(false);
+        }
     }
 
     // ── Odświeżanie ──────────────────────────────────────────────────────────
@@ -439,7 +450,6 @@ public class QuestHudView : MonoBehaviour
         tmp.fontStyle = style;
         tmp.color     = color;
         tmp.overflowMode = TextOverflowModes.Overflow;
-        tmp.enableWordWrapping = true;
         tmp.text = "";
 
         yOffset -= size * 1.6f + extraPad;
@@ -534,7 +544,6 @@ public class QuestHudView : MonoBehaviour
 
         tmp.raycastTarget = false;
         tmp.overflowMode = TextOverflowModes.Overflow;
-        tmp.enableWordWrapping = true;
     }
 
     private static void MakeRoundedCorners(Image img)

@@ -7,7 +7,6 @@ public static class HabitatAnimalDisplay
         HabitatAnimal.Beaver      => "Beaver",
         HabitatAnimal.Bear        => "Bear",
         HabitatAnimal.Bees        => "Bees",
-        HabitatAnimal.RockDweller => "Rock",
         _                         => animal.ToString()
     };
 }

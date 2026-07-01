@@ -97,6 +97,33 @@ public class TileRuntimeStore : MonoBehaviour
         return false;
     }
 
+    /// <summary>Światowa pozycja kotwicy habitatu (core tile) — fallback gdy brak spawnu zwierzęcia.</summary>
+    public bool TryGetHabitatWorldAnchor(int habitatId, out Vector3 worldPos)
+    {
+        worldPos = default;
+        if (!_habitats.TryGetValue(habitatId, out var rec))
+            return false;
+
+        var tile = rec.PrimaryCoreTile;
+        if (tile == null)
+        {
+            for (int i = 0; i < rec.Tiles.Count; i++)
+            {
+                if (rec.Tiles[i] != null)
+                {
+                    tile = rec.Tiles[i];
+                    break;
+                }
+            }
+        }
+
+        if (tile == null)
+            return false;
+
+        worldPos = tile.worldPos;
+        return true;
+    }
+
     /// <summary>
     /// Registers a new habitat if every tile has fewer than two habitats and all tiles are occupied.
     /// </summary>

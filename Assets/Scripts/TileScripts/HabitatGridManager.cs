@@ -217,7 +217,63 @@ public class HabitatGridManager : MonoBehaviour
             tile.targetInfluence = 1f;
         }
 
+        EnsureRenderersCached(idx, position);
         _dirty = true;
+        ApplyAllToRenderers();
+        _dirty = false;
+    }
+
+    private void EnsureRenderersCached(int tileIndex, Vector2Int position)
+    {
+        if (_renderersByTileIndex.TryGetValue(tileIndex, out List<Renderer> existing)
+            && existing != null && existing.Count > 0)
+            return;
+
+        if (runtimeStore == null)
+            runtimeStore = FindAnyObjectByType<TileRuntimeStore>();
+
+        TileGrid.Tile tile = FindTileAt(position);
+        if (tile == null || runtimeStore == null)
+            return;
+
+        TileRuntimeStore.Runtime rt = runtimeStore.Get(tile);
+        if (rt == null || !rt.occupied || rt.occupantInstance == null)
+            return;
+
+        Renderer[] renderers = ResolveHabitatRenderers(rt.occupantInstance);
+        if (renderers.Length == 0)
+            return;
+
+        if (!_renderersByTileIndex.TryGetValue(tileIndex, out List<Renderer> list))
+        {
+            list = new List<Renderer>(renderers.Length);
+            _renderersByTileIndex[tileIndex] = list;
+        }
+        else
+        {
+            list.Clear();
+        }
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+                list.Add(renderers[i]);
+        }
+    }
+
+    private TileGrid.Tile FindTileAt(Vector2Int position)
+    {
+        if (grid?.tiles == null)
+            return null;
+
+        for (int i = 0; i < grid.tiles.Count; i++)
+        {
+            TileGrid.Tile tile = grid.tiles[i];
+            if (tile != null && tile.q == position.x && tile.r == position.y)
+                return tile;
+        }
+
+        return null;
     }
 
     private void CacheTileRenderers()

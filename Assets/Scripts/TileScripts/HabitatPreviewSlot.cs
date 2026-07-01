@@ -101,7 +101,6 @@ public class HabitatPreviewSlot : MonoBehaviour, IPointerEnterHandler, IPointerE
 
             deficitHintLabel = hintGo.AddComponent<TextMeshProUGUI>();
             deficitHintLabel.alignment = TextAlignmentOptions.Center;
-            deficitHintLabel.enableWordWrapping = true;
             deficitHintLabel.overflowMode = TextOverflowModes.Truncate;
             deficitHintLabel.raycastTarget = false;
             deficitHintLabel.fontSize = 16f;

@@ -90,7 +90,6 @@ public class QuestDefinition
         HabitatAnimal.Beaver      => "beaver",
         HabitatAnimal.Bear        => "bear",
         HabitatAnimal.Bees        => "bees",
-        HabitatAnimal.RockDweller => "rock dweller",
         _                         => a.ToString().ToLowerInvariant()
     };
 }

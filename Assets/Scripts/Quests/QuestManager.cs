@@ -135,7 +135,6 @@ public class QuestManager : MonoBehaviour
 
         // Dla HabitatMinTiles sprawdzamy tę wartość — merge będzie ją aktualizował
         UpdateMaxGroupTiles(data.Animal, data.TileCount);
-
         CheckAndAdvanceQuests(data.HabitatId);
         QuestProgressChanged?.Invoke();
     }

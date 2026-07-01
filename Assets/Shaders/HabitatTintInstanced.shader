@@ -104,13 +104,10 @@ Shader "Custom/URP/HabitatTintInstanced"
 
             float3 ApplyHabitatTint(float3 albedo, float habitatBlend, float lightTerm)
             {
-                float3 habitatMul = lerp(1.0.xxx, _HabitatColor.rgb, habitatBlend * 0.85);
+                float3 habitatMul = lerp(1.0.xxx, _HabitatColor.rgb, habitatBlend);
                 float3 tinted = albedo * habitatMul;
 
-                float lum = dot(tinted, float3(0.299, 0.587, 0.114));
-                tinted = lerp(tinted, lum.xxx, habitatBlend * 0.12);
-
-                float lightMask = lerp(0.45, 1.0, saturate(lightTerm));
+                float lightMask = lerp(0.62, 1.0, saturate(lightTerm));
                 return lerp(albedo, tinted, habitatBlend * lightMask);
             }
 

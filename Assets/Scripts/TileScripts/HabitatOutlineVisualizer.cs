@@ -187,7 +187,6 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         HabitatAnimal.Beaver      => beaverColor,
         HabitatAnimal.Bear        => bearColor,
         HabitatAnimal.Bees        => beesColor,
-        HabitatAnimal.RockDweller => rockDwellerColor,
         _                         => Color.gray
     };
 }

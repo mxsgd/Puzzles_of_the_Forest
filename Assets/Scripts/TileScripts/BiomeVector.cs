@@ -8,8 +8,7 @@ public enum HabitatAnimal
     Deer,
     Beaver,
     Bear,
-    Bees,
-    RockDweller
+    Bees
 }
 
 /// <summary>
@@ -53,26 +52,26 @@ public struct BiomeVector : IEquatable<BiomeVector>
     public bool Satisfies(in BiomeVector requirement)
     {
         return Meadow >= requirement.Meadow
-               && Forest >= requirement.Forest
-               && Bush >= requirement.Bush
-               && Rock >= requirement.Rock
-               && Water >= requirement.Water;
+                && Forest >= requirement.Forest
+                && Bush >= requirement.Bush
+                && Rock >= requirement.Rock
+                && Water >= requirement.Water;
     }
 
     /// <summary>Σ max(0, requirement[i] − H[i]) — np. 1 oznacza „brakuje jednej jednostki biomu».</summary>
     public int DeficitSumToward(in BiomeVector requirement)
     {
         return Mathf.Max(0, requirement.Meadow - Meadow)
-               + Mathf.Max(0, requirement.Forest - Forest)
-               + Mathf.Max(0, requirement.Bush - Bush)
-               + Mathf.Max(0, requirement.Rock - Rock)
-               + Mathf.Max(0, requirement.Water - Water);
+                + Mathf.Max(0, requirement.Forest - Forest)
+                + Mathf.Max(0, requirement.Bush - Bush)
+                + Mathf.Max(0, requirement.Rock - Rock)
+                + Mathf.Max(0, requirement.Water - Water);
     }
 
     public bool Equals(BiomeVector other)
     {
         return Meadow == other.Meadow && Forest == other.Forest && Bush == other.Bush
-               && Rock == other.Rock && Water == other.Water;
+            && Rock == other.Rock && Water == other.Water;
     }
 
     public override bool Equals(object obj) => obj is BiomeVector other && Equals(other);

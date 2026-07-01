@@ -22,9 +22,6 @@ public static class HabitatRequirements
             // Bees:   (2,1,2,0,0)
             HabitatAnimal.Bees => new BiomeVector
                 { Meadow = 2, Forest = 1, Bush = 2, Rock = 0, Water = 0 },
-            // RockDweller: (1,0,0,3,1)
-            HabitatAnimal.RockDweller => new BiomeVector
-                { Meadow = 1, Forest = 0, Bush = 0, Rock = 3, Water = 1 },
             _ => BiomeVector.Zero
         };
     }
@@ -38,7 +35,6 @@ public static class HabitatRequirements
             HabitatAnimal.Beaver => 400,
             HabitatAnimal.Deer => 500,
             HabitatAnimal.Bear => 600,
-            HabitatAnimal.RockDweller => 700,
             _ => 0
         };
     }
@@ -49,8 +45,7 @@ public static class HabitatRequirements
         HabitatAnimal.Deer,
         HabitatAnimal.Beaver,
         HabitatAnimal.Bear,
-        HabitatAnimal.Bees,
-        HabitatAnimal.RockDweller
+        HabitatAnimal.Bees
     };
 
     public static float ComputeScore(HabitatAnimal animal, int tileCount)

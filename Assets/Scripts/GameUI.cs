@@ -137,8 +137,22 @@ public class GameUI : MonoBehaviour
 
     public void SetGameplayHudVisible(bool visible)
     {
-        if (_canvas != null)
-            _canvas.gameObject.SetActive(visible);
+        if (_canvas == null) return;
+
+        if (visible)
+            EnsureCanvasRenderable(_canvas);
+        else
+            _canvas.gameObject.SetActive(false);
+    }
+
+    private static void EnsureCanvasRenderable(Canvas canvas)
+    {
+        if (canvas == null) return;
+
+        canvas.gameObject.SetActive(true);
+        var rt = canvas.transform as RectTransform;
+        if (rt != null && rt.localScale.sqrMagnitude < 0.0001f)
+            rt.localScale = Vector3.one;
     }
 
     private void OnEnable()
@@ -175,7 +189,7 @@ public class GameUI : MonoBehaviour
         _habitatCount = Mathf.Max(0, _habitatCount - (data.MergedHabitatCount - 1));
         if (data.TileCount > _biggestHabitatChain)
             _biggestHabitatChain = data.TileCount;
-        RefreshScore(animate: true);
+        RefreshHabitatCountOnly();
     }
 
     public void ResetSessionStats()

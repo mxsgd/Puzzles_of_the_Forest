@@ -103,7 +103,7 @@ Material:
     - _GlossyReflections: 0
     - _HabitatStrength: 0.372
     - _HabitatTintInfluence: 0
-    - _HabitatTintIntensity: 0.42
+    - _HabitatTintIntensity: 0.62
     - _LightSmoothness: 0.18
     - _LightSteps: 3
     - _MinLight: 0.32
@@ -124,7 +124,7 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
-    - _UseVertexMask: 1
+    - _UseVertexMask: 0.55
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1

@@ -64,7 +64,6 @@ public class GameFlowController : MonoBehaviour
         if (!cameraController) cameraController = FindAnyObjectByType<CameraWASDController>();
         if (!questHudView) questHudView = FindQuestHudView();
 
-        GpuResourceBudget.EnsureInstance();
         QuestManager.EnsureInstance();
     }
 
@@ -157,7 +156,6 @@ public class GameFlowController : MonoBehaviour
         availability?.RebuildCache();
         availabilityVisualizer?.ResetForNewSession();
 
-        GpuResourceBudget.EnsureInstance()?.ResetCounters();
         QuestManager.EnsureInstance()?.ResetForNewSession();
     }
 
@@ -242,6 +240,7 @@ public class GameFlowController : MonoBehaviour
     {
         _sessionActive = false;
         Time.timeScale = 1f;
+        EnsureMenuCanvasReady();
         HideAllMenus();
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
@@ -254,8 +253,16 @@ public class GameFlowController : MonoBehaviour
 
     private void ShowGameOver()
     {
+        EnsureMenuCanvasReady();
         HideAllMenus();
-        if (_gameOverRoot == null) return;
+        if (_gameOverRoot == null)
+        {
+            Debug.LogError(
+                "[GameFlow] Brak ekranu Game Over w scenie (GameFlowMenuView / GameOver). " +
+                "Wygeneruj: Idle Forest → UI → Generate Menu Flow UI.",
+                this);
+            return;
+        }
 
         if (gameUI != null)
         {
@@ -476,7 +483,6 @@ public class GameFlowController : MonoBehaviour
     {
         var label = CreateTmp(card, "Body", text, 20f, UISpriteFactory.TextPrimary, pos, size,
             TextAlignmentOptions.TopLeft);
-        label.enableWordWrapping = true;
         label.lineSpacing = 4f;
     }
 
@@ -549,6 +555,41 @@ public class GameFlowController : MonoBehaviour
         }
 
         return GetComponentInChildren<QuestHudView>(true);
+    }
+
+    private void EnsureMenuCanvasReady()
+    {
+        if (menuView != null)
+        {
+            menuView.TryAutoBindFromHierarchy();
+
+            if (_menuCanvas == null)
+                _menuCanvas = menuView.ResolveCanvas();
+            if (_mainMenuRoot == null)
+                _mainMenuRoot = menuView.GetMainMenuRoot();
+            if (_gameOverRoot == null)
+                _gameOverRoot = menuView.GameOverRoot;
+            if (_howToPlayRoot == null)
+                _howToPlayRoot = menuView.HowToPlayRoot;
+            if (_gameOverScore == null)
+                _gameOverScore = menuView.GameOverScore;
+            if (_gameOverHabitats == null)
+                _gameOverHabitats = menuView.GameOverHabitats;
+            if (_gameOverBestChain == null)
+                _gameOverBestChain = menuView.GameOverBestChain;
+        }
+
+        EnsureCanvasRenderable(_menuCanvas);
+    }
+
+    private static void EnsureCanvasRenderable(Canvas canvas)
+    {
+        if (canvas == null) return;
+
+        canvas.gameObject.SetActive(true);
+        var rt = canvas.transform as RectTransform;
+        if (rt != null && rt.localScale.sqrMagnitude < 0.0001f)
+            rt.localScale = Vector3.one;
     }
 
     private static void QuitApplication()

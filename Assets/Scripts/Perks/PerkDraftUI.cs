@@ -215,7 +215,6 @@ public class PerkDraftUI : MonoBehaviour
         // Desc
         var descLabel = CreateTmp(rt, "Desc", "", 16f,
             UISpriteFactory.TextMuted, new Vector2(0f, -150f), new Vector2(size.x - 24f, 110f));
-        descLabel.enableWordWrapping = true;
         descLabel.alignment = TextAlignmentOptions.Top;
 
         // Pick button
