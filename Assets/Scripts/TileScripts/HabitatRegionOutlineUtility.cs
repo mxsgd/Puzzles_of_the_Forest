@@ -4,7 +4,7 @@ using Tile = TileGrid.Tile;
 
 /// <summary>
 /// Wspólna geometria obrysu regionu kafli (granice heksów) — używana przez
-/// <see cref="HabitatOutlineVisualizer"/> i podświetlenie kandydatów przy hoverze ikon.
+/// <see cref="HabitatOutlineVisualizer"/> (hover) i podświetlenie kandydatów przy hoverze ikon.
 /// </summary>
 public static class HabitatRegionOutlineUtility
 {

@@ -1,19 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using Tile = TileGrid.Tile;
 
 /// <summary>
-/// Rysuje otoczkę (obrys) wzdłuż granic kafli dla każdego habitatu.
-///
-/// Optymalizacje vs. oryginał:
-/// - Jeden material per typ zwierzęcia (stworzony raz w Awake) — zero new Material() per refresh.
-/// - Pula LineRendererów (SetActive zamiast Destroy+new GameObject) — zero alokacji per refresh.
-/// - RefreshAllOutlines: deaktywuje nadmiarowe segmenty zamiast je niszczyć.
+/// Obrys habitatu — widoczny tylko przy najechaniu.
+/// Połączone sub-habitaty tego samego zwierzęcia = jeden spójny obrys wokół całego regionu.
 /// </summary>
 public class HabitatOutlineVisualizer : MonoBehaviour
 {
     [SerializeField] private TileGrid grid;
     [SerializeField] private TileRuntimeStore runtimeStore;
+    [SerializeField] private TileQueryService query;
+    [SerializeField] private Camera mainCamera;
 
     [Header("Obrys")]
     [SerializeField] private float lineHeightOffset   = 0.05f;
@@ -26,22 +26,28 @@ public class HabitatOutlineVisualizer : MonoBehaviour
     [SerializeField] private Color beaverColor      = new Color(0.3f,  0.5f,  0.6f);
     [SerializeField] private Color bearColor        = new Color(0.25f, 0.25f, 0.3f);
     [SerializeField] private Color beesColor        = new Color(0.95f, 0.85f, 0.2f);
-    [SerializeField] private Color rockDwellerColor = new Color(0.55f, 0.45f, 0.4f);
 
     [SerializeField] private Transform outlinesParent;
 
-    // Segment pool — GameObjects are never destroyed, only activated/deactivated.
+    [Header("Hover")]
+    [SerializeField] private float maxRayDistance = 500f;
+    [SerializeField] private LayerMask groundMask = ~0;
+
     private readonly List<(GameObject go, LineRenderer lr)> _segmentPool = new();
     private readonly List<(Vector3 a, Vector3 b)> _edgeScratch = new();
     private int _activeSegmentCount;
 
-    // One material per animal type — created once in Awake, reused on every refresh.
     private readonly Dictionary<HabitatAnimal, Material> _materialByAnimal = new();
+
+    private int _hoveredVisualGroupId = -1;
+    private bool _needsRefresh;
 
     private void Awake()
     {
         if (!grid)          grid          = FindAnyObjectByType<TileGrid>();
         if (!runtimeStore)  runtimeStore  = FindAnyObjectByType<TileRuntimeStore>();
+        if (!query)         query         = FindAnyObjectByType<TileQueryService>();
+        if (!mainCamera)    mainCamera    = Camera.main;
         if (!outlinesParent) outlinesParent = transform;
 
         BuildAnimalMaterials();
@@ -72,76 +78,128 @@ public class HabitatOutlineVisualizer : MonoBehaviour
     {
         TileEvents.TileStateChanged += OnTileStateChanged;
         TileEvents.HabitatAssigned  += OnHabitatAssigned;
-        TileEvents.HabitatMerged      += OnHabitatMerged;
-        RefreshAllOutlines();
+        TileEvents.HabitatMerged    += OnHabitatMerged;
+        DeactivateAllSegments();
+        _hoveredVisualGroupId = -1;
     }
 
     private void OnDisable()
     {
         TileEvents.TileStateChanged -= OnTileStateChanged;
         TileEvents.HabitatAssigned  -= OnHabitatAssigned;
-        TileEvents.HabitatMerged      -= OnHabitatMerged;
+        TileEvents.HabitatMerged    -= OnHabitatMerged;
         DeactivateAllSegments();
+        _hoveredVisualGroupId = -1;
     }
 
     private void OnDestroy()
     {
-        // Materials created in Awake must be freed.
         foreach (var mat in _materialByAnimal.Values)
             if (mat != null) Destroy(mat);
         _materialByAnimal.Clear();
     }
 
-    private void OnTileStateChanged(Tile _) => RefreshAllOutlines();
-    private void OnHabitatAssigned(HabitatAssignmentData _) => RefreshAllOutlines();
-    private void OnHabitatMerged(HabitatMergeData _) => RefreshAllOutlines();
-
-    // -------------------------------------------------------------------------
-
-    private void RefreshAllOutlines()
+    private void LateUpdate()
     {
-        if (runtimeStore == null || grid == null) return;
+        if (!isActiveAndEnabled || runtimeStore == null || query == null)
+            return;
 
+        if (!TryGetHoveredHabitatId(out int habitatId))
+        {
+            if (_hoveredVisualGroupId >= 0)
+            {
+                DeactivateAllSegments();
+                _hoveredVisualGroupId = -1;
+            }
+            return;
+        }
+
+        int groupId = runtimeStore.GetGroupLeader(habitatId);
+        if (groupId != _hoveredVisualGroupId || _needsRefresh)
+        {
+            RefreshOutlineForVisualGroup(habitatId);
+            _hoveredVisualGroupId = groupId;
+            _needsRefresh = false;
+        }
+    }
+
+    private void OnTileStateChanged(Tile _) => MarkDirtyIfHovering();
+    private void OnHabitatAssigned(HabitatAssignmentData _) => MarkDirtyIfHovering();
+    private void OnHabitatMerged(HabitatMergeData _) => MarkDirtyIfHovering();
+
+    private void MarkDirtyIfHovering()
+    {
+        if (_hoveredVisualGroupId >= 0)
+            _needsRefresh = true;
+    }
+
+    private bool TryGetHoveredHabitatId(out int habitatId)
+    {
+        habitatId = -1;
+
+        if (!TryGetPointerScreen(out var screen, out var pointerId))
+            return false;
+
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(pointerId))
+            return false;
+
+        var cam = mainCamera != null ? mainCamera : Camera.main;
+        if (cam == null)
+            return false;
+
+        var ray = cam.ScreenPointToRay(screen);
+        if (!Physics.Raycast(ray, out var hit, maxRayDistance, groundMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        if (!query.TryGetNearestTile(hit.point, out var tile, maxRayDistance))
+            return false;
+
+        var rt = runtimeStore.Get(tile);
+        if (rt == null || !rt.occupied || rt.habitatId < 0)
+            return false;
+
+        habitatId = rt.habitatId;
+        return true;
+    }
+
+    private void RefreshOutlineForVisualGroup(int habitatId)
+    {
         DeactivateAllSegments();
         _activeSegmentCount = 0;
 
-        // GetVisualHabitatGroups łączy kafle sub-habitatów tej samej grupy w jeden obrys
-        var groups = runtimeStore.GetVisualHabitatGroups();
-        groups.Sort((a, b) => a.groupId.CompareTo(b.groupId));
+        if (!runtimeStore.TryGetVisualHabitatGroup(habitatId, out _, out var animal, out var tiles))
+            return;
 
-        int layerIndex = 0;
-        foreach (var (_, animal, tiles) in groups)
+        if (tiles == null || tiles.Count == 0)
+            return;
+
+        var regionSet = new HashSet<Tile>(tiles);
+        _materialByAnimal.TryGetValue(animal, out var mat);
+
+        _edgeScratch.Clear();
+        HabitatRegionOutlineUtility.CollectBoundaryEdges(
+            tiles, regionSet, lineHeightOffset, 0f, lineInset, _edgeScratch);
+
+        for (int e = 0; e < _edgeScratch.Count; e++)
         {
-            if (tiles == null || tiles.Count == 0) continue;
-
-            var regionSet   = new HashSet<Tile>(tiles);
-            float layerYOff = perHabitatHeightStep * layerIndex;
-
-            _materialByAnimal.TryGetValue(animal, out var mat);
-
-            _edgeScratch.Clear();
-            HabitatRegionOutlineUtility.CollectBoundaryEdges(
-                tiles, regionSet, lineHeightOffset, layerYOff, lineInset, _edgeScratch);
-
-            foreach (var (a, b) in _edgeScratch)
-            {
-                var (go, lr) = GetOrCreateSegment(_activeSegmentCount);
-                lr.SetPosition(0, a);
-                lr.SetPosition(1, b);
-                lr.material     = mat;
-                lr.sortingOrder = layerIndex;
-                go.SetActive(true);
-                _activeSegmentCount++;
-            }
-
-            layerIndex++;
+            var (a, b) = _edgeScratch[e];
+            var (go, lr) = GetOrCreateSegment(_activeSegmentCount);
+            lr.SetPosition(0, a);
+            lr.SetPosition(1, b);
+            lr.material = mat;
+            lr.sortingOrder = 0;
+            go.SetActive(true);
+            _activeSegmentCount++;
         }
     }
 
     private void DeactivateAllSegments()
     {
         for (int i = 0; i < _activeSegmentCount; i++)
-            if (i < _segmentPool.Count) _segmentPool[i].go.SetActive(false);
+        {
+            if (i < _segmentPool.Count)
+                _segmentPool[i].go.SetActive(false);
+        }
         _activeSegmentCount = 0;
     }
 
@@ -159,7 +217,6 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         }
     }
 
-    // Returns an existing (inactive) pooled segment or creates a new one.
     private (GameObject go, LineRenderer lr) GetOrCreateSegment(int idx)
     {
         if (idx < _segmentPool.Count)
@@ -168,17 +225,40 @@ public class HabitatOutlineVisualizer : MonoBehaviour
         var go = new GameObject("OutlineSegment");
         go.transform.SetParent(outlinesParent, false);
         var lr = go.AddComponent<LineRenderer>();
-        lr.positionCount    = 2;
-        lr.startWidth       = lineWidth;
-        lr.endWidth         = lineWidth * 0.8f;
-        lr.useWorldSpace    = true;
-        lr.numCapVertices   = 2;
+        lr.positionCount     = 2;
+        lr.startWidth        = lineWidth;
+        lr.endWidth          = lineWidth * 0.8f;
+        lr.useWorldSpace     = true;
+        lr.numCapVertices    = 2;
         lr.numCornerVertices = 0;
         go.SetActive(false);
 
         var entry = (go, lr);
         _segmentPool.Add(entry);
         return entry;
+    }
+
+    private static bool TryGetPointerScreen(out Vector2 screen, out int pointerId)
+    {
+        screen = default;
+        pointerId = -1;
+
+        var mouse = Mouse.current;
+        if (mouse != null)
+        {
+            screen = mouse.position.ReadValue();
+            return true;
+        }
+
+        var ts = Touchscreen.current;
+        if (ts != null && ts.primaryTouch.press.isPressed)
+        {
+            screen = ts.primaryTouch.position.ReadValue();
+            pointerId = ts.primaryTouch.touchId.ReadValue();
+            return true;
+        }
+
+        return false;
     }
 
     private Color GetColorForAnimal(HabitatAnimal animal) => animal switch

@@ -255,6 +255,71 @@ public class TileRuntimeStore : MonoBehaviour
         => _habitatGroupLeader.TryGetValue(habitatId, out int l) ? l : habitatId;
 
     /// <summary>
+    /// Spójny region wizualny (wszystkie kafle sub-habitatów po merge) dla grupy zawierającej <paramref name="habitatId"/>.
+    /// </summary>
+    public bool TryGetVisualHabitatGroup(int habitatId, out int groupId, out HabitatAnimal animal, out List<Tile> tiles)
+    {
+        groupId = -1;
+        animal = HabitatAnimal.None;
+        tiles = new List<Tile>();
+
+        if (habitatId < 0 || !_habitats.ContainsKey(habitatId))
+            return false;
+
+        groupId = GetGroupLeader(habitatId);
+        foreach (var kv in _habitats)
+        {
+            if (GetGroupLeader(kv.Key) != groupId)
+                continue;
+
+            var rec = kv.Value;
+            if (rec == null)
+                continue;
+
+            if (animal == HabitatAnimal.None && rec.Animal != HabitatAnimal.None)
+                animal = rec.Animal;
+
+            if (rec.Tiles == null)
+                continue;
+
+            for (int i = 0; i < rec.Tiles.Count; i++)
+            {
+                var t = rec.Tiles[i];
+                if (t != null && !tiles.Contains(t))
+                    tiles.Add(t);
+            }
+        }
+
+        return tiles.Count > 0;
+    }
+
+    /// <summary>
+    /// Wszystkie sub-habitaty w tej samej grupie wizualnej co <paramref name="habitatId"/>.
+    /// </summary>
+    public List<(int habitatId, HabitatAnimal animal, List<Tile> tiles)> GetHabitatSubgroupsInVisualGroup(int habitatId)
+    {
+        var result = new List<(int habitatId, HabitatAnimal animal, List<Tile> tiles)>();
+        if (habitatId < 0 || !_habitats.ContainsKey(habitatId))
+            return result;
+
+        int leader = GetGroupLeader(habitatId);
+        foreach (var kv in _habitats)
+        {
+            if (GetGroupLeader(kv.Key) != leader)
+                continue;
+
+            var rec = kv.Value;
+            if (rec == null || rec.Tiles == null || rec.Tiles.Count == 0)
+                continue;
+
+            result.Add((rec.Id, rec.Animal, new List<Tile>(rec.Tiles)));
+        }
+
+        result.Sort((a, b) => a.habitatId.CompareTo(b.habitatId));
+        return result;
+    }
+
+    /// <summary>
     /// Zwraca listę grup wizualnych — jeden wpis per połączony region (łączy kafle sub-habitatów).
     /// Używane przez HabitatOutlineVisualizer zamiast GetHabitatGroups().
     /// </summary>

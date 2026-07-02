@@ -6,10 +6,8 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Wypełnia 12 slotów kafla dekoracjami zgodnie z biomem i wybranym wariantem biomu.
-/// Jeden biom może mieć wiele wariantów (np. las iglasty / liściasty) — patrz <see cref="BiomeVariantProfile"/>.
-/// Wyboru wariantu dokonuje <see cref="BiomeVariantSelector"/> (obecnie losowanie wg wag, później strefy klimatu).
-/// </summary>
+/// fills a tile with biome-specific content prefabs (trees, bushes, rocks, etc.) based on the biome and variant.
+/// /// </summary>
 public class BiomeTilePopulator : MonoBehaviour
 {
     [Serializable]
@@ -105,7 +103,7 @@ public class BiomeTilePopulator : MonoBehaviour
     }
 
     /// <summary>
-    /// Losuje wariant dla biomu (np. 50/50). Używane przed podglądem / spawnem gdy karta talii nie narzuca wariantu.
+    /// picks a variant for the given biome, using the forcedVariantId if provided, otherwise randomly selecting from available variants.
     /// </summary>
     public string PickVariantId(TileBiome biome, string forcedVariantId, System.Random rng)
     {
