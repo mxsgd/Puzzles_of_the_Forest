@@ -38,22 +38,37 @@ public static class HabitatRegionOutlineUtility
             {
                 if (neighbor == null || regionSet.Contains(neighbor)) continue;
 
-                var toNeighbor = neighbor.worldPos - tile.worldPos;
-                var dist = new Vector3(toNeighbor.x, 0f, toNeighbor.z).magnitude;
-                if (dist < 0.001f) continue;
-
-                var mid = tile.worldPos + toNeighbor * 0.5f;
-                mid.y = y;
-                var dirXZ = new Vector3(toNeighbor.x, 0f, toNeighbor.z).normalized;
-                var perp = new Vector3(dirXZ.z, 0f, -dirXZ.x);
-                var halfEdge = dist / (2f * Mathf.Sqrt(3f));
-                var inward = -dirXZ * lineInset;
-                var c1 = mid + perp * halfEdge + inward;
-                c1.y = y;
-                var c2 = mid - perp * halfEdge + inward;
-                c2.y = y;
-                edges.Add((c1, c2));
+                if (TryComputeEdgeSegment(tile, neighbor, y, lineInset, out var a, out var b))
+                    edges.Add((a, b));
             }
         }
+    }
+
+    /// <summary>
+    /// Endpoints of the hex edge shared between two adjacent tiles (inset slightly inward along
+    /// the tile-to-neighbor direction). Shared by boundary-outline drawing above and by any other
+    /// system that wants to highlight a specific tile-to-tile edge (e.g. SameBiomeConnectionAnimator).
+    /// </summary>
+    public static bool TryComputeEdgeSegment(
+        Tile tile, Tile neighbor, float y, float lineInset, out Vector3 a, out Vector3 b)
+    {
+        a = b = default;
+        if (tile == null || neighbor == null) return false;
+
+        var toNeighbor = neighbor.worldPos - tile.worldPos;
+        var dist = new Vector3(toNeighbor.x, 0f, toNeighbor.z).magnitude;
+        if (dist < 0.001f) return false;
+
+        var mid = tile.worldPos + toNeighbor * 0.5f;
+        mid.y = y;
+        var dirXZ = new Vector3(toNeighbor.x, 0f, toNeighbor.z).normalized;
+        var perp = new Vector3(dirXZ.z, 0f, -dirXZ.x);
+        var halfEdge = dist / (2f * Mathf.Sqrt(3f));
+        var inward = -dirXZ * lineInset;
+        a = mid + perp * halfEdge + inward;
+        a.y = y;
+        b = mid - perp * halfEdge + inward;
+        b.y = y;
+        return true;
     }
 }

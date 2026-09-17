@@ -6,8 +6,9 @@
 
 A solo-developed, systems-first hex tile-placement puzzle game. Draw a tile from a fixed deck,
 place it next to your existing board, and shape connected regions into animal **habitats** for
-score. Habitats are efficiency puzzles: the fewer tiles you spend to satisfy an animal's biome
-requirement, the more points per tile you get. A single run lasts until the deck runs dry.
+score, while also weighing a second, always-on incentive to cluster same-biome tiles together for
+smaller guaranteed points (§7.5) — the two pull against each other, since habitats need a *mixed*
+biome region. A single run lasts until the deck runs dry.
 
 Target: a small, polished **premium indie release on Steam** (~15 PLN). It's a roguelite-lite puzzle game with perks and quests layered on
 top of a deterministic placement puzzle.
@@ -16,8 +17,8 @@ top of a deterministic placement puzzle.
 
 - Gameplay-complete alpha: placement, habitats, scoring, deck, reroll, perks, and quests all work
   end-to-end.
-- Perks are the acknowledged rough edge — six exist, and they need balance/UX polish, not new
-  architecture.
+- Perks: 11 exist (started at 6; several rounds of additions/cuts since — see §8), still the area
+  most likely to need further balance/UX polish.
 - No meta-progression between runs (no currency carried over, no unlocks, no save file beyond
   `PlayerPrefs.Save()` on quit). Each run starts from a clean slate.
 - Scope is intentionally closed: the goal is to finish and polish the existing loop for a Steam
@@ -130,14 +131,29 @@ hard wall.
 ### 7.1 Animals & requirements
 
 Four playable animals (`HabitatAnimal`), each with a required `BiomeVector` (the region's summed
-biome counts must be **≥** every component) and a base point value:
+biome counts must be **≥** every component). All four are worth the same points
+(`HabitatRequirements.BasePoints = 500`, a single shared constant — previously this varied by
+animal, 300/400/500/600, which meant Bear was implicitly the "best" habitat to chase; that's been
+deliberately flattened so every animal is an equally valid target). Since every single habitat is
+always exactly 5 tiles (§7.2), the score actually **awarded** is always `500 ÷ 5 = 100`, for any
+animal:
 
-| Animal | Requirement (Meadow, Forest, Bush, Rock, Water) | Base points | Min. tiles to satisfy |
-|--------|--------------------------------------------------|-------------|------------------------|
-| Bees   | (2, 1, 2, 0, 0)                                   | 300         | 5 |
-| Beaver | (0, 2, 1, 0, 2)                                   | 400         | 5 |
-| Deer   | (2, 1, 1, 0, 1)                                   | 500         | 5 |
-| Bear   | (0, 1, 1, 2, 1)                                   | 600         | 5 |
+| Animal | Requirement (Meadow, Forest, Bush, Rock, Water) | Points awarded per habitat |
+|--------|--------------------------------------------------|------------------------|
+| Bees   | (2, 1, 2, 0, 0)                                   | 100 |
+| Beaver | (0, 2, 1, 0, 2)                                   | 100 |
+| Deer   | (2, 1, 1, 0, 1)                                   | 100 |
+| Bear   | (0, 1, 1, 2, 1)                                   | 100 |
+
+**Side effect worth knowing**: `BiomeHabitatClassifier.IsBetterCandidate` used to break ties
+between simultaneously-possible animal candidates by preferring the higher `basePoints` (Bear
+first, then Deer, Beaver, Bees). With all four now equal, that tie-break is a no-op — ties fall
+through to fewer tiles (always equal too, always 5), then deterministic tile order, then animal
+enum order (`Deer < Beaver < Bear < Bees`), so Deer effectively wins any leftover tie now. In
+practice this basically never fires anyway: two different animals require exactly-different
+5-tile biome vectors, so the same 5-tile region can never satisfy two animals at once — this only
+matters when a placement makes *multiple different regions* around it simultaneously valid for
+different animals, which the classifier already narrows to a single best pick.
 
 > **Resolved**: an earlier pass of this doc flagged a dangling `RockDweller` 5th-animal reference in
 > `HabitatCompatibilityService`'s matrix (left over from `docs/KLASY_I_RELACJE.md`'s older type
@@ -194,21 +210,86 @@ was built and then cut (see §8.1) — the data stays in case a future attempt w
 ### 7.4 Merging
 
 Adjacent habitats of the **same animal** can merge into one larger habitat
-(`TileEvents.HabitatMerged`), which:
-- Sums their points plus a **merge connection bonus**
-  (`ComputeMergeConnectionBonus = ComputeAwardedPoints(animal, 2) * (habitatsMerged - 1)`).
+(`TileEvents.HabitatMerged`). This is more generous than "sum plus a small bonus" — **each
+sub-habitat keeps the points it was awarded when it individually formed, and the merge event then
+awards a full second helping on top**, recomputed for the whole merged group:
+
+- `basePoints = ComputeAwardedPoints(animal, totalMergedTileCount)` — the group's own points as if
+  it had formed in one shot.
+- `connectionBonus = ComputeAwardedPoints(animal, 2) × (habitatsMerged − 1)`.
+- Both are added to score via `HabitatMerged`, **in addition to** what `HabitatAssigned` already
+  paid out for each sub-habitat individually when it first formed.
+
+Worked example — two separate 5-tile habitats of the same animal (100 pts each when formed alone,
+since all four animals award the same 100 — §7.1) that happen to be adjacent: first one forms →
++100. Second one forms → +100 (its own `HabitatAssigned`), then immediately merges with the first
+(10 tiles total) → `basePoints = round(500/10) = 50`, `connectionBonus = round(500/2) × 1 = 250`,
+merge event pays **+300** more. Total for those 10 tiles: **500** points — 2.5× what the same two
+habitats would score if they never touched. Merging
+is by a wide margin the single most lucrative thing in the current scoring model; every other
+system in the game (habitat formation itself, the neighbor bonus in §7.5, every perk) awards far
+smaller amounts by comparison. Worth knowing before tuning anything else, since it dwarfs the
+scale of everything else described in this document.
+
+Beyond the score:
 - Reduces the displayed habitat count by `mergedHabitatCount - 1`.
 - Updates "largest habitat" tile count (this is how main quests like "Great Herd — 10+ tiles" are
   reachable despite the single-region cap of 5: quests track the *post-merge* habitat size, not a
   single classification pass).
 - Triggers a chain-reaction visual animation (`HabitatChainReactionAnimator`).
 
-### 7.5 Scoring summary
+### 7.5 Same-biome group bonus (base mechanic, always on)
 
-- Per-habitat points: `round(basePoints / tileCount)`.
-- Merge bonus: `ComputeAwardedPoints(animal, 2) * (habitatsMerged - 1)` added on top.
+`TileNeighborMatchScorer` is a new, always-active system (not a perk — auto-attached by
+`GameManager` alongside `GameFlowController`) that adds a second, independent scoring layer:
+whenever any tile becomes occupied (player placement, or a perk-spawned tile from Beaver Dam /
+Expansion), it flood-fills the connected group of same-biome tiles the new tile now belongs to and
+awards `pointsPerGroupTile` (default 10) **per tile in that group** — so joining/extending a group
+of 4 same-biome tiles (5 total including the new one) scores 50, not a fixed amount. Groups of 1
+(no same-biome neighbor at all, even transitively) score nothing. It fires via the same
+`TileEvents.TileStateChanged` event the habitat classifier listens to, so it triggers alongside —
+not instead of — habitat scoring; a single placement can score both.
+
+**Visual feedback**: `SameBiomeConnectionAnimator` listens to a new `TileEvents.SameBiomeGroupScored`
+event (raised by the scorer alongside the score add) and plays a quick, deliberately low-impact
+animation — no tile raise, no re-tint, unlike `HabitatChainReactionAnimator`. It reuses the same
+technique as habitat outlines and the hover preview's candidate highlight
+(`HabitatRegionOutlineUtility` + `LineRenderer`), pointed at the *shared* edge between two
+connected tiles instead of a region's outer boundary, using a dedicated `TileSideGlow.mat`
+(dimmer than the `TileGlow.mat` outlines/hover use, on purpose — this fires far more often than a
+habitat completing) loaded via `Resources.Load` (moved into `Assets/Resources/`, same pattern as
+`QuestCatalog`/`GameSfxCatalog`, so the runtime-created component doesn't need scene wiring).
+After a `delayBeforeReveal` pause (default 0.5s, so it doesn't read as part of the placement
+itself), it lights up the placed tile's edges facing same-biome neighbors, then ripples outward
+wave by wave through the rest of the connected group, revealing each further connection once —
+each edge fading in, holding, and fading out on its own timer (all four durations tunable in the
+Inspector).
+
+This was added specifically to counterbalance §7.2's finding that single-habitat efficiency isn't
+a real choice (every habitat is forced to exactly 5 tiles). The group bonus pulls the other way:
+it rewards clustering *same*-biome tiles together, which directly competes with keeping a region's
+biomes *mixed* enough to satisfy a habitat requirement. It deliberately mirrors how habitat
+merging (§7.4) already scales — the biggest connected group wins big — rather than being a flat
+per-placement trickle, so growing one large same-biome field is a real, escalating alternative to
+chasing habitats, not just a minor nudge.
+
+**Balance risk worth knowing before playtesting**: this scales quadratically with group size, same
+as merging does (extending a single group from 1 to N tiles nets `10 × (2+3+...+N)` points total),
+and it stacks with the Affinity perks (§8.1) — Water Affinity biasing the deck toward Water tiles
+while you grow one big Water field is a direct, obvious combo. Whether that's a fun alternate
+"farm" playstyle or a degenerate one that crowds out habitat-building is an open question; the
+`pointsPerGroupTile` constant is a one-line tune if it needs pulling back.
+
+### 7.6 Scoring summary
+
+- Per-habitat points: `round(basePoints / tileCount)` — always ÷5 in practice (§7.1).
+- Merging (§7.4): full group points **recomputed and paid again**, plus a connection bonus, **on
+  top of** what each sub-habitat already scored on its own — by far the largest score source.
+- Same-biome group bonus: `pointsPerGroupTile × connected same-biome group size`, per placement
+  (§7.5) — independent of and additive with habitat/merge points.
 - Perks can modify the score via `PerkManager.ModifyHabitatScore` (hook: `HabitatEvaluation`) —
-  none of the current 11 perks use this hook, so it's an unused extension point today.
+  none of the current 11 perks use this hook, so it's an unused extension point today. The group
+  bonus is not perk-modifiable (it's a base mechanic, outside the perk pipeline).
 - Final score, habitat count, and largest habitat are the only persisted end-of-run stats (no
   high-score table, no save-across-sessions leaderboard in code).
 

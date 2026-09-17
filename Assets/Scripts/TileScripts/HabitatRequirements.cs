@@ -26,17 +26,12 @@ public static class HabitatRequirements
         };
     }
 
-    /// <summary>Difficulty weights; scoring uses basePoints / tileCount.</summary>
+    /// <summary>Every animal is worth the same; scoring uses basePoints / tileCount.</summary>
+    public const int BasePoints = 500;
+
     public static int GetBasePoints(HabitatAnimal animal)
     {
-        return animal switch
-        {
-            HabitatAnimal.Bees => 300,
-            HabitatAnimal.Beaver => 400,
-            HabitatAnimal.Deer => 500,
-            HabitatAnimal.Bear => 600,
-            _ => 0
-        };
+        return animal == HabitatAnimal.None ? 0 : BasePoints;
     }
 
     /// <summary>All animals that participate in classification (excludes None).</summary>

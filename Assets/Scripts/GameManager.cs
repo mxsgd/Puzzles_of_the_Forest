@@ -21,6 +21,12 @@ public class GameManager : MonoBehaviour
 
         if (FindAnyObjectByType<GameFlowController>() == null)
             gameObject.AddComponent<GameFlowController>();
+
+        if (FindAnyObjectByType<TileNeighborMatchScorer>() == null)
+            gameObject.AddComponent<TileNeighborMatchScorer>();
+
+        if (FindAnyObjectByType<SameBiomeConnectionAnimator>() == null)
+            gameObject.AddComponent<SameBiomeConnectionAnimator>();
     }
 
     private void Start()

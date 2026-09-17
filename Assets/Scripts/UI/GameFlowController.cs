@@ -414,6 +414,7 @@ public class GameFlowController : MonoBehaviour
             "• Build habitats — connected regions up to 5 tiles.\n" +
             "• Each biome has a vector (meadow, forest, bush, rock, water).\n" +
             "• Fewer tiles in a habitat means more points.\n" +
+            "• Growing a cluster of the same biome also scores bonus points — bigger clusters score more per tile.\n" +
             "• When the deck runs out, the game ends.\n" +
             "• Reroll (3×) replaces the current card.";
 

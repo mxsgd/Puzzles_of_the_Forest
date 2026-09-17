@@ -67,12 +67,30 @@ public readonly struct HabitatMergeData
     }
 }
 
+/// <summary>Payload when a placement joins/extends a connected same-biome group (2+ tiles).</summary>
+public readonly struct SameBiomeGroupData
+{
+    public readonly Tile PlacedTile;
+    public readonly TileBiome Biome;
+    public readonly IReadOnlyList<Tile> GroupTiles;
+
+    public SameBiomeGroupData(Tile placedTile, TileBiome biome, IReadOnlyList<Tile> groupTiles)
+    {
+        PlacedTile = placedTile;
+        Biome = biome;
+        GroupTiles = groupTiles;
+    }
+}
+
 public static class TileEvents
 {
     public static event Action<Tile> TileStateChanged;
 
     /// <summary>Kafel postawiony — biom znany w momencie eventu.</summary>
     public static event Action<Tile, TileBiome> TilePlaced;
+
+    /// <summary>Emitted by TileNeighborMatchScorer when a placement scores a same-biome group bonus.</summary>
+    public static event Action<SameBiomeGroupData> SameBiomeGroupScored;
 
     /// <summary>Emitted when a new habitat is created after classification.</summary>
     public static event Action<HabitatAssignmentData> HabitatAssigned;
@@ -91,6 +109,9 @@ public static class TileEvents
 
     public static void RaiseTilePlaced(Tile tile, TileBiome biome)
         => TilePlaced?.Invoke(tile, biome);
+
+    public static void RaiseSameBiomeGroupScored(SameBiomeGroupData data)
+        => SameBiomeGroupScored?.Invoke(data);
 
     public static void RaiseHabitatAssigned(HabitatAssignmentData data)
         => HabitatAssigned?.Invoke(data);
