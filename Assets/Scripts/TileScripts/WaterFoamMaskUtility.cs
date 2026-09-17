@@ -18,7 +18,7 @@ public static class WaterFoamMaskUtility
     private static readonly int FoamHexRadiusId = Shader.PropertyToID("_FoamHexRadius");
     private static readonly int FoamWidthId = Shader.PropertyToID("_FoamWidth");
 
-    private const float FoamBandFraction = 0.28f;
+    private const float FoamBandFraction = 0.36f;
 
     private static MaterialPropertyBlock _block;
 

@@ -49,8 +49,8 @@ void WaterTileFoamMask_float(
     float2 p = PositionOS.xz;
     float edgeDistance = HexRadius - WaterFoamFlatTopHexEdgeDistance(p);
     float rimRaw = saturate(1.0 - edgeDistance / max(FoamWidth, 0.001));
-    // Sharper rim reads as foam, not soft refraction fringe.
-    float rim = pow(rimRaw, 1.4);
+    // Wider, stronger rim so shore foam wins over refraction fringe.
+    float rim = pow(rimRaw, 0.85);
 
     float2 dir = p * rsqrt(max(dot(p, p), 1e-6));
     int edgeIndex = 0;
@@ -68,9 +68,11 @@ void WaterTileFoamMask_float(
     }
 
     float neighborMask = WaterFoamSampleEdgeMask(FoamEdgeMask, FoamEdgeMaskB, edgeIndex);
-    const float kInteriorFoam = 0.07;
+    const float kInteriorFoam = 0.04;
     float edgeFoam = rim * neighborMask;
-    Mask = saturate(edgeFoam + kInteriorFoam) * topMask;
+    // Land-facing hex edges must stay opaque foam, not refracted terrain color.
+    float shoreFoam = smoothstep(0.08, 0.55, rimRaw) * neighborMask;
+    Mask = saturate(max(edgeFoam, shoreFoam) + kInteriorFoam) * topMask;
 }
 
 // Shader Graph compiles half-precision variants too — both are required.

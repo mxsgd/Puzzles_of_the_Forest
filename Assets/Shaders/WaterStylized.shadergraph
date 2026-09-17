@@ -282,20 +282,6 @@
         {
             "m_OutputSlot": {
                 "m_Node": {
-                    "m_Id": "2f04942e5edf4c699c63c00d28337e22"
-                },
-                "m_SlotId": 4
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "ac5c31fe937349c9a2a797fdefbba691"
-                },
-                "m_SlotId": 1
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
                     "m_Id": "41225812feff448fa165f311af99ad99"
                 },
                 "m_SlotId": 0
@@ -380,20 +366,6 @@
         {
             "m_OutputSlot": {
                 "m_Node": {
-                    "m_Id": "6abb5f78203442c5b20b573518a2b185"
-                },
-                "m_SlotId": 2
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "ac5c31fe937349c9a2a797fdefbba691"
-                },
-                "m_SlotId": 0
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
                     "m_Id": "6d38508ea53b4ed6a6fde4727ee1eb63"
                 },
                 "m_SlotId": 1
@@ -414,9 +386,23 @@
             },
             "m_InputSlot": {
                 "m_Node": {
-                    "m_Id": "6abb5f78203442c5b20b573518a2b185"
+                    "m_Id": "ac5c31fe937349c9a2a797fdefbba691"
                 },
                 "m_SlotId": 0
+            }
+        },
+        {
+            "m_OutputSlot": {
+                "m_Node": {
+                    "m_Id": "7ef7a32790984d45bfd21dffad9e0872"
+                },
+                "m_SlotId": 0
+            },
+            "m_InputSlot": {
+                "m_Node": {
+                    "m_Id": "ac5c31fe937349c9a2a797fdefbba691"
+                },
+                "m_SlotId": 1
             }
         },
         {
@@ -916,8 +902,8 @@
     "m_ObjectId": "080f0105dd6e494ba1b45def5250bd3b",
     "m_Title": "Foam",
     "m_Position": {
-        "x": -1674.400146484375,
-        "y": 921.5999755859375
+        "x": -1674.4000244140625,
+        "y": 921.60009765625
     }
 }
 
@@ -1413,7 +1399,7 @@
     "m_Title": "Water Color",
     "m_Position": {
         "x": -784.7999877929688,
-        "y": 146.3999786376953
+        "y": 146.39999389648438
     }
 }
 

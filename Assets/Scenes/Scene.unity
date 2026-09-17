@@ -350,14 +350,14 @@ MonoBehaviour:
       m_Calls: []
   m_text: GAME OVER
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 0}
+  m_fontAsset: {fileID: 11400000, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
+  m_sharedMaterial: {fileID: -246165346762483451, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4279904826
   m_fontColor: {r: 0.22745098, g: 0.16470589, b: 0.101960786, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -370,7 +370,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -397,13 +397,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -1462,14 +1462,14 @@ MonoBehaviour:
       m_Calls: []
   m_text: "Deck empty \u2014 session ended"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 0}
+  m_fontAsset: {fileID: 11400000, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
+  m_sharedMaterial: {fileID: -246165346762483451, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4283394682
   m_fontColor: {r: 0.47843137, g: 0.41568628, b: 0.30980393, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1482,7 +1482,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1509,13 +1509,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -5496,8 +5496,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 0
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 0}
+  m_fontAsset: {fileID: 11400000, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
+  m_sharedMaterial: {fileID: -246165346762483451, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -5516,7 +5516,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -5543,13 +5543,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -21392,14 +21392,14 @@ MonoBehaviour:
       m_Calls: []
   m_text: Score
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 0}
-  m_sharedMaterial: {fileID: 0}
+  m_fontAsset: {fileID: 11400000, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
+  m_sharedMaterial: {fileID: -246165346762483451, guid: 985e299d1c3f55045925db79906e7dd2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4283394682
   m_fontColor: {r: 0.47843137, g: 0.41568628, b: 0.30980393, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -21412,7 +21412,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -21439,13 +21439,13 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
-  m_isOrthographic: 0
+  m_isOrthographic: 1
   m_isCullingEnabled: 0
   m_horizontalMapping: 0
   m_verticalMapping: 0
@@ -22235,6 +22235,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HabitatOutlineVisualizer
   grid: {fileID: 1128265999}
   runtimeStore: {fileID: 1211946169}
+  query: {fileID: 0}
+  mainCamera: {fileID: 0}
   lineHeightOffset: 2.5
   perHabitatHeightStep: 0.02
   lineInset: 0.08
@@ -22244,8 +22246,11 @@ MonoBehaviour:
   beaverColor: {r: 0.3, g: 0.5, b: 0.6, a: 1}
   bearColor: {r: 0.25, g: 0.25, b: 0.3, a: 1}
   beesColor: {r: 0.95, g: 0.85, b: 0.2, a: 1}
-  rockDwellerColor: {r: 0.55, g: 0.45, b: 0.4, a: 1}
   outlinesParent: {fileID: 0}
+  maxRayDistance: 500
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!114 &1723511252
 MonoBehaviour:
   m_ObjectHideFlags: 0

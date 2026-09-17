@@ -1,11 +1,15 @@
-# Idle Forest — klasy w grze
+# Idle Forest — classes in the game
 
-Dokumentacja wszystkich typów C# w `Assets/Scripts/` (40 plików, ~55 publicznych typów).  
-Relacje: **dziedziczenie**, **zagnieżdżenie**, **referencje SerializeField**, **zdarzenia** (`TileEvents`).
+English translation of `docs/KLASY_I_RELACJE.md`. Keep both in sync when the architecture changes,
+or drop the Polish original if it's no longer needed.
+
+Documentation of all C# types in `Assets/Scripts/` (40 files, ~55 public types).
+Relationships covered: **inheritance**, **nesting**, **SerializeField references**, **events**
+(`TileEvents`).
 
 ---
 
-## Drzewo plików i typów
+## File and type tree
 
 ```
 Assets/Scripts/
@@ -76,21 +80,25 @@ Assets/Scripts/
     └── TileDeckUI.cs                 → TileDeckUI
 ```
 
+> **Not covered by this diagram**: the `Perks/` and `Quests/` folders (added after this document
+> was originally written) — perk drafting, perk behaviors, and the quest catalog/manager. See
+> `docs/GDD.md` §8–9 for those systems.
+
 ---
 
-## Legenda typów
+## Type legend
 
-| Symbol | Znaczenie |
+| Symbol | Meaning |
 |--------|-----------|
-| `MB` | `MonoBehaviour` — komponent na scenie / prefabie |
-| `SO` | `ScriptableObject` — asset w projekcie |
-| `static` | Klasa statyczna — logika bez instancji |
-| `data` | Struct / klasa danych (Inspector, talia, siatka) |
-| `event` | Hub zdarzeń globalnych |
+| `MB` | `MonoBehaviour` — a component on a scene object / prefab |
+| `SO` | `ScriptableObject` — a project asset |
+| `static` | Static class — logic with no instance |
+| `data` | Struct / data class (Inspector, deck, grid) |
+| `event` | Global event hub |
 
 ---
 
-## Dziedziczenie Unity
+## Unity inheritance
 
 ```
 MonoBehaviour
@@ -112,10 +120,10 @@ MonoBehaviour
 ├── TileDeckUI
 ├── BiomeHabitatClassifier
 ├── BiomeTilePopulator
-├── TileBiomeRuntime          ← na instancji postawionego kafla
-├── TileObject                ← opcjonalnie na kafelku
-├── TilePositionTint          ← na prefabie kafla
-├── BiomeDecorationTintReceiver ← na dekoracjach (drzewa, krzaki…)
+├── TileBiomeRuntime          ← on the instance of a placed tile
+├── TileObject                ← optionally on a tile
+├── TilePositionTint          ← on the tile prefab
+├── BiomeDecorationTintReceiver ← on decorations (trees, bushes…)
 ├── PerObjectColor
 ├── HabitatGridManager
 ├── HabitatOutlineVisualizer
@@ -127,45 +135,46 @@ ScriptableObject
 └── BiomeDecorationTintProfile
 ```
 
-Brak dziedziczenia między własnymi klasami — wszystkie rozszerzają typy Unity lub są plain C#.
+No inheritance between the project's own classes — everything either extends a Unity type or is
+plain C#.
 
 ---
 
-## Główny diagram — wszystkie klasy
+## Main diagram — all classes
 
-Jeden widok całego `Assets/Scripts/`. Każda strzałka = osobne połączenie.  
-Kolory linii (na dole diagramu `linkStyle`):
+One view of the whole `Assets/Scripts/`. Each arrow = a separate connection.
+Line colors (see `linkStyle` at the bottom of the diagram):
 
-| Kolor | Typ | Znaczenie |
+| Color | Type | Meaning |
 |-------|-----|-----------|
-| **Niebieski** | `ref` | `[SerializeField]` / referencja w Inspectorze |
-| **Pomarańczowy** | `emit` / `sub` | zdarzenia `TileEvents` (linia przerywana) |
-| **Fioletowy** | `uses` | wywołanie klasy `static` |
-| **Zielony** | `tworzy` | Instantiate / komponent na prefabie / `AddComponent` |
-| **Szary** | `dane` | typ w polu, payload, lista w Inspectorze |
+| **Blue** | `ref` | `[SerializeField]` / Inspector reference |
+| **Orange** | `emit` / `sub` | `TileEvents` events (dashed line) |
+| **Purple** | `uses` | call into a `static` class |
+| **Green** | `creates` | Instantiate / component on a prefab / `AddComponent` |
+| **Gray** | `data` | type held in a field, payload, list in the Inspector |
 
-> Przewiń diagram w bok — jest szeroki. W podglądzie Markdown użyj zoomu (Ctrl + scroll).
+> Scroll the diagram sideways — it's wide. In Markdown preview, zoom with Ctrl + scroll.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 28, 'rankSpacing': 48}}}%%
 flowchart LR
 
-    subgraph LEG["Legenda"]
+    subgraph LEG["Legend"]
         direction TB
         Lref["🔵 ref"]
         Levt["🟠 emit / sub"]
         Luse["🟣 uses"]
-        Lcre["🟢 tworzy"]
-        Ldat["⚪ dane"]
+        Lcre["🟢 creates"]
+        Ldat["⚪ data"]
     end
 
-    subgraph ENUM["Enumy"]
+    subgraph ENUM["Enums"]
         TBio["TileBiome"]
         HAn["HabitatAnimal"]
         HPrev["HabitatHoverPreviewKind"]
     end
 
-    subgraph DATA["Dane / struct"]
+    subgraph DATA["Data / struct"]
         BVec["BiomeVector"]
         TDraw["TileDraw"]
         TPGroup["TilePrefabGroup"]
@@ -195,7 +204,7 @@ flowchart LR
         BDTP["BiomeDecorationTintProfile"]
     end
 
-    subgraph CORE["Rdzeń sceny"]
+    subgraph CORE["Scene core"]
         GM["GameManager"]
         TG["TileGrid"]
         TRS["TileRuntimeStore"]
@@ -203,21 +212,21 @@ flowchart LR
         TD["TileDeck"]
     end
 
-    subgraph SVC["Usługi siatki"]
+    subgraph SVC["Grid services"]
         TQS["TileQueryService"]
         TAS["TileAvailabilityService"]
         TSM["TileSelectionModel"]
         TCS["TileClickSelector"]
     end
 
-    subgraph GAME["Rozgrywka"]
+    subgraph GAME["Gameplay"]
         TAV["TileAvailabilityVisualizer"]
         TNHP["TileNextTileHoverPreview"]
         BHC["BiomeHabitatClassifier"]
         BTP["BiomeTilePopulator"]
     end
 
-    subgraph VIS["Habitat — wizual"]
+    subgraph VIS["Habitat — visuals"]
         HOV["HabitatOutlineVisualizer"]
         HGM["HabitatGridManager"]
         HCRA["HabitatChainReactionAnimator"]
@@ -230,14 +239,14 @@ flowchart LR
         TDU["TileDeckUI"]
     end
 
-    subgraph PREFAB["Prefab kafla"]
+    subgraph PREFAB["Tile prefab"]
         TBR["TileBiomeRuntime"]
         TPT["TilePositionTint"]
         BDR["BiomeDecorationTintReceiver"]
         TObj["TileObject"]
     end
 
-    subgraph SOLO["Bez powiązań z siatką"]
+    subgraph SOLO["No grid coupling"]
         CAM["CameraWASDController"]
         HOLD["HoldProgressIndicator"]
         POC["PerObjectColor"]
@@ -350,13 +359,15 @@ flowchart LR
     linkStyle 74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94 stroke:#78909C,stroke-width:1.5px
 ```
 
-**Izolowane** (węzły bez strzałek na diagramie): `CameraWASDController`, `HoldProgressIndicator`, `PerObjectColor`.
+**Isolated** (nodes with no arrows in the diagram): `CameraWASDController`, `HoldProgressIndicator`,
+`PerObjectColor`.
 
-**Zagnieżdżone** (nie osobny węzeł): `TileRuntimeStore.Runtime`, `TileRuntimeStore.HabitatRecord`, typy wewnątrz `BiomeTilePopulator` — opisane w tabeli na końcu dokumentu.
+**Nested** (not a separate node): `TileRuntimeStore.Runtime`, `TileRuntimeStore.HabitatRecord`,
+types inside `BiomeTilePopulator` — described in the table at the end of the document.
 
 ---
 
-## Model siatki i runtime
+## Grid and runtime model
 
 ```
 TileGrid
@@ -376,127 +387,132 @@ TileRuntimeStore.HabitatRecord
   └── Tiles: List<TileGrid.Tile>
 ```
 
-**Usługi oparte na siatce** (wszystkie trzymają `TileGrid` + `TileRuntimeStore`):
+**Grid-based services** (all hold `TileGrid` + `TileRuntimeStore`):
 
-| Klasa | Rola |
-|-------|------|
+| Class | Role |
+|-------|-------|
 | `TileQueryService` | Raycast → `Tile` |
-| `TileAvailabilityService` | które sąsiadujące pola są dostępne |
+| `TileAvailabilityService` | which neighboring cells are available |
 | `TilePlacementService` | Instantiate / ghost → `MarkOccupied` |
 
 ---
 
-## Warstwa biomów i dekoracji
+## Biome and decoration layer
 
 ```
 TileBiome (enum)
   └── TileBiomeRules.GetAllowedTags()
         └── BiomeTilePopulator.Populate()
               └── TileBiomeRuntime (12 × TileTriangleSlot)
-                    └── HexTileLayout (geometria trójkątów)
+                    └── HexTileLayout (triangle geometry)
 
-Prefab kafla:
-  TilePositionTint ──► BiomeDecorationTintReceiver (dekoracje)
+Tile prefab:
+  TilePositionTint ──► BiomeDecorationTintReceiver (decorations)
   TileBiomeRuntime
 ```
 
-| Asset SO | Użycie |
+| SO asset | Usage |
 |----------|--------|
-| `BiomeDecorationTintProfile` | Reguły koloru po tagu treści (`Tree`, `Bush`…) |
-| `HabitatTintProfile` | Kolory zwierząt na kafelkach (`HabitatGridManager`) |
+| `BiomeDecorationTintProfile` | Color rules by content tag (`Tree`, `Bush`…) |
+| `HabitatTintProfile` | Animal colors on tiles (`HabitatGridManager`) |
 
 ---
 
-## Logika habitatów (pure C#)
+## Habitat logic (pure C#)
 
-| Typ | Odpowiedzialność |
+| Type | Responsibility |
 |-----|------------------|
 | `HabitatAnimal` | Deer, Beaver, Bear, Bees, RockDweller |
-| `BiomeVector` | Wektor biomów R⁵; `FromTileBiome`, `Satisfies`, `DeficitSumToward` |
-| `HabitatRequirements` | Wektory wymagań, punkty bazowe, scoring |
-| `HabitatCompatibilityService` | Macierz 5×5 kompatybilności zwierząt na jednym kaflu |
-| `HabitatHoverEvaluator` | Podgląd Gray / Yellow / Green przed postawieniem |
-| `BiomeHabitatClassifier` | Klasyfikacja regionu po `TileStateChanged` |
+| `BiomeVector` | R⁵ biome vector; `FromTileBiome`, `Satisfies`, `DeficitSumToward` |
+| `HabitatRequirements` | Requirement vectors, base points, scoring |
+| `HabitatCompatibilityService` | 5×5 animal-compatibility matrix for sharing one tile |
+| `HabitatHoverEvaluator` | Gray / Yellow / Green preview before placement |
+| `BiomeHabitatClassifier` | Region classification following `TileStateChanged` |
 
-`HabitatSource`, `HabitatTile` — dane konfiguracyjne dla `HabitatGridManager` (źródła wpływu / tint).
+`HabitatSource`, `HabitatTile` — configuration data for `HabitatGridManager` (influence sources /
+tint).
+
+> Note: `HabitatAnimal` lists a `RockDweller` value here and the compatibility matrix is shaped for
+> 5 animals, but as of this translation `HabitatRequirements` only implements 4 (Deer, Beaver, Bear,
+> Bees) — see `docs/GDD.md` §7.1 for the discrepancy.
 
 ---
 
-## UI i wejście
+## UI and input
 
-| Klasa | Zależności |
-|-------|------------|
-| `GameUI` | `TileDeck`, `TileEvents`, `UISpriteFactory`, tworzy `PauseMenuController` |
-| `PauseMenuController` | `UISpriteFactory`, Time.timeScale |
-| `TileDeckUI` | `TileDeck` (starszy UI talii) |
+| Class | Dependencies |
+|-------|-------|
+| `GameUI` | `TileDeck`, `TileEvents`, `UISpriteFactory`, creates `PauseMenuController` |
+| `PauseMenuController` | `UISpriteFactory`, `Time.timeScale` |
+| `TileDeckUI` | `TileDeck` (older deck UI) |
 | `TileClickSelector` | `TileQueryService`, `TileSelectionModel` |
-| `TileAvailabilityVisualizer` | pełny łańcuch placement + hover + classifier |
-| `TileNextTileHoverPreview` | ghost następnego kafla + ikony habitatów |
-| `HoldProgressIndicator` | pasek postępu (Image) |
-| `CameraWASDController` | ruch kamery |
+| `TileAvailabilityVisualizer` | full placement + hover + classifier chain |
+| `TileNextTileHoverPreview` | ghost of the next tile + habitat icons |
+| `HoldProgressIndicator` | progress bar (Image) |
+| `CameraWASDController` | camera movement |
 
 ---
 
-## Komponenty na instancji kafla (prefab)
+## Components on a placed tile instance (prefab)
 
-Po postawieniu kafelka typowy zestaw:
+Typical set after a tile is placed:
 
 ```
 GameObject (occupant)
 ├── TileBiomeRuntime
 ├── TilePositionTint
-├── TileObject (opcjonalnie)
-└── children z BiomeDecorationTintReceiver
+├── TileObject (optional)
+└── children with BiomeDecorationTintReceiver
 ```
 
-`TileObject.AssignTile(TileGrid, TileGrid.Tile)` — powiązanie z logiczną pozycją na siatce.
+`TileObject.AssignTile(TileGrid, TileGrid.Tile)` — binds the instance to its logical grid position.
 
 ---
 
-## Tabela wszystkich typów
+## Table of all types
 
-### MonoBehaviour (scena / prefab)
+### MonoBehaviour (scene / prefab)
 
-| Klasa | Plik | Główna rola |
+| Class | File | Main role |
 |-------|------|-------------|
-| `GameManager` | `GameManager.cs` | Start: kafel centralny |
-| `GameUI` | `GameUI.cs` | Wynik, następny kafel, reroll, pauza |
-| `CameraWASDController` | `CameraWASDController.cs` | Sterowanie kamerą |
-| `HoldProgressIndicator` | `HoldProgressIndicator.cs` | UI wskaźnika przytrzymania |
-| `PauseMenuController` | `UI/PauseMenuController.cs` | Menu pauzy (ESC) |
-| `TileGrid` | `TileGrid.cs` | Siatka heksagonalna |
-| `TileRuntimeStore` | `TileRuntimeStore.cs` | Stan kafli i habitatów |
-| `TilePlacementService` | `TilePlacementService.cs` | Postawienie kafla |
-| `TileAvailabilityService` | `TileAvailabilityService.cs` | Dostępne pola |
+| `GameManager` | `GameManager.cs` | Start: center tile |
+| `GameUI` | `GameUI.cs` | Score, next tile, reroll, pause |
+| `CameraWASDController` | `CameraWASDController.cs` | Camera control |
+| `HoldProgressIndicator` | `HoldProgressIndicator.cs` | Hold-progress UI indicator |
+| `PauseMenuController` | `UI/PauseMenuController.cs` | Pause menu (ESC) |
+| `TileGrid` | `TileGrid.cs` | Hexagonal grid |
+| `TileRuntimeStore` | `TileRuntimeStore.cs` | Tile and habitat state |
+| `TilePlacementService` | `TilePlacementService.cs` | Placing a tile |
+| `TileAvailabilityService` | `TileAvailabilityService.cs` | Available cells |
 | `TileQueryService` | `TileQueryService.cs` | Picking |
-| `TileSelectionModel` | `TileSelectionModel.cs` | Wybrany kafel |
-| `TileClickSelector` | `TileClickSelector.cs` | Klik → selekcja |
-| `TileAvailabilityVisualizer` | `TileAvailabilityVisualizer.cs` | Markery + placement + dźwięk |
-| `TileNextTileHoverPreview` | `TileNextTileHoverPreview.cs` | Ghost + podgląd habitatów |
-| `TileDeck` | `TileDeck.cs` | Talia, draw, reroll |
-| `TileDeckUI` | `TileDeckUI.cs` | Lista kafli w UI |
-| `BiomeHabitatClassifier` | `BiomeHabitatClassifier.cs` | Wykrywanie habitatów |
-| `BiomeTilePopulator` | `BiomeTilePopulator.cs` | Drzewa, krzaki, kwiaty w slotach |
-| `TileBiomeRuntime` | `TileBiomeRuntime.cs` | 12 trójkątów na kafelku |
-| `TileObject` | `TileObject.cs` | Referencja do `TileGrid.Tile` |
-| `TilePositionTint` | `TilePositionTint.cs` | Gradient koloru podłoża |
-| `BiomeDecorationTintReceiver` | `BiomeDecorationTintReceiver.cs` | Tint dekoracji |
+| `TileSelectionModel` | `TileSelectionModel.cs` | Selected tile |
+| `TileClickSelector` | `TileClickSelector.cs` | Click → selection |
+| `TileAvailabilityVisualizer` | `TileAvailabilityVisualizer.cs` | Markers + placement + sound |
+| `TileNextTileHoverPreview` | `TileNextTileHoverPreview.cs` | Ghost + habitat preview |
+| `TileDeck` | `TileDeck.cs` | Deck, draw, reroll |
+| `TileDeckUI` | `TileDeckUI.cs` | Tile list in UI |
+| `BiomeHabitatClassifier` | `BiomeHabitatClassifier.cs` | Habitat detection |
+| `BiomeTilePopulator` | `BiomeTilePopulator.cs` | Trees, bushes, flowers in slots |
+| `TileBiomeRuntime` | `TileBiomeRuntime.cs` | 12 triangles on a tile |
+| `TileObject` | `TileObject.cs` | Reference to `TileGrid.Tile` |
+| `TilePositionTint` | `TilePositionTint.cs` | Ground color gradient |
+| `BiomeDecorationTintReceiver` | `BiomeDecorationTintReceiver.cs` | Decoration tint |
 | `PerObjectColor` | `PerObjectColor.cs` | Per-renderer color |
-| `HabitatGridManager` | `HabitatGridManager.cs` | Rozprzestrzenianie koloru habitatów |
-| `HabitatOutlineVisualizer` | `HabitatOutlineVisualizer.cs` | Obrysy regionów |
-| `HabitatChainReactionAnimator` | `HabitatChainReactionAnimator.cs` | Animacja łańcucha po habitcie |
-| `HabitatGridDebugSpawner` | `HabitatGridDebugSpawner.cs` | Debug: źródła H/J |
+| `HabitatGridManager` | `HabitatGridManager.cs` | Habitat color spreading |
+| `HabitatOutlineVisualizer` | `HabitatOutlineVisualizer.cs` | Region outlines |
+| `HabitatChainReactionAnimator` | `HabitatChainReactionAnimator.cs` | Chain-reaction animation after a habitat |
+| `HabitatGridDebugSpawner` | `HabitatGridDebugSpawner.cs` | Debug: H/J sources |
 
 ### ScriptableObject
 
-| Klasa | Plik |
+| Class | File |
 |-------|------|
 | `HabitatTintProfile` | `HabitatTintProfile.cs` |
 | `BiomeDecorationTintProfile` | `BiomeDecorationTintProfile.cs` |
 
-### Klasy statyczne
+### Static classes
 
-| Klasa | Plik |
+| Class | File |
 |-------|------|
 | `TileEvents` | `TileEvents.cs` |
 | `HabitatRequirements` | `HabitatRequirements.cs` |
@@ -507,17 +523,17 @@ GameObject (occupant)
 | `TileBiomeRules` | `TileBiome.cs` |
 | `UISpriteFactory` | `UI/UISpriteFactory.cs` |
 
-### Enumy
+### Enums
 
-| Enum | Wartości (skrót) |
+| Enum | Values (abridged) |
 |------|-------------------|
 | `TileBiome` | None, Forested, Meadow, Rocks, Bushy, Water |
 | `HabitatAnimal` | None, Deer, Beaver, Bear, Bees, RockDweller |
 | `HabitatHoverPreviewKind` | Gray, Yellow, Green |
 
-### Structy i klasy danych
+### Structs and data classes
 
-| Typ | Plik |
+| Type | File |
 |-----|------|
 | `BiomeVector` | `BiomeVector.cs` |
 | `HabitatAssignmentData` | `TileEvents.cs` |
@@ -532,9 +548,9 @@ GameObject (occupant)
 | `TileRuntimeStore.Runtime` | `TileRuntimeStore.cs` |
 | `TileRuntimeStore.HabitatRecord` | `TileRuntimeStore.cs` |
 
-### Zagnieżdżone (pomocnicze)
+### Nested (helper) types
 
-| Typ | Rodzic |
+| Type | Parent |
 |-----|--------|
 | `BiomeTilePopulator.PrefabEntry` | `BiomeTilePopulator` |
 | `BiomeTilePopulator.ContentPrefab` | `BiomeTilePopulator` |
@@ -546,9 +562,9 @@ GameObject (occupant)
 
 ---
 
-## Macierz zależności SerializeField (główne)
+## SerializeField dependency matrix (main)
 
-Wiersz **używa →** kolumna:
+Row **uses →** column:
 
 |  | TileGrid | TileRuntimeStore | TileDeck | TilePlacement | BiomePopulator | Classifier | AvailabilitySvc | QuerySvc | Selection | HabitatGrid |
 |--|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -564,4 +580,4 @@ Wiersz **używa →** kolumna:
 
 ---
 
-*Wygenerowano na podstawie `Assets/Scripts/` — Idle Forest.*
+*Generated from `Assets/Scripts/` — Idle Forest. Translated from `docs/KLASY_I_RELACJE.md`.*

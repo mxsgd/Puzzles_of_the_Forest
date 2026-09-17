@@ -16,9 +16,15 @@ Shader "Custom/LowPolyHexWater_MatchScreenshot"
         _FoamSpeed ("Foam Speed", Range(0.0, 3.0)) = 0.35
         _FoamAmount ("Foam Amount", Range(0.0, 1.0)) = 0.3
 
+        _CrestFoamAmount ("Crest Foam Amount", Range(0.0, 1.0)) = 0.65
+        _CrestFoamStart ("Crest Foam Start", Range(0.0, 1.0)) = 0.62
+        _EdgeFoamStrength ("Edge Foam Strength", Range(0.0, 2.0)) = 0.9
+        _CrestFoamScale ("Crest Foam Noise Scale", Range(0.05, 6.0)) = 0.9
+
         _Smoothness ("Smoothness", Range(0.0, 1.0)) = 0.85
         _SpecularStrength ("Specular Strength", Range(0.0, 4.0)) = 1.25
         _FresnelPower ("Fresnel Power", Range(0.1, 8.0)) = 4.0
+        _FresnelStrength ("Fresnel Strength", Range(0.0, 0.5)) = 0.06
         _Alpha ("Alpha", Range(0.0, 1.0)) = 0.92
     }
 
@@ -68,9 +74,15 @@ Shader "Custom/LowPolyHexWater_MatchScreenshot"
             float _FoamSpeed;
             float _FoamAmount;
 
+            float _CrestFoamAmount;
+            float _CrestFoamStart;
+            float _EdgeFoamStrength;
+            float _CrestFoamScale;
+
             float _Smoothness;
             float _SpecularStrength;
             float _FresnelPower;
+            float _FresnelStrength;
             float _Alpha;
 
             float Hash21(float2 p)
@@ -103,6 +115,19 @@ Shader "Custom/LowPolyHexWater_MatchScreenshot"
                 float2 g = floor(p);
                 float rnd = Hash21(g);
                 return smoothstep(0.65, 1.0, rnd);
+            }
+
+            // Smooth value noise used to break up the crest foam line.
+            float ValueNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = Hash21(i);
+                float b = Hash21(i + float2(1.0, 0.0));
+                float c = Hash21(i + float2(0.0, 1.0));
+                float d = Hash21(i + float2(1.0, 1.0));
+                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
             }
 
             Varyings vert(Attributes IN)
@@ -139,16 +164,35 @@ Shader "Custom/LowPolyHexWater_MatchScreenshot"
 
                 float fresnel = pow(1.0 - saturate(dot(n, viewDir)), _FresnelPower);
 
+                // Scattered foam patches on the surface.
                 float2 foamUV = IN.worldPos.xz * _FoamScale + _Time.y * _FoamSpeed;
                 float foam = FoamPattern(foamUV) * _FoamAmount;
 
+                // Foam on wave crests: driven by wave height, broken up by noise.
+                float2 crestUV = IN.worldPos.xz * _CrestFoamScale + _Time.y * _FoamSpeed * 0.5;
+                float crestNoise = ValueNoise(crestUV) * 0.6 + ValueNoise(crestUV * 2.7) * 0.4;
+                float crest = smoothstep(_CrestFoamStart, _CrestFoamStart + 0.25, IN.waveMask);
+                float crestFoam = crest * smoothstep(0.35, 0.75, crestNoise) * _CrestFoamAmount;
+
+                // Foam on tilted facets (steep wave sides) instead of a bright reflection.
+                float steepness = 1.0 - saturate(n.y);
+                float edgeFoam = smoothstep(0.15, 0.5, steepness) * _EdgeFoamStrength;
+                edgeFoam *= smoothstep(0.25, 0.65, crestNoise);
+
+                float totalFoam = saturate(foam + crestFoam + edgeFoam);
+
                 float3 baseCol = lerp(_WaterColorDark.rgb, _WaterColor.rgb, IN.waveMask);
-                baseCol += fresnel * 0.22;
-                baseCol = lerp(baseCol, _FoamColor.rgb, foam);
+                // Keep fresnel subtle and only where there is no foam, so edges read as foam, not glare.
+                baseCol += fresnel * _FresnelStrength * (1.0 - totalFoam);
+                baseCol = lerp(baseCol, _FoamColor.rgb, totalFoam);
+
+                // Foam is diffuse: kill the specular highlight where foam covers the surface.
+                spec *= 1.0 - totalFoam;
 
                 float3 lit = baseCol * (0.35 + NdotL * 0.65) + spec * mainLight.color.rgb;
 
-                return half4(lit, _Alpha);
+                float alpha = saturate(_Alpha + totalFoam * (1.0 - _Alpha));
+                return half4(lit, alpha);
             }
             ENDHLSL
         }
