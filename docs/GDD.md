@@ -1,9 +1,6 @@
 # Puzzles of the Forest — Game Design Document
 
-> Generated from the current repository state (code + scene wiring), not from a pre-existing design
-> doc — this project didn't have one. Treat it as a snapshot of what is actually implemented as of
-> commit `a402ff70`. Where the code suggests something planned-but-unfinished, it's called out
-> explicitly instead of silently smoothed over.
+
 
 ## 1. Elevator Pitch
 
@@ -12,9 +9,7 @@ place it next to your existing board, and shape connected regions into animal **
 score. Habitats are efficiency puzzles: the fewer tiles you spend to satisfy an animal's biome
 requirement, the more points per tile you get. A single run lasts until the deck runs dry.
 
-Target: a small, polished **premium indie release on Steam** (~15 PLN), not a live-service or
-long-tail idle game — despite the working repo name "Idle Forest," there is no idle/incremental
-mechanic in the current build. It's a roguelite-lite puzzle game with perks and quests layered on
+Target: a small, polished **premium indie release on Steam** (~15 PLN). It's a roguelite-lite puzzle game with perks and quests layered on
 top of a deterministic placement puzzle.
 
 ## 2. Current Status
@@ -144,13 +139,10 @@ biome counts must be **≥** every component) and a base point value:
 | Deer   | (2, 1, 1, 0, 1)                                   | 500         | 5 |
 | Bear   | (0, 1, 1, 2, 1)                                   | 600         | 5 |
 
-> **Note — a 5th species exists in intent but not in play.** `HabitatCompatibilityService`'s
-> compatibility matrix comment and `docs/KLASY_I_RELACJE.md`'s type table both reference a
-> `RockDweller` animal, and the compatibility matrix is visibly built for 5 animals (one row is
-> even truncated to 4 columns — a latent bug if `RockDweller` is ever re-added). The `HabitatAnimal`
-> enum and `HabitatRequirements` only implement 4. Either this was cut content or an
-> intended-but-unshipped 5th animal. Worth a deliberate decision (finish it or remove the dangling
-> references) before shipping.
+> **Resolved**: an earlier pass of this doc flagged a dangling `RockDweller` 5th-animal reference in
+> `HabitatCompatibilityService`'s matrix (left over from `docs/KLASY_I_RELACJE.md`'s older type
+> table). That's been cleaned up — the matrix is now a plain 4×4 over the four real animals. See
+> §7.3.
 
 ### 7.2 Region discovery (automatic, every placement)
 
@@ -167,17 +159,37 @@ After each tile placement, `BiomeHabitatClassifier`:
    (ties broken by base points, then fewer tiles, then a deterministic tile-order comparison).
 6. Registers the winning region as a new habitat.
 
-**Design implication**: because score = `basePoints / tileCount`, the game rewards *efficient*
-habitats — satisfying Bear's requirement in exactly 5 tiles (its minimum) scores much higher than
-padding the region. This is the central skill expression of the puzzle.
+**Design implication — corrected**: an earlier pass of this doc claimed score = `basePoints /
+tileCount` makes single-habitat efficiency a real player choice ("fewer tiles = more points").
+That's not actually reachable: all four requirement vectors sum to exactly 5
+(Deer/Beaver/Bear/Bees each need 5 biome-units total), and `maxTilesPerHabitat` is also capped at
+5. Since every occupied tile contributes exactly 1 unit to the region's vector sum, a region needs
+**at least** 5 tiles to ever satisfy any requirement (sum condition) — and the cap forbids more
+than 5. So every single habitat that ever forms is **always exactly 5 tiles with an exact
+component-for-component match** to its animal's requirement. There is no smaller/larger/wasteful
+single habitat possible; `/tileCount` is a no-op divisor at this level (always ÷5). The only place
+tile-count actually varies — and where "bigger is better" genuinely applies — is **merging**
+(§7.4): quests like "10+ tiles" are only reachable by chaining multiple 5-tile habitats together.
+The real skill expression at the single-habitat level is choosing *which* animal's exact recipe to
+build toward given the tiles in hand, not minimizing tile count.
 
-### 7.3 Compatibility & multi-animal tiles
+### 7.3 Compatibility (scoring flavor only, not tile-sharing)
 
-A single tile can belong to **up to 2 habitats** (`habitatIds: List<int>`, max 2 per
-`TileRuntimeStore.Runtime`). `HabitatCompatibilityService` defines a symmetric 0/1 compatibility
-matrix between animals — e.g. Deer is compatible with Beaver and Bees but not Bear; Bear is
-compatible with nothing except (intended) RockDweller. Incompatible animals can't both draw biome
-value from the same tile.
+Tiles hold **at most one habitat each** (`TileRuntimeStore.Runtime.habitatId`, single int;
+`MaxHabitatsPerTile = 1`). An earlier build considered letting two habitats share a tile via a
+compatibility gate, but that mechanic "really complicates the feeling and sense" of the game (the
+project owner's words) and was cut — the gating code (`HabitatCompatibilityService
+.IsCompatibleWithAllOnTile` and its call sites in `BiomeHabitatClassifier` /
+`HabitatHoverEvaluator`) had already gone fully dead by the time `MaxHabitatsPerTile` was pinned to
+1, since the `CanAcceptNewHabitat()` check that runs first always short-circuits it. That dead code
+has now been removed.
+
+The animal-vs-animal compatibility matrix itself (`HabitatCompatibilityService.GetCompatibility`,
+trimmed to a plain 4×4 over Deer/Beaver/Bear/Bees) survives but is currently **unused by any
+gameplay system** — kept as reusable design data (Bear is marked incompatible with all three other
+animals; Deer, Beaver, and Bees are each only incompatible with Bear) for a future perk pass rather
+than being deleted outright. A first attempt at spending it on animal-specialization scoring perks
+was built and then cut (see §8.1) — the data stays in case a future attempt wants it.
 
 ### 7.4 Merging
 
@@ -196,7 +208,7 @@ Adjacent habitats of the **same animal** can merge into one larger habitat
 - Per-habitat points: `round(basePoints / tileCount)`.
 - Merge bonus: `ComputeAwardedPoints(animal, 2) * (habitatsMerged - 1)` added on top.
 - Perks can modify the score via `PerkManager.ModifyHabitatScore` (hook: `HabitatEvaluation`) —
-  none of the current 6 perks use this hook, so it's an unused extension point today.
+  none of the current 11 perks use this hook, so it's an unused extension point today.
 - Final score, habitat count, and largest habitat are the only persisted end-of-run stats (no
   high-score table, no save-across-sessions leaderboard in code).
 
@@ -215,9 +227,9 @@ Architecture (`Perks/`): `PerkDefinition` (ScriptableObject identity + icon + ho
 perks without touching core systems).
 
 Hooks available: `SessionStart`, `HabitatAssigned`, `RerollCost`, `TilePlaced`,
-`HabitatEvaluation`.
+`HabitatEvaluation`, `DeckPoolWeight`.
 
-### 8.1 The six current perks
+### 8.1 The eleven current perks
 
 | Perk | Hook | Effect |
 |------|------|--------|
@@ -226,21 +238,33 @@ Hooks available: `SessionStart`, `HabitatAssigned`, `RerollCost`, `TilePlaced`,
 | **Biodiversity** | HabitatAssigned | If a habitat region spans ≥4 distinct biomes, +1 deck tile. |
 | **Patient Forager** | HabitatAssigned, RerollCost | Each habitat created grants 1 free reroll charge; free rerolls consume a charge instead of the reroll counter. |
 | **Beaver Dam** | HabitatAssigned (Beaver only) | On a Beaver habitat, spawns a Water tile on an adjacent empty cell — snowballs future Beaver/Deer habitats. |
-| **Expansion** | TilePlaced | 30% chance per placement to spawn a same-biome tile on a random empty neighbor — free board growth. |
+| **Expansion** | HabitatAssigned | 30% chance, when a habitat completes, to spawn a random-biome tile on an empty cell adjacent to it. Reworked from an earlier "30% chance per *any* tile placement" version that felt arbitrary from the player's side — tying the proc to habitat completion gives it a legible trigger ("finishing something causes growth") instead of firing on unrelated placements. |
+| **Meadow / Forest / Bush / Rock / Water Affinity** (5 perks) | DeckPoolWeight | The favored biome gets +3 extra copies in `TileDeck`'s weighted draw pool (every group currently starts at weight 1, so this makes the favored biome ~4× as likely) for the initial deck, every reroll, and every habitat/quest tile reward alike, for the rest of the run. |
 
-None currently use `HabitatEvaluation` (direct score modification) — all are economy (more
-tiles/rerolls) or world-mutation (free extra tiles on the board) effects. This matches the user's
-note that perks are the least-polished system: the design space (direct scoring perks, negative/
-risk-reward perks, biome-specific synergy perks) is set up architecturally but only lightly
-explored in content.
+None currently use `HabitatEvaluation` (direct score modification) — the eleven are economy (more
+tiles/rerolls/favored biomes) or world-mutation (free extra tiles on the board) effects. This
+matches the user's note that perks are the least-polished system: the design space for direct
+scoring perks is set up architecturally (`ApplyPerkScoreModifiers` plumbing in
+`BiomeHabitatClassifier`) but unused in content. A first attempt at `HabitatEvaluation`-based
+scoring perks (an "Efficient Forager" flat buff, plus four animal-specialization perks built
+around `HabitatCompatibilityService`) was implemented and then deliberately cut — they didn't
+land for the project owner, so that design space stays open rather than forcing perks that didn't
+feel right just to hit a number.
+
+The five Affinity perks all share one `BiomeAffinityBehavior` implementation (favored biome +
+weight bonus, parameterized per asset) and a new `PerkBehavior.ModifyBiomeWeight` hook that
+`TileDeck.BuildPool()` consults once per configured biome group. Because `BuildPool()` is the one
+shared method behind the initial deck, every reroll, and every habitat/quest tile reward, a single
+hook point affects all three draw sources consistently — no separate wiring needed per source.
 
 **Polish opportunities to consider** (not yet acted on, just visible gaps from reading the code):
 - No perk currently touches `HabitatEvaluation`, despite the hook and `ApplyPerkScoreModifiers`
   plumbing already existing in `BiomeHabitatClassifier`.
-- No perk interacts with animal *compatibility* or multi-animal tiles.
-- No "drawback" perks (risk/reward) — all six are strictly positive.
-- Perk pool is only 6 entries for a game structured around repeated drafts (a run reaching 25+
-  habitats would exhaust the pool and start seeing `PickFromPool` return null / smaller offers).
+- No "drawback" perks (risk/reward) — all eleven are strictly positive.
+- Drafting more than one Affinity perk in a run stacks additively (e.g. Meadow + Forest both
+  active makes both biomes ~4× as likely, diluting the other three proportionally) — worth
+  playtesting whether that's fun or whether Affinity perks should be mutually exclusive in a
+  single draft pool.
 
 ## 9. Quests
 
@@ -283,11 +307,14 @@ fallback is what's live.
 Given the stated goal (ship a small, ~15 PLN, finished puzzle game — not expand scope), the
 natural remaining work implied by the current state is:
 
-1. **Perk pass**: balance the 6 perks, likely add a handful more (the draft system will start
-   starving after ~6 drafts / 30 habitats with the current pool), consider a `HabitatEvaluation`
-   perk or two since the hook exists unused.
-2. **Resolve the RockDweller loose end**: either cut every remaining reference (matrix, comments,
-   docs) or ship a 5th animal. Leaving it half-wired is a pre-launch cleanup item.
+1. **Perk pass**: 11 perks now (up from 6) — Expansion was reworked (§8.1) to trigger on habitat
+   completion instead of any tile placement, and 5 new "Affinity" perks let the player bias which
+   biome shows up more via a new `DeckPoolWeight` hook. A `HabitatEvaluation` scoring-perk pass
+   (direct score boosts/penalties) was attempted and cut — didn't land — so that design space is
+   still open. Worth playtesting whether stacking multiple Affinity perks in one run feels good or
+   needs to be capped/mutually-exclusive (see §8.1).
+2. ~~Resolve the RockDweller loose end~~ — done: the dangling references were cut and
+   `HabitatCompatibilityService`'s matrix trimmed to the 4 real animals.
 3. **Steam-specific packaging**: store page, achievements (none currently implemented — no
    persistent stats to hook into an achievement system yet), settings menu (no options/settings UI
    observed: no volume, resolution, or key rebinding screens in the code read so far), credits.
@@ -301,5 +328,4 @@ natural remaining work implied by the current state is:
 - No meta-progression, currency, or unlocks across runs.
 - No narrative/story layer.
 - No multiplayer.
-- Despite the repo/working title "Idle Forest," no idle/incremental mechanics exist or are planned
   in the current build — the shipped identity is the README's title, **Puzzles of the Forest**.

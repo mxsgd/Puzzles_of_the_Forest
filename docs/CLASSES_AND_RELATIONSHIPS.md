@@ -380,7 +380,7 @@ TileRuntimeStore.Runtime (per Tile)
   ├── tileDraw: TileDraw
   ├── biome: TileBiome
   ├── biomeRuntime: TileBiomeRuntime
-  └── habitatIds: List<int>  (max 2)
+  └── habitatId: int  (-1 = none; a tile holds at most one habitat)
 
 TileRuntimeStore.HabitatRecord
   ├── Id, Animal: HabitatAnimal
@@ -422,19 +422,22 @@ Tile prefab:
 
 | Type | Responsibility |
 |-----|------------------|
-| `HabitatAnimal` | Deer, Beaver, Bear, Bees, RockDweller |
+| `HabitatAnimal` | Deer, Beaver, Bear, Bees |
 | `BiomeVector` | R⁵ biome vector; `FromTileBiome`, `Satisfies`, `DeficitSumToward` |
 | `HabitatRequirements` | Requirement vectors, base points, scoring |
-| `HabitatCompatibilityService` | 5×5 animal-compatibility matrix for sharing one tile |
+| `HabitatCompatibilityService` | 4×4 animal-compatibility matrix — currently unused by any gameplay system, kept as reusable design data for a future perk (see below) |
 | `HabitatHoverEvaluator` | Gray / Yellow / Green preview before placement |
 | `BiomeHabitatClassifier` | Region classification following `TileStateChanged` |
 
 `HabitatSource`, `HabitatTile` — configuration data for `HabitatGridManager` (influence sources /
 tint).
 
-> Note: `HabitatAnimal` lists a `RockDweller` value here and the compatibility matrix is shaped for
-> 5 animals, but as of this translation `HabitatRequirements` only implements 4 (Deer, Beaver, Bear,
-> Bees) — see `docs/GDD.md` §7.1 for the discrepancy.
+> Update: this doc originally (via the Polish source) listed a 5th `RockDweller` animal and a
+> tile-sharing compatibility mechanic (`habitatIds: List<int>`, max 2 per tile). Both were leftover
+> references from an earlier design; tiles now hold at most one habitat
+> (`TileRuntimeStore.MaxHabitatsPerTile = 1`), the dead tile-sharing gate code has been removed, and
+> the compatibility matrix was trimmed to the 4 real animals. It's currently unused by any gameplay
+> system — kept as design data for a possible future perk. See `docs/GDD.md` §7.3 and §8.1.
 
 ---
 

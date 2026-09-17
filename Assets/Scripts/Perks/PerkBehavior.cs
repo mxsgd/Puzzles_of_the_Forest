@@ -32,4 +32,12 @@ public abstract class PerkBehavior : ScriptableObject
     public virtual float ModifyHabitatScore(HabitatAnimal animal, float baseScore,
         int regionTileCount, int distinctBiomes, PerkRunState state)
         => baseScore;
+
+    /// <summary>
+    /// Modify a biome's pool weight when TileDeck builds its weighted draw pool (initial deck,
+    /// rerolls, and habitat/quest tile rewards all go through the same pool). Return the
+    /// adjusted weight; the caller clamps the result to at least 1.
+    /// </summary>
+    public virtual int ModifyBiomeWeight(TileBiome biome, int baseWeight, PerkRunState state)
+        => baseWeight;
 }

@@ -381,7 +381,6 @@ public static class HabitatHoverEvaluator
             if (isHover)
             {
                 if (!rt.CanAcceptNewHabitat()) return false;
-                if (!HabitatCompatibilityService.IsCompatibleWithAllOnTile(newAnimal, store, t)) continue;
                 if (draw == null || draw.biome == TileBiome.None) return false;
                 vector.Add(BiomeVector.FromTileBiome(draw.biome));
                 hoverContributed = true;
@@ -389,7 +388,6 @@ public static class HabitatHoverEvaluator
             else
             {
                 if (!rt.occupied || !rt.CanAcceptNewHabitat()) continue;
-                if (!HabitatCompatibilityService.IsCompatibleWithAllOnTile(newAnimal, store, t)) continue;
                 vector.Add(BiomeVector.FromTileBiome(rt.biome));
             }
         }

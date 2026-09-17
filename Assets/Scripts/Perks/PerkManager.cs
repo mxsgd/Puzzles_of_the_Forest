@@ -187,6 +187,16 @@ public class PerkManager : MonoBehaviour
         return score;
     }
 
+    /// <summary>Called by TileDeck when building its weighted draw pool.</summary>
+    public int ModifyBiomeWeight(TileBiome biome, int baseWeight)
+    {
+        int weight = baseWeight;
+        foreach (var perk in _state.ActivePerks)
+            if (perk.behavior != null)
+                weight = perk.behavior.ModifyBiomeWeight(biome, weight, _state);
+        return weight;
+    }
+
     // -------------------------------------------------------------------------
     // Draft actions (called by UI)
     // -------------------------------------------------------------------------

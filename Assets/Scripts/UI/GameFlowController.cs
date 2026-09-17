@@ -258,8 +258,9 @@ public class GameFlowController : MonoBehaviour
         if (_gameOverRoot == null)
         {
             Debug.LogError(
-                "[GameFlow] Brak ekranu Game Over w scenie (GameFlowMenuView / GameOver). " +
-                "Wygeneruj: Idle Forest → UI → Generate Menu Flow UI.",
+                "[GameFlow] No Game Over screen available and none could be built procedurally " +
+                "(menu canvas failed to resolve). Check the GameFlowMenuView / menu canvas wiring " +
+                "on the GameFlowController object in the scene.",
                 this);
             return;
         }
@@ -310,6 +311,12 @@ public class GameFlowController : MonoBehaviour
         _gameOverHabitats = menuView.GameOverHabitats;
         _gameOverBestChain = menuView.GameOverBestChain;
 
+        if (_gameOverRoot == null && _menuCanvas != null)
+            _gameOverRoot = BuildGameOverScreen(_menuCanvas.transform);
+
+        if (_howToPlayRoot == null && _menuCanvas != null)
+            _howToPlayRoot = BuildHowToPlayModal(_menuCanvas.transform);
+
         menuView.WireButtons(
             StartSession,
             ShowHowToPlay,
@@ -323,7 +330,7 @@ public class GameFlowController : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // UI build (fallback gdy brak GameFlowMenuView w scenie)
+    // UI build
     // -------------------------------------------------------------------------
 
     private void BuildMenuCanvas()

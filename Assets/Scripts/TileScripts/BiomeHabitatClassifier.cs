@@ -89,10 +89,10 @@ public class BiomeHabitatClassifier : MonoBehaviour
             {
                 HabitatCoreValidation.PrepareRegionCoreAnalysis(region, _scratch);
 
+                if (!TryBuildBiomeVector(region, out var vec)) return;
+
                 foreach (var animal in HabitatRequirements.ClassifiableAnimals)
                 {
-                    if (!TryBuildFilteredBiomeVector(region, animal, out var vec)) continue;
-
                     var req = HabitatRequirements.GetRequirement(animal);
                     if (!vec.Satisfies(req)) continue;
 
@@ -136,7 +136,7 @@ public class BiomeHabitatClassifier : MonoBehaviour
     // Biome vector
     // -------------------------------------------------------------------------
 
-    private bool TryBuildFilteredBiomeVector(List<Tile> region, HabitatAnimal newAnimal, out BiomeVector vector)
+    private bool TryBuildBiomeVector(List<Tile> region, out BiomeVector vector)
     {
         vector = BiomeVector.Zero;
         foreach (Tile t in region)
@@ -144,9 +144,6 @@ public class BiomeHabitatClassifier : MonoBehaviour
             if (t == null) continue;
             var r = runtimeStore.Get(t);
             if (r == null || !r.occupied || !r.CanAcceptNewHabitat()) return false;
-
-            if (!HabitatCompatibilityService.IsCompatibleWithAllOnTile(newAnimal, runtimeStore, t))
-                continue;
 
             vector.Add(BiomeVector.FromTileBiome(r.biome));
         }

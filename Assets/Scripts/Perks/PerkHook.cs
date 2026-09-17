@@ -12,7 +12,8 @@ public enum PerkHook
     HabitatAssigned,
     RerollCost,
     TilePlaced,
-    HabitatEvaluation
+    HabitatEvaluation,
+    DeckPoolWeight
 }
 
 /// <summary>

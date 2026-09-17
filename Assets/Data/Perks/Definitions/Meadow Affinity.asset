@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3abd07f578eb23f4dae8b51f4dadf5e1, type: 3}
-  m_Name: Expansion
+  m_Name: Meadow Affinity
   m_EditorClassIdentifier: Assembly-CSharp::PerkDefinition
-  perkId: expansion
-  displayName: Expansion
-  description: 30% chance a random tile spawns next to a finished habitat.
+  perkId: meadowaffinity
+  displayName: Meadow Affinity
+  description: Meadow tiles appear more often.
   icon: {fileID: 0}
-  hooks: 02000000
-  behavior: {fileID: 11400000, guid: 9f25408eea7613d479a845490f8cf034, type: 2}
+  hooks: 06000000
+  behavior: {fileID: 11400000, guid: b4450d70a229d1274504ec92fdec757a, type: 2}

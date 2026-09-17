@@ -251,6 +251,8 @@ public class TileDeck : MonoBehaviour
                 : group.displayName;
 
             int weight = Mathf.Max(1, group.weight);
+            if (PerkManager.Instance != null)
+                weight = Mathf.Max(1, PerkManager.Instance.ModifyBiomeWeight(group.biome, weight));
             for (int w = 0; w < weight; w++)
                 pool.Add(new TileDraw(group.biome, prefab, group.icon, label, group.biomeVariantId));
         }

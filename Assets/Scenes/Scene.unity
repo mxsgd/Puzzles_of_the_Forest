@@ -20578,6 +20578,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 468fbbe5475cdf0498a36f4c26bbc290, type: 2}
   - {fileID: 11400000, guid: 6410cb27c188bf342a849847fe03ce4e, type: 2}
   - {fileID: 11400000, guid: 72e55d1fbec69e341a01f4431699d43d, type: 2}
+  - {fileID: 11400000, guid: c5b31c2f199591d76c66d575b3092c81, type: 2}
+  - {fileID: 11400000, guid: c93d9ed51c46f5020fd5bca6704af294, type: 2}
+  - {fileID: 11400000, guid: ff19ed73d72e0a0acf4f8f1f8ffe7957, type: 2}
+  - {fileID: 11400000, guid: 78978df91d8c109239cf4ac180a72a70, type: 2}
+  - {fileID: 11400000, guid: 0eee3e79e32911083bdbfc5be85c846a, type: 2}
   habitatsPerDraft: 4
   draftRerollsPerRun: 3
   tileDeck: {fileID: 1338635269}
