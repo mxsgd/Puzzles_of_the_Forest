@@ -38,6 +38,9 @@ public class TilePlacementSfx : MonoBehaviour
 
         audioSource.playOnAwake = false;
 
+        if (audioSource.GetComponent<SfxVolumeApplier>() == null)
+            audioSource.gameObject.AddComponent<SfxVolumeApplier>();
+
         if (sfxCatalog == null)
             sfxCatalog = GameSfxCatalog.Default;
 

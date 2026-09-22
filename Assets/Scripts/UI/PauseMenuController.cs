@@ -6,7 +6,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Modal pauzy: backdrop + karta z przyciskami Resume / Settings / Quit.
-/// Podsekcja Settings: suwaki głośności (Music / SFX) bindowane do AudioListener i PlayerPrefs.
+/// Podsekcja Settings: suwaki głośności (Music / SFX) bindowane do GameAudioSettings (niezależne
+/// kanały, każdy AudioSource czyta tylko swój kanał — patrz GameAudioSettings / SfxVolumeApplier).
 ///
 /// - ESC otwiera/zamyka pauzę.
 /// - Time.timeScale = 0 podczas pauzy; animacje używają unscaledDeltaTime.
@@ -14,9 +15,6 @@ using UnityEngine.UI;
 /// </summary>
 public class PauseMenuController : MonoBehaviour
 {
-    private const string PrefMusic = "idle_forest.music_volume";
-    private const string PrefSfx   = "idle_forest.sfx_volume";
-
     [SerializeField] private PauseMenuView view;
 
     private Canvas _hostCanvas;
@@ -367,26 +365,17 @@ public class PauseMenuController : MonoBehaviour
     }
 
     // ── Volume ─────────────────────────────────────────────────────────────
+    // Music and SFX are independent channels (see GameAudioSettings) — each AudioSource applies
+    // its own channel's scalar directly, so these sliders no longer interact with each other.
     private void ApplyPersistedVolumes()
     {
-        float music = PlayerPrefs.GetFloat(PrefMusic, 1f);
-        float sfx   = PlayerPrefs.GetFloat(PrefSfx,   1f);
-        if (_musicSlider != null) _musicSlider.SetValueWithoutNotify(music);
-        if (_sfxSlider   != null) _sfxSlider.SetValueWithoutNotify(sfx);
-        AudioListener.volume = Mathf.Max(music, sfx);
+        if (_musicSlider != null) _musicSlider.SetValueWithoutNotify(GameAudioSettings.MusicVolume);
+        if (_sfxSlider   != null) _sfxSlider.SetValueWithoutNotify(GameAudioSettings.SfxVolume);
     }
 
-    private void OnMusicChanged(float v)
-    {
-        PlayerPrefs.SetFloat(PrefMusic, v);
-        AudioListener.volume = Mathf.Max(v, _sfxSlider != null ? _sfxSlider.value : 1f);
-    }
+    private void OnMusicChanged(float v) => GameAudioSettings.MusicVolume = v;
 
-    private void OnSfxChanged(float v)
-    {
-        PlayerPrefs.SetFloat(PrefSfx, v);
-        AudioListener.volume = Mathf.Max(v, _musicSlider != null ? _musicSlider.value : 1f);
-    }
+    private void OnSfxChanged(float v) => GameAudioSettings.SfxVolume = v;
 
     // ── Animation ──────────────────────────────────────────────────────────
     private void SetMenuVisible(bool visible, bool instant)

@@ -29,11 +29,16 @@ public static class HabitatAnimalAnimationSetup
 
     private static void AttachBeeFlight(GameObject instance, Vector3 motionAnchorWorld, Quaternion gridRotation)
     {
+        // Warm up (enable) the Animator BEFORE adding the flight component: AddComponent fires
+        // OnEnable synchronously, which immediately calls animator.Play(...) — on a still-disabled
+        // Animator that call is a no-op, and enabling it afterward doesn't retroactively apply it,
+        // so the wing-flap state never actually started playing.
+        WarmupAnimator(instance);
+
         var flight = instance.GetComponent<HabitatBeeFigureEightFlight>();
         if (flight == null)
             flight = instance.AddComponent<HabitatBeeFigureEightFlight>();
 
-        WarmupAnimator(instance);
         flight.Initialize(motionAnchorWorld, gridRotation);
     }
 

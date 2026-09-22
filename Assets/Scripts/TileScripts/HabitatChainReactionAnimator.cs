@@ -59,6 +59,9 @@ public class HabitatChainReactionAnimator : MonoBehaviour
             chainAudioSource.playOnAwake = false;
         }
 
+        if (chainAudioSource.GetComponent<SfxVolumeApplier>() == null)
+            chainAudioSource.gameObject.AddComponent<SfxVolumeApplier>();
+
         if (sfxCatalog == null)
             sfxCatalog = GameSfxCatalog.Default;
 

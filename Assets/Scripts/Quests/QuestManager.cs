@@ -28,6 +28,12 @@ public class QuestManager : MonoBehaviour
     private int _activeSideIdx = 0;
     private bool _sessionActive;
 
+    /// <summary>Per-session shuffled copies of the catalog — without this, every run always started
+    /// with the same first-in-list quest (Deer's "Great Herd" / "First Herd") since idx started at 0
+    /// and only ever advanced on completion.</summary>
+    private readonly List<QuestDefinition> _sessionMainQuests = new();
+    private readonly List<QuestDefinition> _sessionSideQuests = new();
+
     /// <summary>Ile habitatów danego zwierzęcia (netto, po korekcji merge).</summary>
     private readonly Dictionary<HabitatAnimal, int> _habitatCountByAnimal = new();
     private int _totalHabitatCount;
@@ -43,7 +49,7 @@ public class QuestManager : MonoBehaviour
     {
         get
         {
-            var list = Catalog.MainQuests;
+            var list = _sessionMainQuests;
             return (_activeMainIdx >= 0 && _activeMainIdx < list.Count) ? list[_activeMainIdx] : null;
         }
     }
@@ -52,7 +58,7 @@ public class QuestManager : MonoBehaviour
     {
         get
         {
-            var list = Catalog.SideQuests;
+            var list = _sessionSideQuests;
             return (_activeSideIdx >= 0 && _activeSideIdx < list.Count) ? list[_activeSideIdx] : null;
         }
     }
@@ -120,7 +126,25 @@ public class QuestManager : MonoBehaviour
         _activeSideIdx = 0;
         _pendingPerkDraftHabitatId = -1;
         _sessionActive = true;
+
+        _sessionMainQuests.Clear();
+        _sessionMainQuests.AddRange(Catalog.MainQuests);
+        Shuffle(_sessionMainQuests);
+
+        _sessionSideQuests.Clear();
+        _sessionSideQuests.AddRange(Catalog.SideQuests);
+        Shuffle(_sessionSideQuests);
+
         QuestProgressChanged?.Invoke();
+    }
+
+    private static void Shuffle<T>(IList<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
     }
 
     // ── Eventy habitatów ─────────────────────────────────────────────────────

@@ -78,6 +78,9 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
             audioSource.spatialBlend = 0f;
         }
 
+        if (audioSource.GetComponent<SfxVolumeApplier>() == null)
+            audioSource.gameObject.AddComponent<SfxVolumeApplier>();
+
         if (sfxCatalog == null)
             sfxCatalog = GameSfxCatalog.Default;
 

@@ -98,6 +98,9 @@ public class HabitatAnimalPlacement : MonoBehaviour
             spawnAudioSource.playOnAwake = false;
         }
 
+        if (spawnAudioSource.GetComponent<SfxVolumeApplier>() == null)
+            spawnAudioSource.gameObject.AddComponent<SfxVolumeApplier>();
+
         if (sfxCatalog == null)
             sfxCatalog = GameSfxCatalog.Default;
 

@@ -27,6 +27,21 @@ public class GameManager : MonoBehaviour
 
         if (FindAnyObjectByType<SameBiomeConnectionAnimator>() == null)
             gameObject.AddComponent<SameBiomeConnectionAnimator>();
+
+        EnsureMusicVolumeApplier();
+    }
+
+    /// <summary>Binds the scene's "Soundtrack" AudioSource to the Music volume slider.</summary>
+    private static void EnsureMusicVolumeApplier()
+    {
+        var soundtrack = GameObject.Find("Soundtrack");
+        if (soundtrack == null) return;
+
+        var source = soundtrack.GetComponent<AudioSource>();
+        if (source == null) return;
+
+        if (soundtrack.GetComponent<MusicVolumeApplier>() == null)
+            soundtrack.AddComponent<MusicVolumeApplier>();
     }
 
     private void Start()

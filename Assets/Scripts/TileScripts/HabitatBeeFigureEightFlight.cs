@@ -33,6 +33,11 @@ public class HabitatBeeFigureEightFlight : MonoBehaviour
 
     private void OnEnable()
     {
+        // Defensive: the Animator must be enabled before Play() has any effect, and calling Play()
+        // on a disabled Animator is silently dropped rather than queued.
+        if (animator != null)
+            animator.enabled = true;
+
         ResolveWingStateNameIfNeeded();
         PlayWingAnimation();
     }

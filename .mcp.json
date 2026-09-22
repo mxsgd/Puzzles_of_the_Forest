@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "mcp-unity": {
+      "command": "node",
+      "args": [
+        "C:/Users/makss/Idle_Forest/Library/PackageCache/com.gamelovers.mcp-unity@a32e47d4ec87/Server~/build/index.js"
+      ]
+    }
+  }
+}

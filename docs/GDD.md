@@ -360,8 +360,17 @@ hook point affects all three draw sources consistently — no separate wiring ne
   flat +1000 points).
 
 Quests give the run direction beyond "place tiles until deck empties" — they're the main soft
-guidance system nudging the player toward specific animals rather than pure score-maximizing
-Bear-spam.
+guidance system nudging the player toward specific animals.
+
+**Bug fixed**: `QuestManager` tracks progress as a plain index into the catalog list
+(`_activeMainIdx`/`_activeSideIdx`, both starting at 0, advancing only on completion) — but it was
+reading directly from `QuestCatalog.MainQuests`/`SideQuests` in their *authored* order. Since Deer
+is listed first in both the main and side quest lists (`QuestCatalog.BuildDefaultMainQuests` /
+`BuildDefaultSideQuests`), every single session started on the exact same pair — "Great Herd"
+(main) and "First Herd" (side) — and never saw anything else unless that specific quest happened
+to complete. `QuestManager.ResetForNewSession` now builds a **shuffled per-session copy** of each
+list (Fisher–Yates, same technique `TileDeck` already uses for its pool) and indexes into that
+instead, so which quest chain you get is randomized per run like everything else already is.
 
 ## 10. UI/UX Surfaces (implemented)
 
@@ -374,7 +383,14 @@ Bear-spam.
   (`HabitatScoreFlyoutPresenter`).
 - **Habitat outline & chain-reaction visuals**: `HabitatOutlineVisualizer`,
   `HabitatChainReactionAnimator`, `HabitatGridManager` (color spreading per habitat).
-- **Pause menu**: `Time.timeScale` freeze, resume/quit-to-menu.
+- **Pause menu**: `Time.timeScale` freeze, resume/quit-to-menu, Music/SFX volume sliders.
+  **Bug fixed**: both sliders used to drive one shared `AudioListener.volume = Max(music, sfx)`,
+  so neither could independently mute its own channel — you had to drag both down together to
+  actually silence music. `GameAudioSettings` now holds two fully independent, persisted scalars;
+  `MusicVolumeApplier` binds the scene's Soundtrack source to the Music one, and `SfxVolumeApplier`
+  (attached to every SFX-playing AudioSource — chain reaction, placement, animal spawn pop, score
+  flyout arrival) binds to the SFX one. Each preserves whatever volume it was authored with as a
+  base and scales it live, so the sliders no longer interact with each other at all.
 - **Game Over**: final score, habitat count, largest habitat tile count; RESTART or MAIN MENU.
 
 All UI is built procedurally in code (`GameFlowController`, `GameUI`) with a scene-based override
