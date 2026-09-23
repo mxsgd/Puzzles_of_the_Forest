@@ -1970,6 +1970,12 @@ MonoBehaviour:
   clampPosition: 0
   clampMin: {x: -50, y: 0, z: -50}
   clampMax: {x: 50, y: 0, z: 50}
+  rotateSpeed: 90
+  groundHeight: 0
+  minZoomFactor: 0.6
+  maxZoomFactor: 1.4
+  zoomStepFraction: 0.08
+  zoomSmoothing: 12
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6542,7 +6548,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: d03fa10aa6cd68a4c8ab05bb4097a8b3, type: 2}
+  - {fileID: 2100000, guid: 54f2e1904c1437f5a8887518aee818de, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -20954,6 +20960,7 @@ MonoBehaviour:
   cameraController: {fileID: 330585548}
   menuView: {fileID: 810601998}
   questHudView: {fileID: 1291052963}
+  activePerksHudView: {fileID: 0}
   bonusTilesOnHabitat: 1
   bonusTilesPerHabitat: 3
 --- !u!1 &1413020946
