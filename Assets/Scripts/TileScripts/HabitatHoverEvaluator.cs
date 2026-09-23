@@ -165,8 +165,23 @@ public static class HabitatHoverEvaluator
                     }
                     else
                     {
-                        if (vec.DeficitSumToward(req) == 1
-                            && HabitatCoreValidation.ValidateCoreRequirement(region, animal, rulesProfile, rs, out _, store))
+                        // A region already at the max tile cap has no room left to add the
+                        // missing biome — it can never actually complete, so a deficit-1 result
+                        // here is a dead end, not "almost." Without this guard, placing any tile
+                        // (even the wrong biome) into the last open slot of an otherwise-complete
+                        // region reads as "1 away" forever, since the simulated vector still comes
+                        // up short by 1 and nothing can ever be added to fix it.
+                        //
+                        // Deliberately NOT requiring core validation here (unlike the Green/Full
+                        // branch above): core density is a shape check meant to reject degenerate
+                        // thin habitats at actual completion time. A region genuinely under the
+                        // tile cap essentially never passes that check with room still open — the
+                        // 5th slot is usually what pushes a tile past the core-neighbor threshold —
+                        // so requiring it here made Yellow fire in practice only for maxed-out (and
+                        // therefore already-excluded) regions, i.e. never. Yellow is just a soft
+                        // hint, not a registration, so it doesn't need the same guarantee Green does.
+                        if (region.Count < maxTilesPerHabitat
+                            && vec.DeficitSumToward(req) == 1)
                         {
                             s.YellowSet.Add(animal);
                             if (!s.YellowDeficitByAnimal.ContainsKey(animal))
@@ -247,7 +262,8 @@ public static class HabitatHoverEvaluator
                 HabitatCoreValidation.PrepareRegionCoreAnalysis(candidate, rs);
 
                 if (!TryValidateRawRegionForOutline(
-                        store, candidate, animal, hoverTile, nextDraw, outlineKind, rulesProfile, rs, out _))
+                        store, candidate, animal, hoverTile, nextDraw, outlineKind, rulesProfile, rs,
+                        maxTilesPerHabitat, out _))
                     return;
 
                 if (!TryFilterDisplayRegion(
@@ -287,21 +303,29 @@ public static class HabitatHoverEvaluator
         HabitatCandidateOutlineKind outlineKind,
         HabitatRulesProfile rulesProfile,
         HabitatRegionScratch scratch,
+        int maxTilesPerHabitat,
         out BiomeVector vector)
     {
         vector = BiomeVector.Zero;
         if (!TryBuildSimulatedBiomeVector(store, rawRegion, animal, hoverTile, nextDraw, out vector))
             return false;
 
-        if (!HabitatCoreValidation.ValidateCoreRequirement(rawRegion, animal, rulesProfile, scratch, out _, store))
+        // Core validation only gates Full (it mirrors the real classifier's completion
+        // requirement); Almost is just a hint and, in practice, essentially never passes the same
+        // density check while still under the tile cap — see the matching comment in Evaluate().
+        if (outlineKind == HabitatCandidateOutlineKind.Full
+            && !HabitatCoreValidation.ValidateCoreRequirement(rawRegion, animal, rulesProfile, scratch, out _, store))
             return false;
 
         var req = HabitatRequirements.GetRequirement(animal);
         return outlineKind switch
         {
             HabitatCandidateOutlineKind.Full => vector.Satisfies(req),
+            // Same reasoning as Evaluate()'s Yellow check: a region already at the tile cap has
+            // no room to add the missing biome, so it's a dead end, not "almost."
             HabitatCandidateOutlineKind.Almost =>
-                !vector.Satisfies(req) && vector.DeficitSumToward(req) == 1,
+                rawRegion.Count < maxTilesPerHabitat
+                && !vector.Satisfies(req) && vector.DeficitSumToward(req) == 1,
             _ => false
         };
     }

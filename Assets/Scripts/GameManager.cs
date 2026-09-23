@@ -28,6 +28,9 @@ public class GameManager : MonoBehaviour
         if (FindAnyObjectByType<SameBiomeConnectionAnimator>() == null)
             gameObject.AddComponent<SameBiomeConnectionAnimator>();
 
+        if (FindAnyObjectByType<ActivePerksHudView>() == null)
+            gameObject.AddComponent<ActivePerksHudView>();
+
         EnsureMusicVolumeApplier();
     }
 

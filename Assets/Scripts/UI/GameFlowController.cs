@@ -28,6 +28,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private CameraWASDController cameraController;
     [SerializeField] private GameFlowMenuView menuView;
     [SerializeField] private QuestHudView questHudView;
+    [SerializeField] private ActivePerksHudView activePerksHudView;
 
     [Header("Session")]
     [SerializeField] private bool bonusTilesOnHabitat = true;
@@ -63,6 +64,7 @@ public class GameFlowController : MonoBehaviour
         if (!perkManager) perkManager = FindAnyObjectByType<PerkManager>();
         if (!cameraController) cameraController = FindAnyObjectByType<CameraWASDController>();
         if (!questHudView) questHudView = FindQuestHudView();
+        if (!activePerksHudView) activePerksHudView = FindAnyObjectByType<ActivePerksHudView>();
 
         QuestManager.EnsureInstance();
     }
@@ -141,6 +143,12 @@ public class GameFlowController : MonoBehaviour
 
         placement?.ClearBoard();
         perkManager?.OnSessionStart();
+
+        // Resolved lazily (not in Awake) — ActivePerksHudView is auto-attached by GameManager at
+        // runtime, and Awake() order between the two isn't guaranteed.
+        if (!activePerksHudView) activePerksHudView = FindAnyObjectByType<ActivePerksHudView>();
+        activePerksHudView?.SetVisible(true);
+
         tileDeck?.ConfigureSessionRewards(bonusTilesOnHabitat, bonusTilesPerHabitat);
         tileDeck?.RebuildDeck();
         habitatGridManager?.Rebuild();
@@ -222,6 +230,7 @@ public class GameFlowController : MonoBehaviour
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
         questHudView?.SetVisible(false);
+        activePerksHudView?.SetVisible(false);
         ShowGameOver();
     }
 
@@ -245,6 +254,7 @@ public class GameFlowController : MonoBehaviour
         SetGameplayEnabled(false);
         gameUI?.SetGameplayHudVisible(false);
         questHudView?.SetVisible(false);
+        activePerksHudView?.SetVisible(false);
         if (clearBoard)
             placement?.ClearBoard();
         selection?.ClearSelectedTile();
