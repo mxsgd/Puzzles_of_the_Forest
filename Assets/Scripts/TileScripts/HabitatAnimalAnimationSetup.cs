@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using Tile = TileGrid.Tile;
 
 /// <summary>
 /// Podpina właściwe zachowanie animacji po spawnie zwierzęcia w habitacie.
@@ -9,7 +11,7 @@ public static class HabitatAnimalAnimationSetup
         GameObject instance,
         HabitatAnimal animal,
         Vector3 motionAnchorWorld,
-        Quaternion gridRotation)
+        IReadOnlyList<Tile> habitatTiles)
     {
         if (instance == null)
             return;
@@ -17,7 +19,7 @@ public static class HabitatAnimalAnimationSetup
         switch (animal)
         {
             case HabitatAnimal.Bees:
-                AttachBeeFlight(instance, motionAnchorWorld, gridRotation);
+                AttachBeeFlight(instance, motionAnchorWorld, habitatTiles);
                 break;
             default:
                 AttachIdleAnimator(instance);
@@ -27,7 +29,7 @@ public static class HabitatAnimalAnimationSetup
         HabitatAnimalAnimatorBudget.Register(instance);
     }
 
-    private static void AttachBeeFlight(GameObject instance, Vector3 motionAnchorWorld, Quaternion gridRotation)
+    private static void AttachBeeFlight(GameObject instance, Vector3 motionAnchorWorld, IReadOnlyList<Tile> habitatTiles)
     {
         // Warm up (enable) the Animator BEFORE adding the flight component: AddComponent fires
         // OnEnable synchronously, which immediately calls animator.Play(...) — on a still-disabled
@@ -35,16 +37,16 @@ public static class HabitatAnimalAnimationSetup
         // so the wing-flap state never actually started playing.
         WarmupAnimator(instance);
 
-        var flight = instance.GetComponent<HabitatBeeFigureEightFlight>();
+        var flight = instance.GetComponent<HabitatBeeWanderFlight>();
         if (flight == null)
-            flight = instance.AddComponent<HabitatBeeFigureEightFlight>();
+            flight = instance.AddComponent<HabitatBeeWanderFlight>();
 
-        flight.Initialize(motionAnchorWorld, gridRotation);
+        flight.Initialize(motionAnchorWorld, habitatTiles);
     }
 
     private static void AttachIdleAnimator(GameObject instance)
     {
-        if (instance.GetComponent<HabitatBeeFigureEightFlight>() != null)
+        if (instance.GetComponent<HabitatBeeWanderFlight>() != null)
             return;
 
         WarmupAnimator(instance);

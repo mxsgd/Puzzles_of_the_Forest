@@ -24,6 +24,7 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
     [SerializeField] private GameUI gameUI;
     [SerializeField] private Camera worldCamera;
     [SerializeField] private TileRuntimeStore runtimeStore;
+    [SerializeField] private GameSfxCatalog sfxCatalog;
 
     [Header("Layout")]
     [SerializeField, Min(8f)] private float fontSize = 18f;
@@ -40,6 +41,12 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
 
     [Header("Motion")]
     [SerializeField, Min(0f)] private float flyArcHeight = 42f;
+
+    [Header("SFX")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip arriveClipOverride;
+    [SerializeField, Range(0f, 1f)] private float arriveVolume = 0.85f;
+    [SerializeField, Range(0.5f, 2f)] private float arrivePitch = 1f;
 
     [Header("Events")]
     [SerializeField] private UnityEvent onFlyoutArrived;
@@ -61,6 +68,22 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
 
         if (!runtimeStore)
             runtimeStore = FindAnyObjectByType<TileRuntimeStore>();
+
+        if (!audioSource)
+            audioSource = GetComponent<AudioSource>();
+
+        if (!audioSource)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f;
+        }
+
+        if (audioSource.GetComponent<SfxVolumeApplier>() == null)
+            audioSource.gameObject.AddComponent<SfxVolumeApplier>();
+
+        if (sfxCatalog == null)
+            sfxCatalog = GameSfxCatalog.Default;
 
         EnsureOverlayCanvas();
     }
@@ -270,6 +293,7 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
         rt.anchoredPosition = endLocal;
         Destroy(go);
 
+        PlayArriveSfx();
         onFlyoutArrived?.Invoke();
         gameUI?.ApplyScoreFromFlyout(pointsAwarded);
     }
@@ -294,9 +318,13 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
 
     private void PlayArriveSfx()
     {
+        // Falls back to the chain-reaction tick (ScoreSFX_2) at its natural pitch when no dedicated
+        // arrive clip is assigned — the chain tick climbs in pitch per tile, this is its "home" note.
         var clip = arriveClipOverride != null
             ? arriveClipOverride
-            : sfxCatalog != null ? sfxCatalog.scoreFlyoutArriveClip : null;
+            : sfxCatalog != null
+                ? (sfxCatalog.scoreFlyoutArriveClip != null ? sfxCatalog.scoreFlyoutArriveClip : sfxCatalog.chainTileClip)
+                : null;
 
         if (audioSource == null || clip == null)
             return;
@@ -305,6 +333,7 @@ public class HabitatScoreFlyoutPresenter : MonoBehaviour
             ? sfxCatalog.scoreFlyoutArriveVolume
             : arriveVolume;
 
+        audioSource.pitch = arrivePitch;
         audioSource.PlayOneShot(clip, volume);
     }
 

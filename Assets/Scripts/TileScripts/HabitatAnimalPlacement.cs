@@ -247,7 +247,7 @@ public class HabitatAnimalPlacement : MonoBehaviour
             instance,
             data.Animal,
             motionAnchor,
-            GetGridAlignedRotation());
+            data.Tiles);
 
         instance.transform.SetParent(_resolvedSpawnParent, true);
 

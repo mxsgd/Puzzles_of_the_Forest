@@ -69,7 +69,7 @@ public static class HabitatAnimalAnimatorBudget
         if (idle != null)
             idle.enabled = animated;
 
-        var flight = instance.GetComponent<HabitatBeeFigureEightFlight>();
+        var flight = instance.GetComponent<HabitatBeeWanderFlight>();
         if (flight != null)
             flight.enabled = animated;
     }
