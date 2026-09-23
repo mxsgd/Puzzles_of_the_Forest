@@ -17,6 +17,10 @@ public class GameUI : MonoBehaviour
     [Header("Rerolle")]
     [SerializeField, Min(0)] private int startingRerolls = 3;
 
+    [Header("Score SFX")]
+    [SerializeField] private GameSfxCatalog sfxCatalog;
+    [SerializeField] private AudioSource scoreAudioSource;
+
     private int _score;
     private int _habitatCount;
     private int _biggestHabitatChain;
@@ -66,6 +70,18 @@ public class GameUI : MonoBehaviour
         if (!deck) deck = FindAnyObjectByType<TileDeck>();
         if (!hudView) hudView = GetComponentInChildren<GameHudView>(true);
         _rerollsLeft = startingRerolls;
+
+        if (!scoreAudioSource) scoreAudioSource = GetComponent<AudioSource>();
+        if (!scoreAudioSource)
+        {
+            scoreAudioSource = gameObject.AddComponent<AudioSource>();
+            scoreAudioSource.playOnAwake = false;
+            scoreAudioSource.spatialBlend = 0f;
+        }
+        if (scoreAudioSource.GetComponent<SfxVolumeApplier>() == null)
+            scoreAudioSource.gameObject.AddComponent<SfxVolumeApplier>();
+        if (sfxCatalog == null)
+            sfxCatalog = GameSfxCatalog.Default;
 
         if (hudView != null && hudView.ResolveCanvas() != null)
         {
@@ -481,6 +497,7 @@ public class GameUI : MonoBehaviour
         const float dur = 0.55f;
         float t = 0f;
         Vector3 baseScale = _scoreValueLabel.transform.localScale;
+        PlayScoreTickSfx();
         if (withImpact)
             PlayScoreImpactShake();
 
@@ -499,6 +516,14 @@ public class GameUI : MonoBehaviour
         _scoreValueLabel.transform.localScale = baseScale;
         _scoreDisplayed = to;
         _scoreTween = null;
+    }
+
+    private void PlayScoreTickSfx()
+    {
+        if (scoreAudioSource == null || sfxCatalog == null || sfxCatalog.scoreFlyoutArriveClip == null)
+            return;
+
+        scoreAudioSource.PlayOneShot(sfxCatalog.scoreFlyoutArriveClip, sfxCatalog.scoreFlyoutArriveVolume);
     }
 
     private void PlayScoreImpactShake()

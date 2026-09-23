@@ -413,12 +413,26 @@ natural remaining work implied by the current state is:
 2. ~~Resolve the RockDweller loose end~~ — done: the dangling references were cut and
    `HabitatCompatibilityService`'s matrix trimmed to the 4 real animals.
 3. **Steam-specific packaging**: store page, achievements (none currently implemented — no
-   persistent stats to hook into an achievement system yet), settings menu (no options/settings UI
-   observed: no volume, resolution, or key rebinding screens in the code read so far), credits.
+   persistent stats to hook into an achievement system yet), credits. Settings menu partially
+   exists — the pause menu has working Music/SFX volume sliders (`GameAudioSettings`, independent
+   channels, bug-fixed this pass) — but no resolution or key rebinding screens yet.
 4. **Progression/replayability hook for a paid release**: currently every session is mechanically
    identical (same 30-tile deck size, same quest pool, same perk pool) with only RNG variance. For
    a premium one-time-purchase puzzle game this may be fine (think *Threes!* / solitaire-style
    replay value), but it's worth an explicit decision rather than a default.
+5. **Water shader (`WaterStylized.shadergraph`) — in progress, paused**: the shore-foam mask
+   (`WaterFoamMaskUtility.cs` + `WaterFoam.hlsl`) is correctly wired and working. Two known issues
+   left open, both diagnosed but not yet applied:
+   - `_WaterDepth` (feeds the `DepthsFade` sub-graph driving the `Lerp(ShallowWater, DeepWater, …)`
+     blend) is set way too high (10) for this scene's actual geometry, so the blend factor never
+     leaves the "shallow" end — `DeepWater` is effectively unreachable and the water reads flat/dark
+     regardless of that color. Try values in the 0.3–1 range instead.
+   - Foam/wave noise doesn't blend across adjacent water tiles — both `Gradient Noise` nodes source
+     their panning UV through a `Movement` sub-graph whose **UV** input is left unconnected, which
+     defaults to per-tile UV0 (each tile's 0–1 space starts fresh, so neighbors don't line up). Fix:
+     feed both `Movement` nodes' UV input from a **World-space Position** node's XZ instead — the
+     same technique the abandoned hand-written `WaterShader.shader` already used for exactly this
+     reason. Not yet applied — picked up mid-session and shelved as "too much of a headache" for now.
 
 ## 12. Explicit non-goals (per current scope)
 
