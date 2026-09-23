@@ -31,6 +31,12 @@ public class GameManager : MonoBehaviour
         if (FindAnyObjectByType<ActivePerksHudView>() == null)
             gameObject.AddComponent<ActivePerksHudView>();
 
+        if (FindAnyObjectByType<BackgroundQuad>() == null)
+            gameObject.AddComponent<BackgroundQuad>();
+
+        if (FindAnyObjectByType<WindLeavesVfx>() == null)
+            gameObject.AddComponent<WindLeavesVfx>();
+
         EnsureMusicVolumeApplier();
     }
 
