@@ -41,6 +41,18 @@ public class QuestManager : MonoBehaviour
     /// <summary>Największa dotychczas widziana liczba kafli w grupie (per animal).</summary>
     private readonly Dictionary<HabitatAnimal, int> _maxGroupTilesByAnimal = new();
 
+    /// <summary>
+    /// Postęp liczony od momentu aktywacji questa (nie od początku sesji): baseline licznika
+    /// habitatów + największa grupa zaobserwowana już po aktywacji.
+    /// </summary>
+    private sealed class QuestState
+    {
+        public int CountBaseline;
+        public readonly Dictionary<HabitatAnimal, int> MaxTiles = new();
+    }
+
+    private readonly Dictionary<QuestDefinition, QuestState> _questStates = new();
+
     /// <summary>Perk draft z questa czeka na chain + spawn zwierzęcia dla tego habitatu.</summary>
     private int _pendingPerkDraftHabitatId = -1;
 
@@ -135,8 +147,28 @@ public class QuestManager : MonoBehaviour
         _sessionSideQuests.AddRange(Catalog.SideQuests);
         Shuffle(_sessionSideQuests);
 
+        _questStates.Clear();
+        ActivateQuest(ActiveMainQuest);
+        ActivateQuest(ActiveSideQuest);
+
         QuestProgressChanged?.Invoke();
     }
+
+    /// <summary>Zaczyna liczyć postęp questa od bieżącego stanu sesji.</summary>
+    private void ActivateQuest(QuestDefinition quest)
+    {
+        if (quest == null) return;
+
+        _questStates[quest] = new QuestState
+        {
+            CountBaseline = quest.conditionType == QuestConditionType.HabitatCount
+                ? GetHabitatCountRaw(quest.conditionAnimal)
+                : 0
+        };
+    }
+
+    private QuestState StateOf(QuestDefinition quest)
+        => quest != null && _questStates.TryGetValue(quest, out var s) ? s : null;
 
     private static void Shuffle<T>(IList<T> list)
     {
@@ -184,6 +216,17 @@ public class QuestManager : MonoBehaviour
         _habitatCountByAnimal.TryGetValue(data.Animal, out int cur);
         _habitatCountByAnimal[data.Animal] = Mathf.Max(0, cur - excess);
 
+        // Merge zmniejszył licznik — baseline nie może przekraczać bieżącej wartości,
+        // inaczej kolejne nowe habitaty nie liczyłyby się do questa.
+        foreach (var kv in _questStates)
+        {
+            var q = kv.Key;
+            if (q.conditionType != QuestConditionType.HabitatCount) continue;
+            int raw = GetHabitatCountRaw(q.conditionAnimal);
+            if (kv.Value.CountBaseline > raw)
+                kv.Value.CountBaseline = raw;
+        }
+
         // Zaktualizuj max tiles dla połączonej grupy
         UpdateMaxGroupTiles(data.Animal, data.TileCount);
 
@@ -196,6 +239,13 @@ public class QuestManager : MonoBehaviour
         _maxGroupTilesByAnimal.TryGetValue(animal, out int prev);
         if (tileCount > prev)
             _maxGroupTilesByAnimal[animal] = tileCount;
+
+        foreach (var state in _questStates.Values)
+        {
+            state.MaxTiles.TryGetValue(animal, out int p);
+            if (tileCount > p)
+                state.MaxTiles[animal] = tileCount;
+        }
     }
 
     // ── Sprawdzanie questów ───────────────────────────────────────────────────
@@ -205,9 +255,9 @@ public class QuestManager : MonoBehaviour
         while (changed)
         {
             changed = false;
-            if (TryCompleteQuest(ActiveMainQuest, ref _activeMainIdx, Catalog.MainQuests.Count, deferPerkDraftForHabitatId))
+            if (TryCompleteQuest(ActiveMainQuest, ref _activeMainIdx, _sessionMainQuests, deferPerkDraftForHabitatId))
                 changed = true;
-            if (TryCompleteQuest(ActiveSideQuest, ref _activeSideIdx, Catalog.SideQuests.Count, deferPerkDraftForHabitatId))
+            if (TryCompleteQuest(ActiveSideQuest, ref _activeSideIdx, _sessionSideQuests, deferPerkDraftForHabitatId))
                 changed = true;
 
             // Kolejne questy w tej samej pętli nie dziedziczą defer — tylko pierwszy habitat trigger.
@@ -215,8 +265,9 @@ public class QuestManager : MonoBehaviour
         }
     }
 
-    private bool TryCompleteQuest(QuestDefinition quest, ref int idx, int listCount, int deferPerkDraftForHabitatId)
+    private bool TryCompleteQuest(QuestDefinition quest, ref int idx, List<QuestDefinition> list, int deferPerkDraftForHabitatId)
     {
+        int listCount = list.Count;
         if (quest == null) return false;
         if (!IsConditionMet(quest)) return false;
 
@@ -228,6 +279,10 @@ public class QuestManager : MonoBehaviour
 
         idx++;
         if (idx >= listCount) idx = listCount; // koniec listy = brak aktywnego
+
+        // Następny quest liczy się dopiero od teraz, nie od tego co już jest w sesji.
+        if (idx < listCount)
+            ActivateQuest(list[idx]);
         return true;
     }
 
@@ -244,24 +299,10 @@ public class QuestManager : MonoBehaviour
     }
 
     private bool IsMinTilesMet(QuestDefinition quest)
-    {
-        if (quest.conditionAnimal == HabitatAnimal.None)
-        {
-            foreach (var kv in _maxGroupTilesByAnimal)
-                if (kv.Value >= quest.conditionTarget) return true;
-            return false;
-        }
-        _maxGroupTilesByAnimal.TryGetValue(quest.conditionAnimal, out int max);
-        return max >= quest.conditionTarget;
-    }
+        => GetCurrentValue(quest) >= quest.conditionTarget;
 
     private bool IsHabitatCountMet(QuestDefinition quest)
-    {
-        if (quest.conditionAnimal == HabitatAnimal.None)
-            return _totalHabitatCount >= quest.conditionTarget;
-        _habitatCountByAnimal.TryGetValue(quest.conditionAnimal, out int count);
-        return count >= quest.conditionTarget;
-    }
+        => GetCurrentValue(quest) >= quest.conditionTarget;
 
     // ── Nagrody ───────────────────────────────────────────────────────────────
     private void ExecuteRewards(QuestDefinition quest, int deferPerkDraftForHabitatId)
@@ -312,28 +353,31 @@ public class QuestManager : MonoBehaviour
     {
         if (quest == null) return 0;
 
+        var state = StateOf(quest);
+        if (state == null) return 0;
+
         return quest.conditionType switch
         {
-            QuestConditionType.HabitatMinTiles => GetMaxTiles(quest.conditionAnimal),
-            QuestConditionType.HabitatCount    => GetHabitatCount(quest.conditionAnimal),
+            QuestConditionType.HabitatMinTiles => GetMaxTiles(state, quest.conditionAnimal),
+            QuestConditionType.HabitatCount    => Mathf.Max(0, GetHabitatCountRaw(quest.conditionAnimal) - state.CountBaseline),
             _ => 0
         };
     }
 
-    private int GetMaxTiles(HabitatAnimal animal)
+    private static int GetMaxTiles(QuestState state, HabitatAnimal animal)
     {
         if (animal == HabitatAnimal.None)
         {
             int max = 0;
-            foreach (var kv in _maxGroupTilesByAnimal)
+            foreach (var kv in state.MaxTiles)
                 if (kv.Value > max) max = kv.Value;
             return max;
         }
-        _maxGroupTilesByAnimal.TryGetValue(animal, out int v);
+        state.MaxTiles.TryGetValue(animal, out int v);
         return v;
     }
 
-    private int GetHabitatCount(HabitatAnimal animal)
+    private int GetHabitatCountRaw(HabitatAnimal animal)
     {
         if (animal == HabitatAnimal.None) return _totalHabitatCount;
         _habitatCountByAnimal.TryGetValue(animal, out int v);
