@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 /// Draws the animated background (BalatroBackground shader) as a single fullscreen triangle whose
 /// vertex shader pins it to the far plane — it only shows where no scene geometry covers the
 /// screen, needs no camera parenting, and doesn't touch skybox/ambient lighting settings.
-/// Auto-attached by GameManager; material loaded from Resources/BalatroBackground.
+/// Auto-attached by GameManager; material loaded from Resources/Background.
 /// </summary>
 [DisallowMultipleComponent]
 public class BackgroundQuad : MonoBehaviour
@@ -17,11 +17,11 @@ public class BackgroundQuad : MonoBehaviour
     private void Awake()
     {
         if (!backgroundMaterial)
-            backgroundMaterial = Resources.Load<Material>("BalatroBackground");
+            backgroundMaterial = Resources.Load<Material>("Background");
 
         if (backgroundMaterial == null)
         {
-            Debug.LogWarning("[BackgroundQuad] No background material (Resources/BalatroBackground).", this);
+            Debug.LogWarning("[BackgroundQuad] No background material (Resources/Background).", this);
             return;
         }
 

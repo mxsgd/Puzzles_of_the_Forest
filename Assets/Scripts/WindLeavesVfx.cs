@@ -12,7 +12,7 @@ using UnityEngine;
 public class WindLeavesVfx : MonoBehaviour
 {
     [Header("Look")]
-    [Tooltip("Assign Assets/VFX/VFXSHADER.mat. Falls back to Resources/VFXSHADER if empty.")]
+    [Tooltip("Assign Assets/Resources/VFXSHADER.mat. Falls back to Resources/VFXSHADER if empty.")]
     [SerializeField] private Material material;
     [Tooltip("ON: Unity's Texture Sheet Animation picks the leaf cell from the 4x4 atlas. " +
              "Turn OFF once the shader graph does the atlas cell picking itself (Stage 1).")]
